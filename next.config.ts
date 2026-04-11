@@ -22,8 +22,8 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Icons are versioned via cache-busting in sw.js, allow caching.
-        source: '/icons/:path*',
+        // Icons sit at /public/ root — allow browser caching.
+        source: '/icon-:name(.*).png',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
         ],

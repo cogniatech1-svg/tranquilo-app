@@ -306,7 +306,6 @@ export default function Home() {
             monthlyIncome={monthlyIncome}
             config={config}
             onClearData={handleClearData}
-            onChangeCountry={handleChangeCountry}
             onSetIncome={handleSetIncome}
           />
         )}

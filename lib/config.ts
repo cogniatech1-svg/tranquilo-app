@@ -60,7 +60,6 @@ export function formatMoney(amount: number, config: CountryConfig): string {
 export const DS = {
   bg:            '#F8FAFC',
   card:          '#FFFFFF',
-  // Slightly desaturated from #0F766E — richer, less neon, same hue
   primary:       '#0D6259',
   primaryGrad:   'linear-gradient(135deg, #0D6259 0%, #0F9E8E 100%)',
   heroGrad:      'linear-gradient(160deg, #042F2E 0%, #0D6259 55%, #0891B2 100%)',
@@ -87,7 +86,7 @@ export const POCKET_PALETTE = [
   { bg: '#EDE9FE', icon: '#7C3AED', bar: '#8B5CF6', text: '#6D28D9', emoji: '🎬' },
   { bg: '#DBEAFE', icon: '#1D4ED8', bar: '#3B82F6', text: '#1E40AF', emoji: '🏠' },
   { bg: '#FEF3C7', icon: '#D97706', bar: '#F59E0B', text: '#92400E', emoji: '🍔' },
-  { bg: '#CCFBF1', icon: '#0F766E', bar: '#14B8A6', text: '#0F766E', emoji: '🚗' },
+  { bg: '#CCFBF1', icon: '#0D6259', bar: '#14B8A6', text: '#0D6259', emoji: '🚗' },
   { bg: '#FCE7F3', icon: '#BE185D', bar: '#EC4899', text: '#9D174D', emoji: '💊' },
   { bg: '#DCFCE7', icon: '#15803D', bar: '#22C55E', text: '#15803D', emoji: '🛍️' },
 ] as const

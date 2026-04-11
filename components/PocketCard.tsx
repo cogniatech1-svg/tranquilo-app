@@ -77,7 +77,7 @@ export function PocketCard({
           <button onClick={cancelEdit} className="text-xs text-slate-400 font-medium">
             Cancelar
           </button>
-          <button onClick={saveEdit} className="text-xs font-bold" style={{ color: '#0F766E' }}>
+          <button onClick={saveEdit} className="text-xs font-bold" style={{ color: '#0D6259' }}>
             Guardar
           </button>
         </div>

@@ -19,7 +19,7 @@ export function PrimaryButton({
       className={`font-semibold text-white rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none ${className}`}
       style={{
         background: DS.primaryGrad,
-        boxShadow: '0 4px 16px rgba(15,118,110,.30)',
+        boxShadow: '0 4px 16px rgba(13,98,89,.35)',
       }}
     >
       {children}

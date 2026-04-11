@@ -7,8 +7,8 @@ import { StatCard } from '../components/StatCard'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
-import { DS, formatMoney, COUNTRIES } from '../lib/config'
-import type { CountryConfig, CountryCode } from '../lib/config'
+import { DS, formatMoney } from '../lib/config'
+import type { CountryConfig } from '../lib/config'
 import type { MonthRecord } from '../lib/types'
 import { parseAmount } from '../lib/utils'
 import { FeedbackSheet } from '../components/FeedbackSheet'
@@ -22,7 +22,6 @@ interface Props {
   monthlyIncome: number
   config: CountryConfig
   onClearData: () => void
-  onChangeCountry: (code: CountryCode) => void
   onSetIncome: (income: number) => void
 }
 
@@ -35,7 +34,6 @@ export function ProfileScreen({
   monthlyIncome,
   config,
   onClearData,
-  onChangeCountry,
   onSetIncome,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -172,7 +170,7 @@ export function ProfileScreen({
           <h2 className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.25)' }}>
             Tranquilo
           </h2>
-          <p className="text-xs text-white/70 mt-1 font-medium">Finanzas personales · {config.flag} {config.name}</p>
+          <p className="text-xs text-white/70 mt-1 font-medium">Finanzas personales</p>
           <p className="text-xs text-white/45 mt-0.5 capitalize">{monthName}</p>
         </div>
       </div>
@@ -192,33 +190,6 @@ export function ProfileScreen({
             sub="categorías"
           />
         </div>
-
-        {/* ── Country selector ──────────────────────────────────────────────── */}
-        <Card className="p-5">
-          <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400 mb-3">
-            País
-          </p>
-          <div className="flex gap-2">
-            {(Object.keys(COUNTRIES) as CountryCode[]).map(code => {
-              const c = COUNTRIES[code]
-              const isActive = config.code === code
-              return (
-                <button
-                  key={code}
-                  onClick={() => onChangeCountry(code)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-bold transition-all border-2 ${
-                    isActive ? 'border-teal-500 bg-teal-50' : 'border-slate-100 bg-white hover:bg-slate-50'
-                  }`}
-                  style={isActive ? { color: DS.primary } : { color: '#64748B' }}
-                >
-                  <span className="text-lg">{c.flag}</span>
-                  <span>{c.name}</span>
-                  <span className="text-[9px] font-medium opacity-60">{c.currency}</span>
-                </button>
-              )
-            })}
-          </div>
-        </Card>
 
         {/* ── Income ───────────────────────────────────────────────────────── */}
         {editingIncome ? (

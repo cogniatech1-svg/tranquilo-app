@@ -1,10 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { PrimaryButton } from '../components/ui/PrimaryButton'
-import { DS, formatMoney } from '../lib/config'
+import { formatMoney } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
 import { parseAmount } from '../lib/utils'
+
+// ── Shared input style ─────────────────────────────────────────────────────
+const inputCls = [
+  'w-full rounded-2xl px-5 py-4 outline-none transition-all',
+  'text-xl font-bold text-white text-center tabular-nums',
+  'placeholder:text-white/40',
+  // Glass: enough opacity to read text, strong border at rest
+  'bg-white/[0.13] border-2 border-white/45',
+  'focus:border-white focus:bg-white/[0.20]',
+].join(' ')
 
 interface Props {
   config: CountryConfig
@@ -41,36 +50,47 @@ export function OnboardingScreen({ config, onComplete }: Props) {
   return (
     <div
       className="min-h-screen flex flex-col relative overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #042F2E 0%, #0F766E 55%, #0891B2 100%)' }}
+      style={{
+        // Darker start, less-saturated mid-green, cooler blue end → more depth & contrast
+        background: 'linear-gradient(160deg, #051C1B 0%, #0A5C57 58%, #0A72A0 100%)',
+      }}
     >
-      {/* Decorative blobs */}
-      <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white/5 translate-x-1/3 -translate-y-1/3 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-white/5 translate-x-1/4 -translate-y-1/4 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-teal-300/15 -translate-x-1/3 translate-y-1/3 pointer-events-none" />
+      {/* Decorative blobs — kept subtle so they don't add competing hue */}
+      <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white/[0.04] translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-cyan-300/[0.06] -translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16 text-center max-w-sm mx-auto w-full">
 
-        {/* Logo */}
+        {/* ── Logo ── */}
         <div
-          className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-8 text-4xl select-none border border-white/25"
-          style={{ boxShadow: '0 8px 32px rgba(0,0,0,.15)', backdropFilter: 'blur(4px)' }}
+          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8 text-4xl select-none"
+          style={{
+            background: 'rgba(255,255,255,0.15)',
+            border: '1.5px solid rgba(255,255,255,0.35)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)',
+            backdropFilter: 'blur(6px)',
+          }}
         >
           🌿
         </div>
 
-        <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Tranquilo</h1>
-        <p className="text-white/60 text-base leading-relaxed mb-12">
+        {/* ── Brand ── */}
+        <h1
+          className="text-4xl font-bold text-white tracking-tight mb-2"
+          style={{ textShadow: '0 2px 12px rgba(0,0,0,0.30)' }}
+        >
+          Tranquilo
+        </h1>
+        <p className="text-white/70 text-base leading-relaxed mb-12">
           Finanzas personales sin estrés
         </p>
 
         {/* ── Step: Income ── */}
         {step === 'income' && (
           <div className="w-full space-y-5">
-            <div>
-              <p className="text-white/60 text-sm leading-relaxed">
-                ¿Cuánto recibes al mes?
-              </p>
-            </div>
+            <p className="text-white/85 text-sm font-semibold">
+              ¿Cuánto recibes al mes?
+            </p>
 
             <div>
               <input
@@ -81,10 +101,11 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 value={incomeInput}
                 onChange={e => { setIncomeInput(e.target.value); setError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleIncomeContinue()}
-                className="w-full bg-white/15 border-2 border-white/20 focus:border-white/60 rounded-2xl px-5 py-4 text-xl font-bold text-white placeholder:text-white/30 outline-none transition-colors text-center tabular-nums"
+                className={inputCls}
+                style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)' }}
               />
               {incomeInput && parsedIncome > 0 && (
-                <p className="text-white/50 text-xs text-center mt-2">
+                <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
                   {formatMoney(parsedIncome, config)}
                 </p>
               )}
@@ -95,15 +116,17 @@ export function OnboardingScreen({ config, onComplete }: Props) {
             )}
 
             <div className="space-y-3 pt-2">
-              <PrimaryButton
+              {/* Primary CTA — white fills max contrast on any dark bg */}
+              <button
                 onClick={handleIncomeContinue}
-                className="w-full py-4 text-base"
+                className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
               >
                 Continuar →
-              </PrimaryButton>
+              </button>
               <button
                 onClick={() => { setError(''); setStep('budget') }}
-                className="w-full text-white/50 text-sm py-2 hover:text-white/70 transition-colors"
+                className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin ingresos
               </button>
@@ -115,11 +138,11 @@ export function OnboardingScreen({ config, onComplete }: Props) {
         {step === 'budget' && (
           <div className="w-full space-y-5">
             <div>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-white/85 text-sm font-semibold">
                 ¿Cuánto planeas gastar este mes?
               </p>
               {parsedIncome > 0 && (
-                <p className="text-white/40 text-xs mt-1">
+                <p className="text-white/55 text-xs mt-1 tabular-nums">
                   Ingresos: {formatMoney(parsedIncome, config)}
                 </p>
               )}
@@ -134,10 +157,11 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 value={budgetInput}
                 onChange={e => { setBudgetInput(e.target.value); setError('') }}
                 onKeyDown={e => e.key === 'Enter' && handleStart()}
-                className="w-full bg-white/15 border-2 border-white/20 focus:border-white/60 rounded-2xl px-5 py-4 text-xl font-bold text-white placeholder:text-white/30 outline-none transition-colors text-center tabular-nums"
+                className={inputCls}
+                style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)' }}
               />
               {budgetInput && parsedBudget > 0 && (
-                <p className="text-white/50 text-xs text-center mt-2">
+                <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
                   {formatMoney(parsedBudget, config)}
                 </p>
               )}
@@ -148,15 +172,16 @@ export function OnboardingScreen({ config, onComplete }: Props) {
             )}
 
             <div className="space-y-3 pt-2">
-              <PrimaryButton
+              <button
                 onClick={handleStart}
-                className="w-full py-4 text-base"
+                className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
               >
                 Empezar →
-              </PrimaryButton>
+              </button>
               <button
                 onClick={() => onComplete(config.code, 0, parsedIncome)}
-                className="w-full text-white/50 text-sm py-2 hover:text-white/70 transition-colors"
+                className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin presupuesto
               </button>
@@ -164,7 +189,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
 
             <button
               onClick={() => { setStep('income'); setError('') }}
-              className="text-white/40 text-xs hover:text-white/60 transition-colors"
+              className="text-white/55 text-xs hover:text-white/75 transition-colors"
             >
               ← Volver
             </button>

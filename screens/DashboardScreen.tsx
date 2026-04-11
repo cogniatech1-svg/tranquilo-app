@@ -163,7 +163,7 @@ export function DashboardScreen({
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
-          <p className="text-[11px] text-white/60 font-medium capitalize">{dateLabel}</p>
+          <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
           <button
             onClick={onAdd}
             className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20 relative overflow-hidden"
@@ -190,7 +190,7 @@ export function DashboardScreen({
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: STATUS_CONFIG[calmState].dot }}
           />
-          <p className="text-sm font-semibold text-white/80 tracking-wide">
+          <p className="text-sm font-semibold text-white/90 tracking-wide">
             {STATUS_CONFIG[calmState].label}
           </p>
         </div>
@@ -202,14 +202,14 @@ export function DashboardScreen({
 
         {/* Context */}
         {effectiveBudget > 0 && (
-          <p className="text-sm text-white/50 tabular-nums mb-5">
+          <p className="text-sm text-white/65 tabular-nums mb-5">
             de {formatMoney(effectiveBudget, config)} este mes
           </p>
         )}
 
         {/* Remaining */}
         {effectiveBudget > 0 && (
-          <p className="text-base font-bold tabular-nums" style={{ color: remaining >= 0 ? '#67E8F9' : '#F87171' }}>
+          <p className="text-base font-bold tabular-nums" style={{ color: remaining >= 0 ? '#5EEAD4' : '#F87171' }}>
             {remaining >= 0
               ? `Te quedan ${formatMoney(remaining, config)}${monthlyBudget > 0 ? ' del presupuesto' : ''}`
               : `Excediste el presupuesto por ${formatMoney(-remaining, config)}`}
@@ -235,7 +235,7 @@ export function DashboardScreen({
 
         {/* Contextual overage insight */}
         {overagePct > 0 && (
-          <p className="text-[11px] text-white/45 mt-3">
+          <p className="text-[11px] text-white/60 mt-3">
             Vas {overagePct}% por encima de lo ideal para hoy
           </p>
         )}

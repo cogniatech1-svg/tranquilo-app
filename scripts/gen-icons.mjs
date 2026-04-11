@@ -1,82 +1,46 @@
 /**
- * Generates PWA icons using sharp (ships with Next.js).
- * Design: deep desaturated teal background + white olive-branch leaf with veins.
+ * Single-source icon generator — all app icons from one design.
+ *
+ * Outputs (all in /public/ root, no subdirectory):
+ *   public/icon-192.png          — PWA install icon, apple-touch-icon
+ *   public/icon-512.png          — PWA large icon / splash
+ *   public/icon-maskable-512.png — Android adaptive icon (safe-zone padded)
+ *   app/favicon.ico              — Browser tab (32×32 PNG wrapped in ICO)
  */
 
 import sharp from 'sharp'
-import { mkdirSync } from 'fs'
+import { writeFileSync, readFileSync, rmSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
 const root  = resolve(__dir, '..')
 
-mkdirSync(resolve(root, 'public/icons'), { recursive: true })
+// ── Brand background ─────────────────────────────────────────────────────────
+const BG = { r: 13, g: 98, b: 89, alpha: 1 }   // #0D6259
 
-// ── Premium leaf SVG ──────────────────────────────────────────────────────
-// Scaled to fit inside a `size × size` canvas with optional safe-zone padding.
+// ── Leaf SVG — same design at any size ──────────────────────────────────────
 const leafSVG = (size) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
-
-  <!-- Main leaf shape: elongated, slightly asymmetric for a natural look -->
-  <path d="M50 11
-           C50 11 80 16 81 44
-           C82 66 64 82 50 89
-           C36 82 18 66 19 44
-           C20 16 50 11 50 11Z"
+  <path d="M50 11 C50 11 80 16 81 44 C82 66 64 82 50 89 C36 82 18 66 19 44 C20 16 50 11 50 11Z"
         fill="white" opacity="0.96"/>
-
-  <!-- Center vein — slightly curved, runs full leaf height -->
   <path d="M50 17 Q51 50 50 83"
-        stroke="rgba(8,72,67,0.38)" stroke-width="2.4"
-        fill="none" stroke-linecap="round"/>
-
-  <!-- Primary left veins -->
-  <path d="M50 28 Q40 33 33 43"
-        stroke="rgba(8,72,67,0.30)" stroke-width="1.9"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 42 Q41 47 35 57"
-        stroke="rgba(8,72,67,0.24)" stroke-width="1.6"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 56 Q43 61 39 69"
-        stroke="rgba(8,72,67,0.17)" stroke-width="1.3"
-        fill="none" stroke-linecap="round"/>
-
-  <!-- Primary right veins -->
-  <path d="M50 28 Q60 33 67 43"
-        stroke="rgba(8,72,67,0.30)" stroke-width="1.9"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 42 Q59 47 65 57"
-        stroke="rgba(8,72,67,0.24)" stroke-width="1.6"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 56 Q57 61 61 69"
-        stroke="rgba(8,72,67,0.17)" stroke-width="1.3"
-        fill="none" stroke-linecap="round"/>
-
-  <!-- Subtle secondary veins for depth (512px only reads these; 192px they merge into the noise floor) -->
-  <path d="M50 34 Q44 36 40 40"
-        stroke="rgba(8,72,67,0.13)" stroke-width="1.1"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 34 Q56 36 60 40"
-        stroke="rgba(8,72,67,0.13)" stroke-width="1.1"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 49 Q45 51 42 55"
-        stroke="rgba(8,72,67,0.11)" stroke-width="1.0"
-        fill="none" stroke-linecap="round"/>
-  <path d="M50 49 Q55 51 58 55"
-        stroke="rgba(8,72,67,0.11)" stroke-width="1.0"
-        fill="none" stroke-linecap="round"/>
+        stroke="rgba(8,72,67,0.38)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M50 28 Q40 33 33 43" stroke="rgba(8,72,67,0.30)" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+  <path d="M50 42 Q41 47 35 57" stroke="rgba(8,72,67,0.24)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M50 56 Q43 61 39 69" stroke="rgba(8,72,67,0.17)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  <path d="M50 28 Q60 33 67 43" stroke="rgba(8,72,67,0.30)" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+  <path d="M50 42 Q59 47 65 57" stroke="rgba(8,72,67,0.24)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M50 56 Q57 61 61 69" stroke="rgba(8,72,67,0.17)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
 </svg>`
 
-// ── Background colour ─────────────────────────────────────────────────────
-// #0D6259 — desaturated from #0F766E: same hue, saturation down ~18 pts,
-// brightness down ~4 pts. Richer and less neon, maintains deep-teal identity.
-const BG = { r: 13, g: 98, b: 89, alpha: 1 }
-
+// ── Render PNG ───────────────────────────────────────────────────────────────
 async function makeIcon(size, outputPath, maskable = false) {
-  // Maskable icons need 12% safe-zone padding on all sides
-  const padding = maskable ? Math.round(size * 0.12) : Math.round(size * 0.07)
-  const inner   = size - padding * 2
+  // maskable: 12 % safe-zone (Google spec: content within centre 80 %)
+  // any:       5 % padding — logo fills the icon assertively
+  const padPct = maskable ? 0.12 : 0.05
+  const pad    = Math.round(size * padPct)
+  const inner  = size - pad * 2
 
   const bg = await sharp({
     create: { width: size, height: size, channels: 4, background: BG },
@@ -87,10 +51,48 @@ async function makeIcon(size, outputPath, maskable = false) {
     .png({ compressionLevel: 9 })
     .toFile(outputPath)
 
-  const { width, height, size: fileSize } = await sharp(outputPath).metadata()
-  console.log(`✓  ${outputPath.replace(root + '/', '')}  ${width}×${height}  (${(fileSize/1024).toFixed(1)} KB)`)
+  const bytes = readFileSync(outputPath).length
+  console.log(`✓  ${outputPath.replace(root + '/', '')}  (${size}×${size}  ${(bytes/1024).toFixed(1)} KB)`)
 }
 
-await makeIcon(192,  resolve(root, 'public/icons/icon-192.png'))
-await makeIcon(512,  resolve(root, 'public/icons/icon-512.png'))
-await makeIcon(512,  resolve(root, 'public/icons/icon-maskable-512.png'), true)
+// ── ICO wrapper (single 32×32 PNG frame) ────────────────────────────────────
+function pngToIco(pngBuf) {
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(0, 0)   // reserved
+  header.writeUInt16LE(1, 2)   // type: icon
+  header.writeUInt16LE(1, 4)   // one image
+
+  const entry = Buffer.alloc(16)
+  entry.writeUInt8(32, 0)      // width
+  entry.writeUInt8(32, 1)      // height
+  entry.writeUInt8(0, 2)       // colours (0 = truecolour)
+  entry.writeUInt8(0, 3)       // reserved
+  entry.writeUInt16LE(1, 4)    // colour planes
+  entry.writeUInt16LE(32, 6)   // bits per pixel
+  entry.writeUInt32LE(pngBuf.length, 8)  // image data size
+  entry.writeUInt32LE(22, 12)  // image data offset (6 + 16)
+
+  return Buffer.concat([header, entry, pngBuf])
+}
+
+// ── Generate ─────────────────────────────────────────────────────────────────
+
+// 1. PWA icons → /public/ root
+await makeIcon(192, resolve(root, 'public/icon-192.png'))
+await makeIcon(512, resolve(root, 'public/icon-512.png'))
+await makeIcon(512, resolve(root, 'public/icon-maskable-512.png'), true)
+
+// 2. Favicon — generate 32×32 then wrap in ICO → app/favicon.ico
+const tmp32 = resolve(root, 'public/icon-32-tmp.png')
+await makeIcon(32, tmp32)
+const icoPath = resolve(root, 'app/favicon.ico')
+writeFileSync(icoPath, pngToIco(readFileSync(tmp32)))
+rmSync(tmp32)
+console.log(`✓  app/favicon.ico  (32×32 ICO)`)
+
+// 3. Remove old /public/icons/ directory entirely
+const oldDir = resolve(root, 'public/icons')
+if (existsSync(oldDir)) {
+  rmSync(oldDir, { recursive: true, force: true })
+  console.log(`✓  removed public/icons/`)
+}
