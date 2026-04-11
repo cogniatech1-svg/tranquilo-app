@@ -238,7 +238,6 @@ export default function Home() {
       <OnboardingScreen
         config={config}
         onComplete={handleOnboardingComplete}
-        onChangeCountry={handleChangeCountry}
       />
     )
   }

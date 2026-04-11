@@ -60,24 +60,26 @@ export function formatMoney(amount: number, config: CountryConfig): string {
 export const DS = {
   bg:            '#F8FAFC',
   card:          '#FFFFFF',
-  primary:       '#0F766E',
-  primaryGrad:   'linear-gradient(135deg, #0F766E 0%, #14B8A6 100%)',
-  heroGrad:      'linear-gradient(160deg, #042F2E 0%, #0F766E 55%, #0891B2 100%)',
+  // Slightly desaturated from #0F766E — richer, less neon, same hue
+  primary:       '#0D6259',
+  primaryGrad:   'linear-gradient(135deg, #0D6259 0%, #0F9E8E 100%)',
+  heroGrad:      'linear-gradient(160deg, #042F2E 0%, #0D6259 55%, #0891B2 100%)',
   text:          '#0F172A',
   textMuted:     '#64748B',
   border:        '#F1F5F9',
-  statusGreen:   '#22C55E',
-  statusYellow:  '#F59E0B',
-  statusRed:     '#EF4444',
+  // Deeper green — avoids neon/lime feel while keeping enough vibrancy
+  statusGreen:   '#16A34A',
+  statusYellow:  '#D97706',
+  statusRed:     '#DC2626',
 } as const
 
 // Calm state gradients — only used for hero card
 export const CALM_GRADS = {
-  // Deep navy-indigo → teal-600 → bright cyan: máximo contraste, lectura clara
-  tranquilo: 'linear-gradient(150deg, #0F172A 0%, #0F766E 45%, #06B6D4 100%)',
-  ajustado:  'linear-gradient(150deg, #1C0F00 0%, #B45309 50%, #FCD34D 100%)',
-  riesgo:    'linear-gradient(150deg, #2D0A0A 0%, #C0392B 50%, #FC8181 100%)',
-  neutral:   'linear-gradient(150deg, #0F172A 0%, #0F766E 45%, #06B6D4 100%)',
+  // Deep navy → desaturated teal → muted cyan: high contrast, no neon
+  tranquilo: 'linear-gradient(150deg, #0A1628 0%, #0D6259 48%, #0891B2 100%)',
+  ajustado:  'linear-gradient(150deg, #1C0F00 0%, #A05209 50%, #F0C040 100%)',
+  riesgo:    'linear-gradient(150deg, #2D0A0A 0%, #B02020 50%, #F87171 100%)',
+  neutral:   'linear-gradient(150deg, #0A1628 0%, #0D6259 48%, #0891B2 100%)',
 } as const
 
 // Per-pocket color palette (tinted backgrounds, no gradients in data)

@@ -2,18 +2,17 @@
 
 import { useState } from 'react'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
-import { COUNTRIES, DS, formatMoney } from '../lib/config'
+import { DS, formatMoney } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
 import { parseAmount } from '../lib/utils'
 
 interface Props {
   config: CountryConfig
   onComplete: (countryCode: CountryCode, budget: number, income: number) => void
-  onChangeCountry: (code: CountryCode) => void
 }
 
-export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props) {
-  const [step, setStep] = useState<'country' | 'income' | 'budget'>('country')
+export function OnboardingScreen({ config, onComplete }: Props) {
+  const [step, setStep] = useState<'income' | 'budget'>('income')
   const [incomeInput, setIncomeInput] = useState('')
   const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
@@ -21,39 +20,22 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
   const parsedIncome = parseAmount(incomeInput)
   const parsedBudget = parseAmount(budgetInput)
 
-  const handleCountrySelect = (code: CountryCode) => {
-    onChangeCountry(code)
-    setStep('income')
-  }
-
   const handleIncomeContinue = () => {
-    const amount = parseAmount(incomeInput)
-    if (incomeInput.trim() && !amount) {
+    if (incomeInput.trim() && !parsedIncome) {
       setError(`Ingresa un monto válido. Ej: ${config.defaultBudget.toLocaleString()}`)
       return
     }
-    setError('')
-    setStep('budget')
-  }
-
-  const handleSkipIncome = () => {
     setError('')
     setStep('budget')
   }
 
   const handleStart = () => {
-    const income = parseAmount(incomeInput)
     const budget = parseAmount(budgetInput)
     if (budgetInput.trim() && !budget) {
       setError(`Ingresa un monto válido. Ej: ${config.defaultBudget.toLocaleString()}`)
       return
     }
-    onComplete(config.code, budget, income)
-  }
-
-  const handleSkipBudget = () => {
-    const income = parseAmount(incomeInput)
-    onComplete(config.code, 0, income)
+    onComplete(config.code, budget, parsedIncome)
   }
 
   return (
@@ -81,45 +63,16 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
           Finanzas personales sin estrés
         </p>
 
-        {/* ── Step: Country ── */}
-        {step === 'country' && (
-          <div className="w-full space-y-4">
-            <p className="text-white/80 text-sm font-semibold mb-2">¿Desde dónde nos visitas?</p>
-            <div className="grid grid-cols-1 gap-3 w-full">
-              {(Object.keys(COUNTRIES) as CountryCode[]).map(code => {
-                const c = COUNTRIES[code]
-                return (
-                  <button
-                    key={code}
-                    onClick={() => handleCountrySelect(code)}
-                    className="flex items-center gap-4 bg-white/15 hover:bg-white/25 active:scale-[0.98] border border-white/20 rounded-2xl px-5 py-4 transition-all text-left"
-                  >
-                    <span className="text-3xl">{c.flag}</span>
-                    <div className="flex-1">
-                      <p className="font-bold text-white text-base">{c.name}</p>
-                      <p className="text-white/50 text-xs">{c.currency} · {c.locale}</p>
-                    </div>
-                    <span className="text-white/40 text-lg">›</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* ── Step: Income ── */}
         {step === 'income' && (
           <div className="w-full space-y-5">
             <div>
-              <p className="text-white/80 text-sm font-semibold mb-1">
-                {config.flag} {config.name} · {config.currency}
-              </p>
               <p className="text-white/60 text-sm leading-relaxed">
                 ¿Cuánto recibes al mes?
               </p>
             </div>
 
-            <div className="relative">
+            <div>
               <input
                 autoFocus
                 type="text"
@@ -149,19 +102,12 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
                 Continuar →
               </PrimaryButton>
               <button
-                onClick={handleSkipIncome}
+                onClick={() => { setError(''); setStep('budget') }}
                 className="w-full text-white/50 text-sm py-2 hover:text-white/70 transition-colors"
               >
                 Continuar sin ingresos
               </button>
             </div>
-
-            <button
-              onClick={() => setStep('country')}
-              className="text-white/40 text-xs hover:text-white/60 transition-colors"
-            >
-              ← Cambiar país
-            </button>
           </div>
         )}
 
@@ -169,9 +115,6 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
         {step === 'budget' && (
           <div className="w-full space-y-5">
             <div>
-              <p className="text-white/80 text-sm font-semibold mb-1">
-                {config.flag} {config.name} · {config.currency}
-              </p>
               <p className="text-white/60 text-sm leading-relaxed">
                 ¿Cuánto planeas gastar este mes?
               </p>
@@ -182,7 +125,7 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
               )}
             </div>
 
-            <div className="relative">
+            <div>
               <input
                 autoFocus
                 type="text"
@@ -212,7 +155,7 @@ export function OnboardingScreen({ config, onComplete, onChangeCountry }: Props)
                 Empezar →
               </PrimaryButton>
               <button
-                onClick={handleSkipBudget}
+                onClick={() => onComplete(config.code, 0, parsedIncome)}
                 className="w-full text-white/50 text-sm py-2 hover:text-white/70 transition-colors"
               >
                 Continuar sin presupuesto

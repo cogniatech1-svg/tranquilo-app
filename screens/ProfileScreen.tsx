@@ -152,22 +152,28 @@ export function ProfileScreen({
       <div
         className="px-5 pt-14 pb-8 text-center relative overflow-hidden"
         style={{
-          background: DS.primaryGrad,
-          boxShadow: '0 4px 24px rgba(15,118,110,.25)',
+          background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
+          boxShadow: '0 4px 28px rgba(4,47,46,.35)',
         }}
       >
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -bottom-8 -left-8  w-32 h-32 rounded-full bg-teal-300/10 pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/[0.04] pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-cyan-400/[0.07] pointer-events-none" />
         <div className="relative">
           <div
-            className="w-[68px] h-[68px] bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-4 text-3xl select-none border border-white/25"
-            style={{ backdropFilter: 'blur(4px)' }}
+            className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl select-none border border-white/30 relative overflow-hidden"
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
+            }}
           >
             🌿
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Tranquilo</h2>
-          <p className="text-xs text-white/55 mt-1">Finanzas personales · {config.flag} {config.name}</p>
-          <p className="text-xs text-white/40 mt-0.5 capitalize">{monthName}</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.25)' }}>
+            Tranquilo
+          </h2>
+          <p className="text-xs text-white/70 mt-1 font-medium">Finanzas personales · {config.flag} {config.name}</p>
+          <p className="text-xs text-white/45 mt-0.5 capitalize">{monthName}</p>
         </div>
       </div>
 

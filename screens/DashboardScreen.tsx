@@ -12,10 +12,10 @@ import type { CalmState, Expense, ExtraIncome, Pocket } from '../lib/types'
 import { getCalmState, getDaysInMonth, getSpendingOveragePct } from '../lib/utils'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
-  tranquilo: { dot: '#22C55E', label: 'Vas bien' },
-  ajustado:  { dot: '#F59E0B', label: 'Vas un poco por encima' },
-  riesgo:    { dot: '#EF4444', label: 'Estás gastando demasiado rápido' },
-  neutral:   { dot: '#22C55E', label: 'Vas bien' },
+  tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
+  ajustado:  { dot: '#FBB040', label: 'Vas un poco por encima' },
+  riesgo:    { dot: '#F87171', label: 'Estás gastando demasiado rápido' },
+  neutral:   { dot: '#4ADE80', label: 'Vas bien' },
 }
 
 interface Props {
@@ -166,9 +166,20 @@ export function DashboardScreen({
           <p className="text-[11px] text-white/60 font-medium capitalize">{dateLabel}</p>
           <button
             onClick={onAdd}
-            className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
+            className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20 relative overflow-hidden"
             style={{ backdropFilter: 'blur(4px)' }}
           >
+            {/* Extremely faint leaf watermark — must not compete with + */}
+            <svg
+              aria-hidden
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 44 44"
+              style={{ opacity: 0.07 }}
+            >
+              <path d="M22 6 C22 6 35 8 36 20 C37 30 29 37 22 40 C15 37 7 30 8 20 C9 8 22 6 22 6Z"
+                    fill="white"/>
+              <line x1="22" y1="9" x2="22" y2="37" stroke="white" strokeWidth="1"/>
+            </svg>
             <Icon name="plus" size={20} />
           </button>
         </div>

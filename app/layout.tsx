@@ -33,7 +33,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0F766E',
+  themeColor: '#0D6259',
   viewportFit: 'cover',
 }
 
@@ -45,41 +45,53 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* PWA — Android/Chrome */}
+        {/* ── Android / Chrome ─────────────────────────────── */}
         <meta name="mobile-web-app-capable" content="yes" />
-        {/* PWA — iOS Safari */}
+
+        {/* ── iOS Safari ───────────────────────────────────── */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Tranquilo" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        {/* Splash background while loading on iOS */}
-        <meta name="msapplication-TileColor" content="#0F766E" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+
+        {/* ── Windows ──────────────────────────────────────── */}
+        <meta name="msapplication-TileColor" content="#0D6259" />
+        <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
       </head>
       <body className={`${geist.variable} antialiased`}>
         {children}
+
+        {/* ── Service worker registration ───────────────────── */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/' })
-                    .then(function(reg) {
-                      reg.addEventListener('updatefound', function() {
-                        var sw = reg.installing;
-                        if (!sw) return;
-                        sw.addEventListener('statechange', function() {
-                          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                            // New version available — activate immediately
-                            sw.postMessage({ type: 'SKIP_WAITING' });
-                          }
-                        });
-                      });
-                    })
-                    .catch(function(err) {
-                      console.warn('SW registration failed:', err);
-                    });
-                });
-              }
+(function() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', function() {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then(function(registration) {
+        // When a new SW is found, activate it immediately.
+        registration.addEventListener('updatefound', function() {
+          var newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', function() {
+            if (
+              newWorker.state === 'installed' &&
+              navigator.serviceWorker.controller
+            ) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+})();
             `,
           }}
         />
