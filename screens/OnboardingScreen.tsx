@@ -71,7 +71,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
             backdropFilter: 'blur(6px)',
           }}
         >
-          🌿
+          <img src="/icons/icon-192.png" alt="Tranquilo" className="w-12 h-12" />
         </div>
 
         {/* ── Brand ── */}

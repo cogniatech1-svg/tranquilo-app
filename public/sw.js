@@ -9,15 +9,14 @@
 //   everything else    → Network-first, fall back to cache
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME = 'tranquilo-v2'
+const CACHE_NAME = 'tranquilo-v3'
 
 // Pre-cache the app shell so the app opens offline from the first install.
 const PRECACHE_URLS = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/icon-maskable-512.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ]
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -67,7 +66,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Icons → cache-first (long-lived).
-  if (url.pathname.startsWith('/icon-')) {
+  if (url.pathname.startsWith('/icons/')) {
     event.respondWith(cacheFirst(request))
     return
   }

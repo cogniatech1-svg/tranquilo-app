@@ -22,8 +22,8 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Icons sit at /public/ root — allow browser caching.
-        source: '/icon-:name(.*).png',
+        // Icons sit at /public/icons/ — allow browser caching.
+        source: '/icons/:name(.*).png',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
         ],
