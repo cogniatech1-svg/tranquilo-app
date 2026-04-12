@@ -168,7 +168,7 @@ export function ProfileScreen({
             <img
               src="/icons/icon-192.png"
               alt="Tranquilo"
-              className="w-12 h-12 object-contain"
+              className="w-16 h-16 object-contain"
             />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.25)' }}>
