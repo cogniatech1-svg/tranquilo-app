@@ -483,10 +483,14 @@ export function DashboardScreen({
         <div className="px-4 mt-6">
           <Card className="p-10 text-center">
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl select-none"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 select-none overflow-hidden"
               style={{ background: DS.primaryGrad }}
             >
-              🌿
+              <img
+                src="/icons/icon-192.png"
+                alt="Tranquilo"
+                className="w-10 h-10 object-contain"
+              />
             </div>
             <p className="text-slate-500 text-sm mb-5 leading-relaxed">
               Sin gastos este mes.<br />Empieza a registrar.

@@ -158,14 +158,18 @@ export function ProfileScreen({
         <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-cyan-400/[0.07] pointer-events-none" />
         <div className="relative">
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl select-none border border-white/30 relative overflow-hidden"
+            className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 select-none border border-white/30 relative overflow-hidden"
             style={{
               background: 'rgba(255,255,255,0.18)',
               backdropFilter: 'blur(8px)',
               boxShadow: '0 4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
             }}
           >
-            🌿
+            <img
+              src="/icons/icon-192.png"
+              alt="Tranquilo"
+              className="w-12 h-12 object-contain"
+            />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.25)' }}>
             Tranquilo
