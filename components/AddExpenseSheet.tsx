@@ -66,13 +66,13 @@ export function AddExpenseSheet({
     [text],
   )
 
-  // Auto-fill pocket from parsed category when not editing
+  // Auto-fill pocket from parsed category — only when creating (not editing)
   useEffect(() => {
     if (editingExpense) return
     if (parsed.category) setPocketId(prev => prev || parsed.category!)
     else if (!pocketId) setPocketId('')
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsed.category])
+  }, [parsed.category, editingExpense])
 
   const txType = typeOverride ?? parsed.type
   const suggestedPocket = parsed.category
@@ -214,8 +214,8 @@ export function AddExpenseSheet({
               <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 tabular-nums">
                 {formatMoney(parsed.amount, config)}
               </span>
-              {/* Category chip — tappable to change */}
-              {txType === 'expense' && (
+              {/* Category chip — only when NOT editing, tappable to clear auto-selection */}
+              {txType === 'expense' && !editingExpense && (
                 <button
                   type="button"
                   onClick={() => setPocketId('')}
@@ -284,8 +284,8 @@ export function AddExpenseSheet({
             </button>
           )}
 
-          {/* Pocket selector (expenses only) */}
-          {txType === 'expense' && (
+          {/* Pocket selector — always visible when editing, otherwise only for expenses */}
+          {(editingExpense || txType === 'expense') && (
             <div className="relative">
               <select
                 value={pocketId}
