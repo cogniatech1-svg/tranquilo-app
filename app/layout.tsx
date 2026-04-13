@@ -84,7 +84,8 @@ export default function RootLayout({
       <body className={`${geist.variable} antialiased`}>
         {children}
 
-        {/* ── Service worker registration ───────────────────── */}
+        {/* ── Service worker registration (DISABLED for debugging) ───────────────────── */}
+        {/*
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -116,6 +117,7 @@ export default function RootLayout({
             `,
           }}
         />
+        */}
       </body>
     </html>
   )
