@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { InsightDonut } from '../components/InsightDonut'
-import { DS, formatMoney, getPocketPalette, POCKET_ICONS, POCKET_PALETTE } from '../lib/config'
+import { DS, formatMoney, getPocketPalette, getPocketIcon, POCKET_PALETTE } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, MonthRecord, Pocket } from '../lib/types'
 
@@ -593,7 +593,7 @@ export function InsightsScreen({
                   const shareRatio  = spent / (totalSpent || 1)
                   const budgetRatio = budget > 0 ? spent / budget : 0
                   const pct         = Math.round(shareRatio * 100)
-                  const icon        = POCKET_ICONS[id] ?? '💳'
+                  const icon        = getPocketIcon(id, name)
                   const pal         = getPocketPalette(id, palIdx)
 
                   return (

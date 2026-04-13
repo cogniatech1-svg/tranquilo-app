@@ -97,6 +97,71 @@ export const POCKET_ICONS: Record<string, string> = {
   alimentacion: '🍔',
 }
 
+// Keyword → emoji map for auto-detecting pocket icons from names
+const ICON_KEYWORDS: Array<[RegExp, string]> = [
+  // Transporte
+  [/transporte|movilidad|bus|taxi|uber|didi|metro|gasolina|combustible|moto|carro|vehiculo|vehículo|bicicleta|parqueadero|peaje|tren|avion|avión|vuelo/i, '🚗'],
+  // Alimentación / comida
+  [/aliment|comida|mercado|supermercado|tienda|compras.*(viv|comi)|despensa|restaurante|almuerzo|desayuno|cena|comedor|sodexo|rappi|ifood|domicilio|cafeter|cafe|café|snack|fruta|verdura|carnez|pescado/i, '🍔'],
+  // Hogar / vivienda
+  [/hogar|arriendo|arrend|hipoteca|casa|apartamento|piso|vivienda|mueble|decoracion|decoración|aseo|limpieza|mantenimiento|plomeria|plomería|electricista|gas|agua|luz|servicios.*(pub|bás)|internet|wifi|cable|telefon/i, '🏠'],
+  // Salud
+  [/salud|medico|médico|doctor|clinica|clínica|hospital|farmacia|medicamento|droga|droguer|consulta|cita|optometria|odontolog|dental|seguro.*(med|sal)|eps|medicina/i, '🏥'],
+  // Educación
+  [/educacion|educación|colegio|universidad|escuela|libro|curso|clase|capacitacion|capacitación|matrícula|matricula|taller|seminario|diplomado|estudio/i, '📚'],
+  // Entretenimiento / recreación
+  [/recreacion|recreación|entretenim|cine|pelicul|película|teatro|concierto|evento|parque|museo|juego|videojuego|gaming|netflix|streaming|spotify|youtube|deezer|ocio|diversión|diversion/i, '🎬'],
+  // Ropa / moda
+  [/ropa|vestim|moda|zapatos|calzado|accesorio|camisa|pantalon|pantalón|jean|vestido|prenda|boutique|tienda.*(ropa|moda)/i, '👕'],
+  // Tecnología
+  [/tecnolog|electronica|electrónica|celular|telefono|teléfono|computador|laptop|tablet|dispositivo|gadget|accesorio.*(tech|elec)|apple|samsung|software|app/i, '💻'],
+  // Mascotas
+  [/mascota|perro|gato|veterinario|veterinaria|animal|pet|pienso|alimento.*(mas|ani)/i, '🐾'],
+  // Viajes / turismo
+  [/viaje|viajes|vacacion|vacación|turismo|hotel|vuelo|hospedaje|alojamiento|airbnb|excursion|excursión|tour/i, '✈️'],
+  // Deporte / gym
+  [/deporte|gym|gimnasio|ejercicio|fitness|crossfit|natacion|natación|yoga|pilates|cancha|entrenamiento|suplemento/i, '💪'],
+  // Belleza / cuidado personal
+  [/belleza|peluquer|barberia|barbería|cosmet|estetica|estética|maquillaje|manicure|pedicure|spa|cuidado.*(pers|piel)|crema|shampoo/i, '💄'],
+  // Suscripciones / servicios digitales
+  [/suscripcion|suscripción|membresia|membresía|plan|streaming|plataforma|digital|mensualidad/i, '📱'],
+  // Ahorro / inversión
+  [/ahorro|ahorros|inversion|inversión|fondo|acciones|crypto|bitcoin|bolsa|cdts?|fiducia|pension|pensión/i, '💰'],
+  // Trabajo / negocio
+  [/trabajo|negocio|empresa|oficina|materiales.*(ofic|trab)|útiles|utiles|papeleria|papelería|herramienta/i, '💼'],
+  // Regalos / fiestas
+  [/regalo|regalos|fiesta|celebracion|celebración|cumpleaños|boda|navidad|aniversario/i, '🎁'],
+  // Familia / hijos
+  [/familia|hijo|hija|niño|niña|bebe|bebé|colegio.*(hijo|niñ)|guarderia|guardería|juguete/i, '👨‍👩‍👧'],
+  // Seguros
+  [/seguro|poliza|póliza|aseguradora/i, '🛡️'],
+  // Impuestos / trámites
+  [/impuesto|tributo|declaracion|declaración|renta|iva|predial|tramite|trámite|multa/i, '📋'],
+  // Donaciones
+  [/donacion|donación|caridad|iglesia|diezmo|ofrenda|voluntario/i, '🤝'],
+  // Construccion / remodelacion
+  [/construccion|construcción|remodelacion|remodelación|obra|material.*(const|constr)|pintura|cemento|ladrillo/i, '🔨'],
+  // Jardín / plantas
+  [/jardin|jardín|planta|jardineria|jardinería|flores|maceta|semilla/i, '🌱'],
+  // Música
+  [/musica|música|instrument|guitarra|piano|clases.*(musi)|concierto/i, '🎵'],
+  // Deudas / crédito
+  [/deuda|credito|crédito|prestamo|préstamo|cuota|financiamiento|pago.*(deud|cred)/i, '💳'],
+]
+
+/** Returns the best-matching emoji for a pocket given its name */
+export function guessIconFromName(name: string): string {
+  for (const [pattern, icon] of ICON_KEYWORDS) {
+    if (pattern.test(name)) return icon
+  }
+  return '💳'
+}
+
+/** Returns the icon for a pocket: first checks fixed map by ID, then guesses from name */
+export function getPocketIcon(pocketId: string, pocketName: string): string {
+  return POCKET_ICONS[pocketId] ?? guessIconFromName(pocketName)
+}
+
 export function getPocketPalette(pocketId: string, index: number) {
   const FIXED: Record<string, number> = {
     recreacion: 0, hogar: 1, alimentacion: 2,

@@ -1,5 +1,5 @@
 import { Icon } from './ui/Icon'
-import { POCKET_ICONS, getPocketPalette } from '../lib/config'
+import { getPocketIcon, getPocketPalette } from '../lib/config'
 import { formatMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, Pocket } from '../lib/types'
@@ -23,7 +23,7 @@ export function TransactionItem({
   onDelete,
   showDivider = true,
 }: Props) {
-  const icon = pocket ? (POCKET_ICONS[pocket.id] ?? '💳') : '💳'
+  const icon = pocket ? getPocketIcon(pocket.id, pocket.name) : '💳'
   const pal = getPocketPalette(pocket?.id ?? '', pocketIndex)
 
   return (

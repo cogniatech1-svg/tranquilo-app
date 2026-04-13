@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card } from './ui/Card'
 import { ProgressBar } from './ui/ProgressBar'
 import { Icon } from './ui/Icon'
-import { POCKET_ICONS, getPocketPalette, formatMoney } from '../lib/config'
+import { getPocketIcon, getPocketPalette, formatMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
@@ -35,7 +35,7 @@ export function PocketCard({
   )
 
   const ratio = pocket.budget > 0 ? spent / pocket.budget : 0
-  const icon = POCKET_ICONS[pocket.id] ?? '💳'
+  const icon = getPocketIcon(pocket.id, pocket.name)
   const pal = getPocketPalette(pocket.id, pocketIndex)
 
   const openEdit = () => {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Icon } from './ui/Icon'
 import { PrimaryButton } from './ui/PrimaryButton'
-import { POCKET_ICONS, DS } from '../lib/config'
+import { getPocketIcon, DS } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, ExpensePayload, Pocket } from '../lib/types'
 import { parseTransaction } from '../lib/utils'
@@ -216,7 +216,7 @@ export function AddExpenseSheet({
                   onClick={() => setPocketId('')}
                   className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-100 transition-colors hover:bg-teal-100"
                 >
-                  {POCKET_ICONS[pocketId || parsed.category || ''] ?? '💳'}{' '}
+                  {(() => { const p = pockets.find(q => q.id === (pocketId || parsed.category)); return getPocketIcon(p?.id ?? '', p?.name ?? '') })()} {' '}
                   {pockets.find(p => p.id === (pocketId || parsed.category))?.name ?? 'Sin categoría'}
                 </button>
               )}
@@ -290,7 +290,7 @@ export function AddExpenseSheet({
                 <option value="">Categoría (opcional)</option>
                 {pockets.map(p => (
                   <option key={p.id} value={p.id}>
-                    {(POCKET_ICONS[p.id] ?? '💳')} {p.name}
+                    {getPocketIcon(p.id, p.name)} {p.name}
                   </option>
                 ))}
               </select>
