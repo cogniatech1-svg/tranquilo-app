@@ -77,14 +77,11 @@ function pngToIco(pngBuf) {
 
 // ── Generate ─────────────────────────────────────────────────────────────────
 
-// 1. Favicon — resize existing icon-192-verde.png to 32×32 and wrap in ICO
+// 1. Favicon — resize existing icon-192-verde.png to 64×64 PNG
 const iconSrc = resolve(root, 'public/icons/icon-192-verde.png')
-const tmp32 = resolve(root, 'public/favicon-32-tmp.png')
+const faviconPath = resolve(root, 'public/favicon.png')
 await sharp(iconSrc)
-  .resize(32, 32, { fit: 'contain', background: BG })
+  .resize(64, 64, { fit: 'contain', background: BG })
   .png()
-  .toFile(tmp32)
-const icoPath = resolve(root, 'app/favicon.ico')
-writeFileSync(icoPath, pngToIco(readFileSync(tmp32)))
-rmSync(tmp32)
-console.log(`✓  app/favicon.ico  (32×32 ICO from icon-192-verde.png)`)
+  .toFile(faviconPath)
+console.log(`✓  public/favicon.png  (64×64 PNG from icon-192-verde.png)`)

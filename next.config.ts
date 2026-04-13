@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
       },
       {
         // Favicon must not be cached so updates are visible immediately.
-        source: '/favicon.ico',
+        source: '/favicon.png',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
