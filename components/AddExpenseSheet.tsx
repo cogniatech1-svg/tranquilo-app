@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+
+const localToday = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 import { Icon } from './ui/Icon'
 import { PrimaryButton } from './ui/PrimaryButton'
 import { getPocketIcon, DS } from '../lib/config'
@@ -35,7 +40,7 @@ export function AddExpenseSheet({
   const [typeOverride, setTypeOverride] = useState<'income' | 'expense' | null>(null)
   const [error,        setError]        = useState('')
   const [toast,        setToast]        = useState('')
-  const [date,         setDate]         = useState(() => new Date().toISOString().slice(0, 10))
+  const [date,         setDate]         = useState(() => localToday())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Reset on open ────────────────────────────────────────────────────────
@@ -48,7 +53,7 @@ export function AddExpenseSheet({
     } else {
       setText('')
       setPocketId('')
-      setDate(new Date().toISOString().slice(0, 10))
+      setDate(localToday())
     }
     setTypeOverride(null)
     setError('')
@@ -187,14 +192,14 @@ export function AddExpenseSheet({
             <input
               type="date"
               value={date}
-              max={new Date().toISOString().slice(0, 10)}
+              max={localToday()}
               onChange={e => setDate(e.target.value)}
               className="flex-1 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-2.5 text-sm outline-none bg-slate-50 focus:bg-white transition-colors text-slate-700"
             />
-            {date !== new Date().toISOString().slice(0, 10) && (
+            {date !== localToday() && (
               <button
                 type="button"
-                onClick={() => setDate(new Date().toISOString().slice(0, 10))}
+                onClick={() => setDate(localToday())}
                 className="text-xs text-teal-600 font-semibold px-2 py-1 rounded-xl hover:bg-teal-50 transition-colors"
               >
                 Hoy
