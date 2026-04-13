@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   title: 'Tranquilo — Finanzas Personales',
   description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
   icons: {
-    icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
   },
 }
 
@@ -36,9 +36,9 @@ export default function RootLayout({
       <head>
         {/* Manifest y iconos PWA */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/icons/icon-512.png" sizes="512x512" />
+        <link rel="icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icon-192.png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/icon-512.png" sizes="512x512" />
 
         {/* Meta tags para PWA y móvil */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -49,7 +49,7 @@ export default function RootLayout({
 
         {/* Windows */}
         <meta name="msapplication-TileColor" content="#0D6259" />
-        <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
+        <meta name="msapplication-TileImage" content="/icon-192.png" />
         <meta name="msapplication-config" content="none" />
 
         {/* Android */}
