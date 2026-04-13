@@ -170,7 +170,7 @@ export function DashboardScreen({
           style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
 
         {/* Top row */}
-        <div className="flex items-center justify-between mb-4 relative">
+        <div className="flex items-center justify-between mb-8 relative">
           <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
           <button
             onClick={onAdd}
@@ -191,13 +191,6 @@ export function DashboardScreen({
             <Icon name="plus" size={20} />
           </button>
         </div>
-
-        {/* Month navigator */}
-        <MonthNavigator
-          activeMonth={activeMonth}
-          currentMonth={realCurrentMonth}
-          onChange={onChangeMonth}
-        />
 
         {/* Status headline */}
         <div className="flex items-center gap-2 mb-3 mt-4">
