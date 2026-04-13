@@ -11,6 +11,14 @@
   "theme_color": "#0F766E",
   "categories": ["finance", "productivity"],
   "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
