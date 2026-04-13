@@ -15,6 +15,32 @@ export const metadata: Metadata = {
     icon: '/icons/icon-192.png',
     apple: '/icons/icon-192.png',
   },
+  openGraph: {
+    title: 'Tranquilo — Finanzas Personales',
+    description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
+    type: 'website',
+    url: 'https://tranquilo-app.vercel.app',
+    images: [
+      {
+        url: '/icons/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'Tranquilo - App de finanzas personales',
+      },
+      {
+        url: '/icons/icon-192.png',
+        width: 192,
+        height: 192,
+        alt: 'Tranquilo - App de finanzas personales',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Tranquilo — Finanzas Personales',
+    description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
+    images: ['/icons/icon-512.png'],
+  },
 }
 
 export const viewport: Viewport = {
