@@ -10,6 +10,7 @@ import { CALM_GRADS, DS, formatMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, ExtraIncome, Pocket } from '../lib/types'
 import { getCalmState, getDaysInMonth, getSpendingOveragePct } from '../lib/utils'
+import { MonthNavigator } from '../components/MonthNavigator'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -27,6 +28,9 @@ interface Props {
   currentMonth: string
   spentByPocket: Record<string, number>
   config: CountryConfig
+  activeMonth: string
+  realCurrentMonth: string
+  onChangeMonth: (m: string) => void
   onAdd: () => void
   onAddExtraIncome: () => void
   onDeleteExtraIncome: (id: string) => void
@@ -41,10 +45,14 @@ export function DashboardScreen({
   currentMonth,
   spentByPocket,
   config,
+  activeMonth,
+  realCurrentMonth,
+  onChangeMonth,
   onAdd,
   onAddExtraIncome,
   onDeleteExtraIncome,
 }: Props) {
+  const isViewingPast = activeMonth !== realCurrentMonth
   const today    = useMemo(() => new Date(), [])
   const todayStr = today.toISOString().slice(0, 10)
   const weekAgo  = useMemo(() => {
@@ -162,7 +170,7 @@ export function DashboardScreen({
           style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
 
         {/* Top row */}
-        <div className="flex items-center justify-between mb-8 relative">
+        <div className="flex items-center justify-between mb-4 relative">
           <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
           <button
             onClick={onAdd}
@@ -184,8 +192,15 @@ export function DashboardScreen({
           </button>
         </div>
 
+        {/* Month navigator */}
+        <MonthNavigator
+          activeMonth={activeMonth}
+          currentMonth={realCurrentMonth}
+          onChange={onChangeMonth}
+        />
+
         {/* Status headline */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 mt-4">
           <span
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: STATUS_CONFIG[calmState].dot }}

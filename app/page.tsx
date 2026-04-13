@@ -52,8 +52,10 @@ export default function Home() {
   const [conceptMap,    setConceptMap]    = useState<Record<string, string>>({})
   const [currentMonth,  setCurrentMonth]  = useState<string>(getCurrentMonth)
   const [monthlyHistory, setMonthlyHistory] = useState<
-    Record<string, { expenses: Expense[]; totalSpent: number; budget: number }>
+    Record<string, { expenses: Expense[]; totalSpent: number; budget: number; income?: number }>
   >({})
+
+  const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
 
   const [sheetOpen,            setSheetOpen]            = useState(false)
   const [editingExpense,       setEditingExpense]        = useState<Expense | null>(null)
@@ -134,15 +136,33 @@ export default function Home() {
   }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, currentMonth, monthlyHistory, countryCode])
 
   // ── Derived state ──────────────────────────────────────────────────────────
+  const isViewingPast = activeMonth !== currentMonth
+
+  // When viewing a past month, pull data from history; otherwise use live state
+  const activeExpenses = useMemo(() =>
+    isViewingPast
+      ? (monthlyHistory[activeMonth]?.expenses ?? [])
+      : expenses,
+    [isViewingPast, activeMonth, monthlyHistory, expenses],
+  )
+
+  const activeMonthBudget = isViewingPast
+    ? (monthlyHistory[activeMonth]?.budget ?? monthlyBudget)
+    : monthlyBudget
+
+  const activeMonthIncome = isViewingPast
+    ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
+    : monthlyIncome
+
   const spentByPocket = useMemo(() => {
     const acc: Record<string, number> = Object.fromEntries(pockets.map(p => [p.id, 0]))
-    for (const e of expenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
+    for (const e of activeExpenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
     return acc
-  }, [expenses, pockets])
+  }, [activeExpenses, pockets])
 
   const totalSpent = useMemo(
-    () => expenses.reduce((s, e) => s + e.amount, 0),
-    [expenses],
+    () => activeExpenses.reduce((s, e) => s + e.amount, 0),
+    [activeExpenses],
   )
 
   const extraIncomeTotal = useMemo(
@@ -150,7 +170,7 @@ export default function Home() {
     [extraIncomes],
   )
 
-  const totalIncome = monthlyIncome + extraIncomeTotal
+  const totalIncome = activeMonthIncome + (isViewingPast ? 0 : extraIncomeTotal)
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
   const openAddSheet  = useCallback(() => { setEditingExpense(null); setSheetOpen(true) }, [])
@@ -160,20 +180,61 @@ export default function Home() {
   // ── Data handlers ──────────────────────────────────────────────────────────
   const handleSaveExpense = useCallback((payload: ExpensePayload) => {
     const { id, ...rest } = payload
-    if (id) {
-      setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...rest } : e))
+
+    if (isViewingPast) {
+      // Save into the historical record for activeMonth
+      setMonthlyHistory(prev => {
+        const rec = prev[activeMonth] ?? {
+          expenses: [],
+          totalSpent: 0,
+          budget: activeMonthBudget,
+          income: activeMonthIncome,
+        }
+        const newExpenses = id
+          ? rec.expenses.map(e => e.id === id ? { ...e, ...rest } : e)
+          : [...rec.expenses, { id: Date.now().toString(), ...rest }]
+        return {
+          ...prev,
+          [activeMonth]: {
+            ...rec,
+            expenses: newExpenses,
+            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
+          },
+        }
+      })
     } else {
-      setExpenses(prev => [...prev, { id: Date.now().toString(), ...rest }])
+      if (id) {
+        setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...rest } : e))
+      } else {
+        setExpenses(prev => [...prev, { id: Date.now().toString(), ...rest }])
+      }
     }
+
     const key = normalizeKey(rest.concept)
     if (key && key !== 'gasto') {
       setConceptMap(prev => ({ ...prev, [key]: rest.pocketId }))
     }
-  }, [])
+  }, [isViewingPast, activeMonth, activeMonthBudget, activeMonthIncome])
 
   const handleDeleteExpense = useCallback((id: string) => {
-    setExpenses(prev => prev.filter(e => e.id !== id))
-  }, [])
+    if (isViewingPast) {
+      setMonthlyHistory(prev => {
+        const rec = prev[activeMonth]
+        if (!rec) return prev
+        const newExpenses = rec.expenses.filter(e => e.id !== id)
+        return {
+          ...prev,
+          [activeMonth]: {
+            ...rec,
+            expenses: newExpenses,
+            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
+          },
+        }
+      })
+    } else {
+      setExpenses(prev => prev.filter(e => e.id !== id))
+    }
+  }, [isViewingPast, activeMonth])
 
   const handleEditPocket = useCallback((id: string, name: string, budget: number) => {
     setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget } : p))
@@ -248,14 +309,17 @@ export default function Home() {
       <div className="max-w-md mx-auto pb-24 min-h-screen">
         {activeTab === 'inicio' && (
           <DashboardScreen
-            expenses={expenses}
+            expenses={activeExpenses}
             pockets={pockets}
-            monthlyBudget={monthlyBudget}
-            monthlyIncome={monthlyIncome}
-            extraIncomes={extraIncomes}
-            currentMonth={currentMonth}
+            monthlyBudget={activeMonthBudget}
+            monthlyIncome={activeMonthIncome}
+            extraIncomes={isViewingPast ? [] : extraIncomes}
+            currentMonth={activeMonth}
             spentByPocket={spentByPocket}
             config={config}
+            activeMonth={activeMonth}
+            realCurrentMonth={currentMonth}
+            onChangeMonth={setActiveMonth}
             onAdd={openAddSheet}
             onAddExtraIncome={() => setExtraIncomeSheetOpen(true)}
             onDeleteExtraIncome={handleDeleteExtraIncome}
@@ -263,9 +327,12 @@ export default function Home() {
         )}
         {activeTab === 'movimientos' && (
           <TransactionsScreen
-            expenses={expenses}
+            expenses={activeExpenses}
             pockets={pockets}
             config={config}
+            activeMonth={activeMonth}
+            realCurrentMonth={currentMonth}
+            onChangeMonth={setActiveMonth}
             onAdd={openAddSheet}
             onEdit={openEditSheet}
             onDelete={handleDeleteExpense}
@@ -273,16 +340,20 @@ export default function Home() {
         )}
         {activeTab === 'presupuesto' && (
           <BudgetScreen
-            monthlyBudget={monthlyBudget}
+            monthlyBudget={activeMonthBudget}
             monthlyIncome={totalIncome}
             pockets={pockets}
             spentByPocket={spentByPocket}
             totalSpent={totalSpent}
             config={config}
+            activeMonth={activeMonth}
+            realCurrentMonth={currentMonth}
+            onChangeMonth={setActiveMonth}
             onSetBudget={setMonthlyBudget}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
+            isViewingPast={isViewingPast}
           />
         )}
         {activeTab === 'insights' && (

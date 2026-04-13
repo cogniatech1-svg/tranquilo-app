@@ -7,11 +7,15 @@ import { formatMoney, DS } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, Pocket } from '../lib/types'
 import { groupByDate } from '../lib/utils'
+import { MonthNavigator } from '../components/MonthNavigator'
 
 interface Props {
   expenses: Expense[]
   pockets: Pocket[]
   config: CountryConfig
+  activeMonth: string
+  realCurrentMonth: string
+  onChangeMonth: (m: string) => void
   onAdd: () => void
   onEdit: (e: Expense) => void
   onDelete: (id: string) => void
@@ -21,10 +25,14 @@ export function TransactionsScreen({
   expenses,
   pockets,
   config,
+  activeMonth,
+  realCurrentMonth,
+  onChangeMonth,
   onAdd,
   onEdit,
   onDelete,
 }: Props) {
+  const isViewingPast = activeMonth !== realCurrentMonth
   const grouped = useMemo(
     () => groupByDate(expenses, config.locale),
     [expenses, config.locale],
@@ -38,15 +46,25 @@ export function TransactionsScreen({
   return (
     <div className="pb-6">
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="px-5 pt-14 pb-5 bg-white border-b border-slate-100">
-        <div className="flex items-end justify-between">
+      <div
+        className="px-5 pt-10 pb-5 border-b border-slate-100"
+        style={{ background: isViewingPast ? 'linear-gradient(135deg,#92400e,#b45309)' : 'white' }}
+      >
+        <MonthNavigator
+          activeMonth={activeMonth}
+          currentMonth={realCurrentMonth}
+          onChange={onChangeMonth}
+        />
+        <div className="flex items-end justify-between mt-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[.14em] mb-1"
+               style={{ color: isViewingPast ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>
               Registro
             </p>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Movimientos</h1>
+            <h1 className="text-2xl font-bold tracking-tight"
+                style={{ color: isViewingPast ? 'white' : '#0f172a' }}>Movimientos</h1>
             {expenses.length > 0 && (
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-sm mt-0.5" style={{ color: isViewingPast ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
                 {expenses.length} transacciones · {formatMoney(totalSpent, config)}
               </p>
             )}

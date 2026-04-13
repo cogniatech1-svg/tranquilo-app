@@ -11,6 +11,7 @@ import { DS, formatMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
+import { MonthNavigator } from '../components/MonthNavigator'
 
 interface Props {
   monthlyBudget: number
@@ -19,6 +20,10 @@ interface Props {
   spentByPocket: Record<string, number>
   totalSpent: number
   config: CountryConfig
+  activeMonth: string
+  realCurrentMonth: string
+  onChangeMonth: (m: string) => void
+  isViewingPast: boolean
   onSetBudget: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
@@ -32,6 +37,10 @@ export function BudgetScreen({
   spentByPocket,
   totalSpent,
   config,
+  activeMonth,
+  realCurrentMonth,
+  onChangeMonth,
+  isViewingPast,
   onSetBudget,
   onEditPocket,
   onDeletePocket,
@@ -77,11 +86,26 @@ export function BudgetScreen({
   return (
     <div className="pb-6">
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="px-5 pt-14 pb-5 bg-white border-b border-slate-100">
-        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400 mb-1">
-          Control
-        </p>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Presupuesto</h1>
+      <div
+        className="px-5 pt-10 pb-5 border-b border-slate-100"
+        style={{ background: isViewingPast ? 'linear-gradient(135deg,#92400e,#b45309)' : 'white' }}
+      >
+        <MonthNavigator
+          activeMonth={activeMonth}
+          currentMonth={realCurrentMonth}
+          onChange={onChangeMonth}
+        />
+        <div className="mt-3">
+          <p className="text-[10px] font-bold uppercase tracking-[.14em] mb-1"
+             style={{ color: isViewingPast ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>
+            Control
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight"
+              style={{ color: isViewingPast ? 'white' : '#0f172a' }}>Presupuesto</h1>
+          {isViewingPast && (
+            <p className="text-xs text-amber-200 mt-1">Solo lectura · los bolsillos son globales</p>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pt-5 space-y-6">
