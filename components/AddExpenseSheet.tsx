@@ -35,6 +35,7 @@ export function AddExpenseSheet({
   const [typeOverride, setTypeOverride] = useState<'income' | 'expense' | null>(null)
   const [error,        setError]        = useState('')
   const [toast,        setToast]        = useState('')
+  const [date,         setDate]         = useState(() => new Date().toISOString().slice(0, 10))
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Reset on open ────────────────────────────────────────────────────────
@@ -43,9 +44,11 @@ export function AddExpenseSheet({
     if (editingExpense) {
       setText(`${editingExpense.concept} ${editingExpense.amount}`)
       setPocketId(editingExpense.pocketId)
+      setDate(editingExpense.date.slice(0, 10))
     } else {
       setText('')
       setPocketId('')
+      setDate(new Date().toISOString().slice(0, 10))
     }
     setTypeOverride(null)
     setError('')
@@ -102,7 +105,7 @@ export function AddExpenseSheet({
       concept: parsed.description,
       amount:  parsed.amount,
       pocketId: resolvedPocketId,
-      date: editingExpense?.date ?? new Date().toISOString(),
+      date: new Date(date + 'T12:00:00').toISOString(),
       id: editingExpense?.id,
     })
 
@@ -177,6 +180,27 @@ export function AddExpenseSheet({
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
             className={`w-full border-2 border-slate-100 ${borderFocus} rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white`}
           />
+
+          {/* Date picker */}
+          <div className="flex items-center gap-2">
+            <Icon name="calendar" size={14} className="text-slate-400 shrink-0" />
+            <input
+              type="date"
+              value={date}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={e => setDate(e.target.value)}
+              className="flex-1 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-2.5 text-sm outline-none bg-slate-50 focus:bg-white transition-colors text-slate-700"
+            />
+            {date !== new Date().toISOString().slice(0, 10) && (
+              <button
+                type="button"
+                onClick={() => setDate(new Date().toISOString().slice(0, 10))}
+                className="text-xs text-teal-600 font-semibold px-2 py-1 rounded-xl hover:bg-teal-50 transition-colors"
+              >
+                Hoy
+              </button>
+            )}
+          </div>
 
           {/* Live parse preview */}
           {text.trim().length > 0 && parsed.amount > 0 && (
