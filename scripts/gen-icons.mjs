@@ -77,10 +77,14 @@ function pngToIco(pngBuf) {
 
 // ── Generate ─────────────────────────────────────────────────────────────────
 
-// 1. Favicon — generate 32×32 then wrap in ICO → app/favicon.ico
+// 1. Favicon — resize existing icon-192.png to 32×32 and wrap in ICO
+const iconSrc = resolve(root, 'public/icons/icon-192.png')
 const tmp32 = resolve(root, 'public/favicon-32-tmp.png')
-await makeIcon(32, tmp32)
+await sharp(iconSrc)
+  .resize(32, 32, { fit: 'contain', background: BG })
+  .png()
+  .toFile(tmp32)
 const icoPath = resolve(root, 'app/favicon.ico')
 writeFileSync(icoPath, pngToIco(readFileSync(tmp32)))
 rmSync(tmp32)
-console.log(`✓  app/favicon.ico  (32×32 ICO)`)
+console.log(`✓  app/favicon.ico  (32×32 ICO from icon-192.png)`)
