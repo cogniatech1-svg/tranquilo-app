@@ -12,6 +12,8 @@ import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
 import { MonthNavigator } from '../components/MonthNavigator'
+import { EmojiPicker } from '../components/EmojiPicker'
+import { guessIconFromName } from '../lib/config'
 
 interface Props {
   monthlyBudget: number
@@ -27,7 +29,7 @@ interface Props {
   onSetBudget: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
-  onAddPocket: (name: string, budget: number) => void
+  onAddPocket: (name: string, budget: number, icon?: string) => void
 }
 
 export function BudgetScreen({
@@ -51,6 +53,11 @@ export function BudgetScreen({
   const [addingPocket, setAddingPocket] = useState(false)
   const [newName, setNewName] = useState('')
   const [newBudget, setNewBudget] = useState('')
+  const [newIcon, setNewIcon] = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+
+  const autoIcon = guessIconFromName(newName)
+  const selectedIcon = newIcon || autoIcon
 
   const saveBudget = () => {
     const v = parseAmount(budgetInput)
@@ -63,9 +70,10 @@ export function BudgetScreen({
 
   const addPocket = () => {
     if (!newName.trim()) return
-    onAddPocket(newName.trim(), parseAmount(newBudget))
+    onAddPocket(newName.trim(), parseAmount(newBudget), newIcon || undefined)
     setNewName('')
     setNewBudget('')
+    setNewIcon('')
     setAddingPocket(false)
   }
 
@@ -256,14 +264,34 @@ export function BudgetScreen({
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
                 Nuevo bolsillo
               </p>
-              <input
-                autoFocus
-                placeholder="Nombre (ej. Transporte)"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Escape' && setAddingPocket(false)}
-                className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
-              />
+
+              {/* Icon preview + name row */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(true)}
+                  className="w-12 h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-2xl transition-all active:scale-95 shrink-0 relative"
+                  title="Cambiar ícono"
+                >
+                  {selectedIcon}
+                  <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">✎</span>
+                </button>
+                <input
+                  autoFocus
+                  placeholder="Nombre (ej. Transporte)"
+                  value={newName}
+                  onChange={e => { setNewName(e.target.value); setNewIcon('') }}
+                  onKeyDown={e => e.key === 'Escape' && setAddingPocket(false)}
+                  className="flex-1 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
+                />
+              </div>
+
+              {newIcon && (
+                <p className="text-[10px] text-teal-600 font-medium px-1">
+                  Ícono personalizado · <button className="underline" onClick={() => setNewIcon('')}>usar automático</button>
+                </p>
+              )}
+
               <input
                 placeholder={`Presupuesto (ej. ${Math.round(config.defaultBudget / 5).toLocaleString()})`}
                 value={newBudget}
@@ -280,13 +308,21 @@ export function BudgetScreen({
                   Agregar
                 </PrimaryButton>
                 <button
-                  onClick={() => { setAddingPocket(false); setNewName(''); setNewBudget('') }}
+                  onClick={() => { setAddingPocket(false); setNewName(''); setNewBudget(''); setNewIcon('') }}
                   className="px-4 py-3 text-slate-400 text-sm font-medium"
                 >
                   Cancelar
                 </button>
               </div>
             </Card>
+          )}
+
+          {showEmojiPicker && (
+            <EmojiPicker
+              current={selectedIcon}
+              onSelect={setNewIcon}
+              onClose={() => setShowEmojiPicker(false)}
+            />
           )}
 
           <div className="grid grid-cols-2 gap-3">

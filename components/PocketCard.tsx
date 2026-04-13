@@ -35,7 +35,7 @@ export function PocketCard({
   )
 
   const ratio = pocket.budget > 0 ? spent / pocket.budget : 0
-  const icon = getPocketIcon(pocket.id, pocket.name)
+  const icon = getPocketIcon(pocket.id, pocket.name, pocket.icon)
   const pal = getPocketPalette(pocket.id, pocketIndex)
 
   const openEdit = () => {

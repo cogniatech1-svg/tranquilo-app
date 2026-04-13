@@ -23,7 +23,7 @@ export function TransactionItem({
   onDelete,
   showDivider = true,
 }: Props) {
-  const icon = pocket ? getPocketIcon(pocket.id, pocket.name) : '💳'
+  const icon = pocket ? getPocketIcon(pocket.id, pocket.name, pocket.icon) : '💳'
   const pal = getPocketPalette(pocket?.id ?? '', pocketIndex)
 
   return (

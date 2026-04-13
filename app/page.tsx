@@ -245,8 +245,8 @@ export default function Home() {
     setExpenses(prev => prev.filter(e => e.pocketId !== id))
   }, [])
 
-  const handleAddPocket = useCallback((name: string, budget: number) => {
-    setPockets(prev => [...prev, { id: Date.now().toString(), name, budget }])
+  const handleAddPocket = useCallback((name: string, budget: number, icon?: string) => {
+    setPockets(prev => [...prev, { id: Date.now().toString(), name, budget, icon }])
   }, [])
 
   const handleAddExtraIncome = useCallback((amount: number, note: string) => {

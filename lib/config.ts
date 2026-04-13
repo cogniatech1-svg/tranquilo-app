@@ -157,8 +157,9 @@ export function guessIconFromName(name: string): string {
   return '💳'
 }
 
-/** Returns the icon for a pocket: first checks fixed map by ID, then guesses from name */
-export function getPocketIcon(pocketId: string, pocketName: string): string {
+/** Returns the icon for a pocket: stored icon > fixed map > keyword guess */
+export function getPocketIcon(pocketId: string, pocketName: string, storedIcon?: string): string {
+  if (storedIcon) return storedIcon
   return POCKET_ICONS[pocketId] ?? guessIconFromName(pocketName)
 }
 

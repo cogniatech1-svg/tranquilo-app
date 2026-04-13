@@ -7,6 +7,7 @@ export interface Pocket {
   id: string
   name: string
   budget: number
+  icon?: string   // custom emoji chosen by user
 }
 
 export interface Expense {
