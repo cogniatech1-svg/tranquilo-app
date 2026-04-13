@@ -77,22 +77,10 @@ function pngToIco(pngBuf) {
 
 // ── Generate ─────────────────────────────────────────────────────────────────
 
-// 1. PWA icons → /public/ root
-await makeIcon(192, resolve(root, 'public/icon-192.png'))
-await makeIcon(512, resolve(root, 'public/icon-512.png'))
-await makeIcon(512, resolve(root, 'public/icon-maskable-512.png'), true)
-
-// 2. Favicon — generate 32×32 then wrap in ICO → app/favicon.ico
-const tmp32 = resolve(root, 'public/icon-32-tmp.png')
+// 1. Favicon — generate 32×32 then wrap in ICO → app/favicon.ico
+const tmp32 = resolve(root, 'public/favicon-32-tmp.png')
 await makeIcon(32, tmp32)
 const icoPath = resolve(root, 'app/favicon.ico')
 writeFileSync(icoPath, pngToIco(readFileSync(tmp32)))
 rmSync(tmp32)
 console.log(`✓  app/favicon.ico  (32×32 ICO)`)
-
-// 3. Remove old /public/icons/ directory entirely
-const oldDir = resolve(root, 'public/icons')
-if (existsSync(oldDir)) {
-  rmSync(oldDir, { recursive: true, force: true })
-  console.log(`✓  removed public/icons/`)
-}
