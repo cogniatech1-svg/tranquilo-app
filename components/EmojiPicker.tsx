@@ -13,7 +13,8 @@ const EMOJI_GROUPS = [
   { label: 'Finanzas',        emojis: ['💰', '💳', '🏦', '📈', '💸', '🛡️', '🪙'] },
   { label: 'Familia',         emojis: ['👨‍👩‍👧', '👶', '🎁', '❤️', '🏫', '🧸'] },
   { label: 'Deporte',         emojis: ['💪', '🏃', '⚽', '🎾', '🏊', '🧘', '🚴'] },
-  { label: 'Otros',           emojis: ['⭐', '🌟', '🎯', '🌈', '🔴', '🟡', '🟢', '💎'] },
+  { label: 'Social / Fe',     emojis: ['🤝', '🫂', '✝️', '⛪', '🕊️', '🙏', '🕌', '🕍', '📿', '🎗️', '❤️‍🔥', '🌸'] },
+  { label: 'Otros',           emojis: ['⭐', '🌟', '🎯', '🌈', '🔴', '🟡', '🟢', '💎', '🔑', '🎪', '🌍', '♻️'] },
 ]
 
 interface Props {
