@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { ProgressBar } from '../components/ui/ProgressBar'
@@ -459,6 +459,8 @@ export function InsightsScreen({
   monthlyHistory,
   config,
 }: Props) {
+  const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
+
   const totalSpent = useMemo(
     () => expenses.reduce((s, e) => s + e.amount, 0),
     [expenses],
@@ -588,17 +590,27 @@ export function InsightsScreen({
           {byPocket.length > 0 && (
             <div>
               <SectionHeader>Por categoría</SectionHeader>
-              <Card className="p-5 space-y-5">
-                {byPocket.map(({ id, name, budget, spent, palIdx }) => {
+              <Card className="overflow-hidden">
+                {byPocket.map(({ id, name, budget, spent, palIdx, icon: storedIcon }, idx) => {
                   const shareRatio  = spent / (totalSpent || 1)
                   const budgetRatio = budget > 0 ? spent / budget : 0
                   const pct         = Math.round(shareRatio * 100)
-                  const icon        = getPocketIcon(id, name)
+                  const icon        = getPocketIcon(id, name, storedIcon)
                   const pal         = getPocketPalette(id, palIdx)
+                  const isExpanded  = expandedPocket === id
+                  const pocketExpenses = expenses
+                    .filter(e => e.pocketId === id)
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                  const isLast = idx === byPocket.length - 1
 
                   return (
-                    <div key={id}>
-                      <div className="flex items-center gap-3 mb-2.5">
+                    <div key={id} className={!isLast ? 'border-b border-slate-100' : ''}>
+                      {/* Header row — clickeable */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPocket(isExpanded ? null : id)}
+                        className="w-full flex items-center gap-3 p-5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                      >
                         <div
                           className="w-9 h-9 rounded-xl flex items-center justify-center text-base leading-none shrink-0 select-none"
                           style={{ backgroundColor: pal.bg }}
@@ -629,7 +641,47 @@ export function InsightsScreen({
                             </p>
                           )}
                         </div>
-                      </div>
+                        {/* Chevron */}
+                        <span
+                          className="text-slate-300 shrink-0 text-lg transition-transform duration-200"
+                          style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                        >
+                          ›
+                        </span>
+                      </button>
+
+                      {/* Expanded expense list */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 bg-slate-50/70">
+                          {pocketExpenses.length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-4">Sin movimientos en esta categoría</p>
+                          ) : (
+                            <div className="divide-y divide-slate-100">
+                              {pocketExpenses.map(e => {
+                                const d = new Date(e.date)
+                                const dateStr = d.toLocaleDateString(config.locale, { day: 'numeric', month: 'short' })
+                                return (
+                                  <div key={e.id} className="flex items-center justify-between px-5 py-3 gap-3">
+                                    <span className="text-[10px] text-slate-400 font-medium shrink-0 w-12">{dateStr}</span>
+                                    <span className="text-xs text-slate-700 flex-1 truncate capitalize">{e.concept}</span>
+                                    <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
+                                      {formatMoney(e.amount, config)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                              <div className="flex justify-between items-center px-5 py-2.5 bg-slate-100/80">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  {pocketExpenses.length} movimiento{pocketExpenses.length !== 1 ? 's' : ''}
+                                </span>
+                                <span className="text-xs font-bold tabular-nums" style={{ color: pal.text }}>
+                                  {formatMoney(spent, config)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
