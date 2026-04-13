@@ -22,13 +22,13 @@ export const metadata: Metadata = {
     url: 'https://tranquilo-app.vercel.app',
     images: [
       {
-        url: '/icons/icon-512.png',
+        url: 'https://tranquilo-app.vercel.app/icons/icon-512.png',
         width: 512,
         height: 512,
         alt: 'Tranquilo - App de finanzas personales',
       },
       {
-        url: '/icons/icon-192.png',
+        url: 'https://tranquilo-app.vercel.app/icons/icon-192.png',
         width: 192,
         height: 192,
         alt: 'Tranquilo - App de finanzas personales',
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Tranquilo — Finanzas Personales',
     description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
-    images: ['/icons/icon-512.png'],
+    images: ['https://tranquilo-app.vercel.app/icons/icon-512.png'],
   },
 }
 
