@@ -160,7 +160,7 @@ export function BudgetScreen({
           className="rounded-2xl px-4 py-3"
           style={{
             background: isViewingPast
-              ? 'linear-gradient(135deg,#92400e,#b45309)'
+              ? 'linear-gradient(135deg,#334155,#475569)'
               : 'linear-gradient(135deg,#0f766e,#0d9488)',
           }}
         >

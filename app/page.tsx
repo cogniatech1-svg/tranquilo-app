@@ -236,8 +236,8 @@ export default function Home() {
     }
   }, [isViewingPast, activeMonth])
 
-  const handleEditPocket = useCallback((id: string, name: string, budget: number) => {
-    setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget } : p))
+  const handleEditPocket = useCallback((id: string, name: string, budget: number, icon?: string) => {
+    setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget, icon } : p))
   }, [])
 
   const handleDeletePocket = useCallback((id: string) => {

@@ -4,17 +4,18 @@ import { useState } from 'react'
 import { Card } from './ui/Card'
 import { ProgressBar } from './ui/ProgressBar'
 import { Icon } from './ui/Icon'
-import { getPocketIcon, getPocketPalette, formatMoney } from '../lib/config'
+import { getPocketIcon, getPocketPalette, formatMoney, guessIconFromName } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
+import { EmojiPicker } from './EmojiPicker'
 
 interface Props {
   pocket: Pocket
   spent: number
   pocketIndex?: number
   config: CountryConfig
-  onEdit?: (id: string, name: string, budget: number) => void
+  onEdit?: (id: string, name: string, budget: number, icon?: string) => void
   onDelete?: (id: string) => void
   compact?: boolean
 }
@@ -28,60 +29,86 @@ export function PocketCard({
   onDelete,
   compact = false,
 }: Props) {
-  const [editing, setEditing] = useState(false)
-  const [draftName, setDraftName] = useState(pocket.name)
+  const [editing, setEditing]       = useState(false)
+  const [draftName, setDraftName]   = useState(pocket.name)
   const [draftBudget, setDraftBudget] = useState(
     pocket.budget > 0 ? String(pocket.budget) : '',
   )
+  const [draftIcon, setDraftIcon]   = useState(pocket.icon ?? '')
+  const [showPicker, setShowPicker] = useState(false)
 
   const ratio = pocket.budget > 0 ? spent / pocket.budget : 0
-  const icon = getPocketIcon(pocket.id, pocket.name, pocket.icon)
-  const pal = getPocketPalette(pocket.id, pocketIndex)
+  const icon  = getPocketIcon(pocket.id, pocket.name, pocket.icon)
+  const pal   = getPocketPalette(pocket.id, pocketIndex)
+
+  const previewIcon = draftIcon || guessIconFromName(draftName)
 
   const openEdit = () => {
     setDraftName(pocket.name)
     setDraftBudget(pocket.budget > 0 ? String(pocket.budget) : '')
+    setDraftIcon(pocket.icon ?? '')
     setEditing(true)
   }
   const cancelEdit = () => {
     setDraftName(pocket.name)
     setDraftBudget(pocket.budget > 0 ? String(pocket.budget) : '')
+    setDraftIcon(pocket.icon ?? '')
     setEditing(false)
   }
   const saveEdit = () => {
     const n = draftName.trim()
-    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget))
+    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget), draftIcon || undefined)
     setEditing(false)
   }
 
   if (editing) {
     return (
-      <Card className="p-4 space-y-3">
-        <input
-          autoFocus
-          value={draftName}
-          onChange={e => setDraftName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && saveEdit()}
-          placeholder="Nombre"
-          className="w-full text-sm font-semibold text-slate-800 border-b border-teal-200 outline-none bg-transparent pb-1.5"
-        />
-        <input
-          value={draftBudget}
-          onChange={e => setDraftBudget(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && saveEdit()}
-          placeholder="Presupuesto"
-          inputMode="numeric"
-          className="w-full text-sm text-slate-500 border-b border-slate-100 outline-none bg-transparent pb-1.5"
-        />
-        <div className="flex justify-between pt-1">
-          <button onClick={cancelEdit} className="text-xs text-slate-400 font-medium">
-            Cancelar
-          </button>
-          <button onClick={saveEdit} className="text-xs font-bold" style={{ color: '#0D6259' }}>
-            Guardar
-          </button>
-        </div>
-      </Card>
+      <>
+        <Card className="p-4 space-y-3">
+          {/* Icon + name row */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              className="w-11 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-xl transition-all active:scale-95 shrink-0 relative"
+            >
+              {previewIcon}
+              <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">✎</span>
+            </button>
+            <input
+              autoFocus
+              value={draftName}
+              onChange={e => { setDraftName(e.target.value); setDraftIcon('') }}
+              onKeyDown={e => e.key === 'Enter' && saveEdit()}
+              placeholder="Nombre"
+              className="flex-1 text-sm font-semibold text-slate-800 border-b border-teal-200 outline-none bg-transparent pb-1.5"
+            />
+          </div>
+          <input
+            value={draftBudget}
+            onChange={e => setDraftBudget(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && saveEdit()}
+            placeholder="Presupuesto"
+            inputMode="numeric"
+            className="w-full text-sm text-slate-500 border-b border-slate-100 outline-none bg-transparent pb-1.5"
+          />
+          <div className="flex justify-between pt-1">
+            <button onClick={cancelEdit} className="text-xs text-slate-400 font-medium">
+              Cancelar
+            </button>
+            <button onClick={saveEdit} className="text-xs font-bold" style={{ color: '#0D6259' }}>
+              Guardar
+            </button>
+          </div>
+        </Card>
+        {showPicker && (
+          <EmojiPicker
+            current={previewIcon}
+            onSelect={setDraftIcon}
+            onClose={() => setShowPicker(false)}
+          />
+        )}
+      </>
     )
   }
 
