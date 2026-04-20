@@ -32,7 +32,6 @@ interface Props {
   realCurrentMonth: string
   onChangeMonth: (m: string) => void
   onAdd: () => void
-  onAddExtraIncome: () => void
   onDeleteExtraIncome: (id: string) => void
 }
 
@@ -49,7 +48,6 @@ export function DashboardScreen({
   realCurrentMonth,
   onChangeMonth,
   onAdd,
-  onAddExtraIncome,
   onDeleteExtraIncome,
 }: Props) {
   const isViewingPast = activeMonth !== realCurrentMonth
@@ -94,12 +92,16 @@ export function DashboardScreen({
   const remaining   = monthlyBudget > 0
     ? monthlyBudget - totalSpent
     : hasIncome ? totalIncome - totalSpent : 0
-  const dailyAvg    = day > 0 ? totalSpent / day : 0
-  const projectedSpent  = dailyAvg * daysInMonth
+  const dailyAvg       = day > 0 ? totalSpent / day : 0
+  const projectedSpent = dailyAvg * daysInMonth
   const projectedSaving = hasIncome ? totalIncome - projectedSpent : 0
+  // Planned savings = income - budget (if both set); otherwise use projected pace
+  const plannedSavings  = hasIncome && monthlyBudget > 0 ? totalIncome - monthlyBudget : null
+  const savingsDisplay  = plannedSavings !== null ? plannedSavings : projectedSaving
   const savingsRate     = hasIncome && totalIncome > 0
-    ? Math.round((projectedSaving / totalIncome) * 100)
+    ? Math.round((savingsDisplay / totalIncome) * 100)
     : 0
+  const savingsLabel    = plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proy.'
 
   // ── Daily feedback pill ───────────────────────────────────────────────────
   const dailyFeedback = useMemo(() => {
@@ -260,16 +262,7 @@ export function DashboardScreen({
             <div className="grid grid-cols-2 divide-x divide-y divide-slate-100">
               {/* Ingresos */}
               <div className="px-4 py-3.5">
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400">Ingresos</p>
-                  <button
-                    onClick={onAddExtraIncome}
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors"
-                    title="Agregar ingreso extra"
-                  >
-                    <Icon name="plus" size={12} />
-                  </button>
-                </div>
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Ingresos</p>
                 <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(totalIncome, config)}</p>
                 {extraIncomeTotal > 0 && (
                   <p className="text-[9px] text-slate-400 tabular-nums mt-0.5">
@@ -305,20 +298,20 @@ export function DashboardScreen({
                   {monthlyBudget > 0 ? 'del presupuesto' : 'del ingreso'}
                 </p>
               </div>
-              {/* Ahorro proyectado */}
+              {/* Ahorro planeado / proyectado */}
               <div className="px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Ahorro proy.</p>
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">{savingsLabel}</p>
                 <p
                   className="text-sm font-bold tabular-nums"
-                  style={{ color: projectedSaving >= 0 ? '#16A34A' : '#EF4444' }}
+                  style={{ color: savingsDisplay >= 0 ? '#16A34A' : '#EF4444' }}
                 >
-                  {day >= 3
-                    ? (projectedSaving >= 0 ? formatMoney(projectedSaving, config) : `−${formatMoney(-projectedSaving, config)}`)
+                  {plannedSavings !== null || day >= 3
+                    ? (savingsDisplay >= 0 ? formatMoney(savingsDisplay, config) : `−${formatMoney(-savingsDisplay, config)}`)
                     : '—'}
                 </p>
-                {day >= 3 && (
+                {(plannedSavings !== null || day >= 3) && (
                   <p className="text-[9px] text-slate-400">
-                    {projectedSaving >= 0 ? `${savingsRate}% del ingreso` : 'Supera ingresos'}
+                    {savingsDisplay >= 0 ? `${savingsRate}% del ingreso` : 'Supera ingresos'}
                   </p>
                 )}
               </div>

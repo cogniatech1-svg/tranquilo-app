@@ -28,7 +28,13 @@ export function BottomNavigation({
           return (
             <button
               key={id}
-              onClick={() => onChange(id)}
+              onClick={() => {
+                if (active === id) {
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                } else {
+                  onChange(id)
+                }
+              }}
               className="flex-1 flex flex-col items-center pt-3 pb-4 gap-1 transition-all"
             >
               <div

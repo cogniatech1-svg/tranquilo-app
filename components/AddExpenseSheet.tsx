@@ -20,8 +20,10 @@ interface Props {
   pockets: Pocket[]
   conceptMap: Record<string, string>
   config: CountryConfig
+  defaultType?: 'income' | 'expense'
   onSave: (p: ExpensePayload) => void
   onSaveIncome?: (amount: number, note: string) => void
+  onSwitchToIncome?: (expenseId: string, amount: number, note: string, date: string) => void
   onClose: () => void
 }
 
@@ -31,8 +33,10 @@ export function AddExpenseSheet({
   pockets,
   conceptMap,
   config,
+  defaultType,
   onSave,
   onSaveIncome,
+  onSwitchToIncome,
   onClose,
 }: Props) {
   const [text,         setText]         = useState('')
@@ -50,12 +54,13 @@ export function AddExpenseSheet({
       setText(`${editingExpense.concept} ${editingExpense.amount}`)
       setPocketId(editingExpense.pocketId)
       setDate(editingExpense.date.slice(0, 10))
+      setTypeOverride('expense')   // always start as expense when editing
     } else {
       setText('')
       setPocketId('')
       setDate(localToday())
+      setTypeOverride(defaultType ?? null)
     }
-    setTypeOverride(null)
     setError('')
   }, [isOpen, editingExpense])
 
@@ -93,6 +98,15 @@ export function AddExpenseSheet({
 
     if (txType === 'income') {
       const note = parsed.description === 'Gasto' ? '' : parsed.description
+      const isoDate = new Date(date + 'T12:00:00').toISOString()
+
+      if (editingExpense) {
+        // Switching an existing expense to income: remove expense, create income entry
+        onSwitchToIncome?.(editingExpense.id, parsed.amount, note, isoDate)
+        onClose()
+        return
+      }
+
       onSaveIncome?.(parsed.amount, note)
       showToast(`💚 Ingreso de ${formatMoney(parsed.amount, config)} registrado`)
       setText('')
@@ -114,16 +128,7 @@ export function AddExpenseSheet({
       id: editingExpense?.id,
     })
 
-    if (editingExpense) {
-      onClose()
-    } else {
-      showToast(`✓ ${formatMoney(parsed.amount, config)}${pocketName ? ` · ${pocketName}` : ''} guardado`)
-      setText('')
-      setPocketId('')
-      setTypeOverride(null)
-      setError('')
-      setTimeout(() => textareaRef.current?.focus(), 50)
-    }
+    onClose()
   }
 
   // ── Accent color based on type ───────────────────────────────────────────
@@ -159,7 +164,9 @@ export function AddExpenseSheet({
 
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-slate-900">
-            {editingExpense ? 'Editar' : txType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'}
+            {editingExpense
+              ? txType === 'income' ? 'Editar ingreso' : 'Editar gasto'
+              : txType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'}
           </h2>
           <button
             onClick={onClose}
@@ -245,8 +252,8 @@ export function AddExpenseSheet({
             </div>
           )}
 
-          {/* Type toggle — only shown if onSaveIncome is wired and not editing */}
-          {onSaveIncome && !editingExpense && (
+          {/* Type toggle — shown whenever income saving/switching is wired */}
+          {(onSaveIncome || onSwitchToIncome) && (
             <div className="flex gap-2">
               <button
                 type="button"

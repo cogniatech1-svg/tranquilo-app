@@ -20,6 +20,7 @@ interface Props {
   monthlyHistory: Record<string, MonthRecord> | undefined
   monthlyBudget: number
   monthlyIncome: number
+  extraIncomeTotal?: number
   config: CountryConfig
   onClearData: () => void
   onSetIncome: (income: number) => void
@@ -32,10 +33,12 @@ export function ProfileScreen({
   monthlyHistory,
   monthlyBudget,
   monthlyIncome,
+  extraIncomeTotal = 0,
   config,
   onClearData,
   onSetIncome,
 }: Props) {
+  const totalIncome = monthlyIncome + extraIncomeTotal
   const [confirming, setConfirming] = useState(false)
   const [editingIncome, setEditingIncome] = useState(false)
   const [incomeInput, setIncomeInput] = useState('')
@@ -237,10 +240,17 @@ export function ProfileScreen({
                 {monthlyIncome > 0 ? 'Editar' : 'Agregar'}
               </button>
             </div>
-            {monthlyIncome > 0 ? (
-              <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
-                {formatMoney(monthlyIncome, config)}
-              </p>
+            {totalIncome > 0 ? (
+              <>
+                <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
+                  {formatMoney(totalIncome, config)}
+                </p>
+                {extraIncomeTotal > 0 && (
+                  <p className="text-xs text-slate-400 tabular-nums mt-0.5">
+                    Base {formatMoney(monthlyIncome, config)} + {formatMoney(extraIncomeTotal, config)} extra
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-slate-400 mt-1">No configurado</p>
             )}

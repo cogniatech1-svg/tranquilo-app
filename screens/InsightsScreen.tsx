@@ -60,30 +60,45 @@ function generateInsights(
 
   // ── 0. Savings rate (priority when income is set) ─────────────────────────
   if (monthlyIncome > 0 && daysPassed >= 3) {
-    const projSavings  = monthlyIncome - projected
-    const savingsRate  = Math.round((projSavings / monthlyIncome) * 100)
-    const lastIncome   = lastMonth?.income ?? 0
-    const lastSavings  = lastIncome > 0 ? lastIncome - lastMonthTotal : null
+    const projSavings   = monthlyIncome - projected
+    const plannedSavings = monthlyBudget > 0 ? monthlyIncome - monthlyBudget : null
+    // Primary savings number: budget-based (planned) when budget is set; otherwise projection
+    const primarySavings = plannedSavings !== null ? plannedSavings : projSavings
+    const primaryRate    = Math.round((primarySavings / monthlyIncome) * 100)
+    const projRate       = Math.round((projSavings / monthlyIncome) * 100)
+    const lastIncome     = lastMonth?.income ?? 0
+    const lastSavings    = lastIncome > 0 ? lastIncome - lastMonthTotal : null
 
-    if (projSavings >= 0) {
+    if (primarySavings >= 0) {
       const vsLast = lastSavings != null && lastSavings > 0
         ? ` El mes pasado ahorraste ${fm(lastSavings)}.`
         : ''
+      const actionText = plannedSavings !== null
+        ? projRate !== primaryRate
+          ? `A tu ritmo actual proyectas ahorrar ${fm(projSavings)} (${projRate}%). ${projRate >= primaryRate ? 'Vas por encima del plan.' : 'Reduce gastos para alcanzar el plan.'}`
+          : `Mantén el gasto dentro del presupuesto para asegurar este ahorro.`
+        : (primaryRate < 10
+            ? `Reducir ${fm(Math.max(0, projected * 0.1 - primarySavings))} más llevaría tu ahorro al 10%.`
+            : `Mantén el gasto por debajo de ${fm(dailyAvg)}/día para cerrar con este ahorro.`)
       pool.push({
-        kind: savingsRate >= 10 ? 'positive' : 'info',
+        kind: primaryRate >= 10 ? 'positive' : 'info',
         icon: '🏦',
-        title: `Ahorro proyectado: ${fm(projSavings)} (${savingsRate}%)`,
-        body: `Al ritmo de ${fm(dailyAvg)}/día gastarás ${fm(projected)} de ${fm(monthlyIncome)}.${vsLast}`,
-        action: savingsRate < 10
-          ? `Reducir ${fm(Math.max(0, projected * 0.1 - projSavings))} más llevaría tu ahorro al 10%.`
-          : `Mantén el gasto por debajo de ${fm(dailyAvg)}/día para cerrar con este ahorro.`,
+        title: `${plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proyectado'}: ${fm(primarySavings)} (${primaryRate}%)`,
+        body: plannedSavings !== null
+          ? `Si gastas el presupuesto completo (${fm(monthlyBudget)}), ahorras ${fm(primarySavings)} de ${fm(monthlyIncome)}.${vsLast}`
+          : `Al ritmo de ${fm(dailyAvg)}/día gastarás ${fm(projected)} de ${fm(monthlyIncome)}.${vsLast}`,
+        action: actionText,
       })
     } else {
       pool.push({
         kind: 'warning',
         icon: '⚠️',
-        title: `Proyección: gastarás ${fm(-projSavings)} más de lo que recibes`,
-        body: `Al ritmo de ${fm(dailyAvg)}/día, el gasto proyectado (${fm(projected)}) supera tus ingresos (${fm(monthlyIncome)}).`,
+        title: plannedSavings !== null
+          ? `El presupuesto supera tus ingresos en ${fm(-primarySavings)}`
+          : `Proyección: gastarás ${fm(-primarySavings)} más de lo que recibes`,
+        body: plannedSavings !== null
+          ? `Tu presupuesto (${fm(monthlyBudget)}) supera tus ingresos (${fm(monthlyIncome)}). Reduce el presupuesto para ahorrar.`
+          : `Al ritmo de ${fm(dailyAvg)}/día, el gasto proyectado (${fm(projected)}) supera tus ingresos (${fm(monthlyIncome)}).`,
         action: `Reduce a ${fm(monthlyIncome / daysInMonth)}/día para no superar tus ingresos.`,
       })
     }
@@ -461,9 +476,16 @@ export function InsightsScreen({
 }: Props) {
   const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
 
-  const totalSpent = useMemo(
+  const totalSpentRaw = useMemo(
     () => expenses.reduce((s, e) => s + e.amount, 0),
     [expenses],
+  )
+
+  // Use spentByPocket sum as the base for category percentages so they always sum to 100%
+  // (spentByPocket only counts expenses assigned to existing pockets)
+  const totalSpent = useMemo(
+    () => Object.values(spentByPocket).reduce((s, v) => s + v, 0) || totalSpentRaw,
+    [spentByPocket, totalSpentRaw],
   )
 
   const byPocket = useMemo(
@@ -519,7 +541,7 @@ export function InsightsScreen({
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Insights</h1>
         {expenses.length > 0 && (
           <p className="text-sm text-slate-500 mt-0.5">
-            {expenses.length} movimientos · {formatMoney(totalSpent, config)}
+            {expenses.length} movimientos · {formatMoney(totalSpentRaw, config)}
           </p>
         )}
       </div>
@@ -712,7 +734,7 @@ export function InsightsScreen({
                           {formatMoney(amount, config)}
                         </span>
                       </div>
-                      <ProgressBar ratio={amount / (totalSpent || 1)} color={pal.bar} />
+                      <ProgressBar ratio={amount / (totalSpentRaw || 1)} color={pal.bar} />
                     </div>
                   </div>
                 )
@@ -720,7 +742,7 @@ export function InsightsScreen({
               <div className="border-t border-slate-100 pt-3.5 flex items-center justify-between">
                 <span className="text-sm font-bold text-slate-500">Total</span>
                 <span className="text-sm font-bold text-slate-900 tabular-nums">
-                  {formatMoney(totalSpent, config)}
+                  {formatMoney(totalSpentRaw, config)}
                 </span>
               </div>
             </Card>

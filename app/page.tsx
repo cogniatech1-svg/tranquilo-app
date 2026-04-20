@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
 import { AddExpenseSheet } from '../components/AddExpenseSheet'
-import { AddExtraIncomeSheet } from '../components/AddExtraIncomeSheet'
 import { BottomNavigation } from '../components/BottomNavigation'
 
 import { DashboardScreen }     from '../screens/DashboardScreen'
@@ -57,9 +56,9 @@ export default function Home() {
 
   const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
 
-  const [sheetOpen,            setSheetOpen]            = useState(false)
-  const [editingExpense,       setEditingExpense]        = useState<Expense | null>(null)
-  const [extraIncomeSheetOpen, setExtraIncomeSheetOpen] = useState(false)
+  const [sheetOpen,        setSheetOpen]        = useState(false)
+  const [editingExpense,   setEditingExpense]   = useState<Expense | null>(null)
+  const [defaultSheetType, setDefaultSheetType] = useState<'income' | 'expense' | null>(null)
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
@@ -173,9 +172,9 @@ export default function Home() {
   const totalIncome = activeMonthIncome + (isViewingPast ? 0 : extraIncomeTotal)
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
-  const openAddSheet  = useCallback(() => { setEditingExpense(null); setSheetOpen(true) }, [])
-  const openEditSheet = useCallback((e: Expense) => { setEditingExpense(e); setSheetOpen(true) }, [])
-  const closeSheet    = useCallback(() => { setSheetOpen(false); setEditingExpense(null) }, [])
+  const openAddSheet  = useCallback(() => { setEditingExpense(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
+  const openEditSheet = useCallback((e: Expense) => { setEditingExpense(e); setDefaultSheetType(null); setSheetOpen(true) }, [])
+  const closeSheet    = useCallback(() => { setSheetOpen(false); setEditingExpense(null); setDefaultSheetType(null) }, [])
 
   // ── Data handlers ──────────────────────────────────────────────────────────
   const handleSaveExpense = useCallback((payload: ExpensePayload) => {
@@ -236,6 +235,33 @@ export default function Home() {
     }
   }, [isViewingPast, activeMonth])
 
+  const handleSwitchExpenseToIncome = useCallback((expenseId: string, amount: number, note: string, date: string) => {
+    if (isViewingPast) {
+      setMonthlyHistory(prev => {
+        const rec = prev[activeMonth]
+        if (!rec) return prev
+        const newExpenses = rec.expenses.filter(e => e.id !== expenseId)
+        return {
+          ...prev,
+          [activeMonth]: {
+            ...rec,
+            expenses: newExpenses,
+            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
+          },
+        }
+      })
+    } else {
+      setExpenses(prev => prev.filter(e => e.id !== expenseId))
+    }
+    setExtraIncomes(prev => [...prev, {
+      id: Date.now().toString(),
+      amount,
+      note,
+      date,
+      category: 'extra' as const,
+    }])
+  }, [isViewingPast, activeMonth])
+
   const handleEditPocket = useCallback((id: string, name: string, budget: number, icon?: string) => {
     setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget, icon } : p))
   }, [])
@@ -255,6 +281,7 @@ export default function Home() {
       amount,
       note,
       date: new Date().toISOString(),
+      category: 'extra' as const,
     }])
   }, [])
 
@@ -321,7 +348,6 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onAdd={openAddSheet}
-            onAddExtraIncome={() => setExtraIncomeSheetOpen(true)}
             onDeleteExtraIncome={handleDeleteExtraIncome}
           />
         )}
@@ -358,10 +384,10 @@ export default function Home() {
         )}
         {activeTab === 'insights' && (
           <InsightsScreen
-            expenses={expenses}
+            expenses={activeExpenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
-            monthlyBudget={monthlyBudget}
+            monthlyBudget={activeMonthBudget}
             monthlyIncome={totalIncome}
             monthlyHistory={monthlyHistory}
             config={config}
@@ -375,6 +401,7 @@ export default function Home() {
             monthlyHistory={monthlyHistory}
             monthlyBudget={monthlyBudget}
             monthlyIncome={monthlyIncome}
+            extraIncomeTotal={extraIncomeTotal}
             config={config}
             onClearData={handleClearData}
             onSetIncome={handleSetIncome}
@@ -390,16 +417,11 @@ export default function Home() {
         pockets={pockets}
         conceptMap={conceptMap}
         config={config}
+        defaultType={defaultSheetType ?? undefined}
         onSave={handleSaveExpense}
         onSaveIncome={handleAddExtraIncome}
+        onSwitchToIncome={handleSwitchExpenseToIncome}
         onClose={closeSheet}
-      />
-
-      <AddExtraIncomeSheet
-        isOpen={extraIncomeSheetOpen}
-        config={config}
-        onSave={handleAddExtraIncome}
-        onClose={() => setExtraIncomeSheetOpen(false)}
       />
     </div>
   )

@@ -20,11 +20,14 @@ export interface Expense {
 
 export type ExpensePayload = Omit<Expense, 'id'> & { id?: string }
 
+export type IncomeCategory = 'salary' | 'extra' | 'other'
+
 export interface ExtraIncome {
   id: string
   amount: number
   note: string    // empty string = no note
   date: string    // ISO date
+  category?: IncomeCategory
 }
 
 export interface MonthRecord {
