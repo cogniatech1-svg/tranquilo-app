@@ -616,7 +616,11 @@ export function InsightsScreen({
                 {byPocket.map(({ id, name, budget, spent, palIdx, icon: storedIcon }, idx) => {
                   const shareRatio  = spent / (totalSpent || 1)
                   const budgetRatio = budget > 0 ? spent / budget : 0
-                  const pct         = Math.round(shareRatio * 100)
+                  // Single percentage: budget usage when budget exists, share of total otherwise
+                  const pct         = budget > 0
+                    ? Math.round(budgetRatio * 100)
+                    : Math.round(shareRatio * 100)
+                  const pctLabel    = budget > 0 ? 'del presupuesto' : 'del total'
                   const icon        = getPocketIcon(id, name, storedIcon)
                   const pal         = getPocketPalette(id, palIdx)
                   const isExpanded  = expandedPocket === id
@@ -647,7 +651,7 @@ export function InsightsScreen({
                                 {formatMoney(spent, config)}
                               </span>
                               <span className="text-[10px] font-bold" style={{ color: pal.text }}>
-                                {pct}%
+                                {pct}% {pctLabel}
                               </span>
                             </div>
                           </div>
@@ -656,10 +660,14 @@ export function InsightsScreen({
                             thick
                             color={budget > 0 ? undefined : pal.bar}
                           />
-                          {budget > 0 && (
+                          {budget > 0 && budget - spent > 0 && (
                             <p className="text-[10px] mt-1 tabular-nums font-semibold" style={{ color: pal.text }}>
-                              {Math.round(budgetRatio * 100)}% del presupuesto
-                              {budget - spent > 0 && ` · ${formatMoney(budget - spent, config)} libre`}
+                              {formatMoney(budget - spent, config)} libre de {formatMoney(budget, config)}
+                            </p>
+                          )}
+                          {budget > 0 && budget - spent <= 0 && (
+                            <p className="text-[10px] mt-1 tabular-nums font-semibold text-red-500">
+                              Excedido en {formatMoney(spent - budget, config)}
                             </p>
                           )}
                         </div>
