@@ -1,16 +1,14 @@
 import { useMemo } from 'react'
 import { Card } from '../components/ui/Card'
-import { SectionHeader } from '../components/ui/SectionHeader'
 import { Icon } from '../components/ui/Icon'
 import { TransactionItem } from '../components/TransactionItem'
 import { formatMoney, DS } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { Expense, Pocket } from '../lib/types'
-import { groupByDate } from '../lib/utils'
-import { MonthNavigator } from '../components/MonthNavigator'
+import type { Expense, ExtraIncome, Pocket } from '../lib/types'
 
 interface Props {
   expenses: Expense[]
+  extraIncomes: ExtraIncome[]
   pockets: Pocket[]
   config: CountryConfig
   activeMonth: string
@@ -19,10 +17,16 @@ interface Props {
   onAdd: () => void
   onEdit: (e: Expense) => void
   onDelete: (id: string) => void
+  onDeleteExtraIncome: (id: string) => void
 }
+
+type Row =
+  | { kind: 'expense'; date: string; data: Expense }
+  | { kind: 'income';  date: string; data: ExtraIncome }
 
 export function TransactionsScreen({
   expenses,
+  extraIncomes,
   pockets,
   config,
   activeMonth,
@@ -31,17 +35,48 @@ export function TransactionsScreen({
   onAdd,
   onEdit,
   onDelete,
+  onDeleteExtraIncome,
 }: Props) {
   const isViewingPast = activeMonth !== realCurrentMonth
-  const grouped = useMemo(
-    () => groupByDate(expenses, config.locale),
-    [expenses, config.locale],
-  )
 
   const totalSpent = useMemo(
     () => expenses.reduce((s, e) => s + e.amount, 0),
     [expenses],
   )
+
+  const grouped = useMemo(() => {
+    const rows: Row[] = [
+      ...expenses.map(e => ({ kind: 'expense' as const, date: e.date, data: e })),
+      ...extraIncomes.map(i => ({ kind: 'income' as const, date: i.date, data: i })),
+    ].sort((a, b) => b.date.localeCompare(a.date))
+
+    const today     = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+
+    const map: Record<string, Row[]> = {}
+    for (const row of rows) {
+      const key = row.date.slice(0, 10);
+      (map[key] ??= []).push(row)
+    }
+
+    return Object.entries(map)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, items]) => {
+        const d = new Date(key + 'T12:00:00')
+        let label: string
+        if (d.toDateString() === today.toDateString()) label = 'Hoy'
+        else if (d.toDateString() === yesterday.toDateString()) label = 'Ayer'
+        else label = d.toLocaleDateString(config.locale, { weekday: 'short', day: 'numeric', month: 'short' })
+
+        const dayExpenses = items.filter(r => r.kind === 'expense').reduce((s, r) => s + r.data.amount, 0)
+        const dayIncome   = items.filter(r => r.kind === 'income').reduce((s, r) => s + r.data.amount, 0)
+
+        return { label, items, dayExpenses, dayIncome }
+      })
+  }, [expenses, extraIncomes, config.locale])
+
+  const isEmpty = expenses.length === 0 && extraIncomes.length === 0
 
   return (
     <div className="pb-6">
@@ -53,9 +88,9 @@ export function TransactionsScreen({
               Registro
             </p>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Movimientos</h1>
-            {expenses.length > 0 && (
+            {!isEmpty && (
               <p className="text-sm text-slate-500 mt-0.5">
-                {expenses.length} transacciones · {formatMoney(totalSpent, config)}
+                {expenses.length} gastos · {formatMoney(totalSpent, config)}
               </p>
             )}
           </div>
@@ -67,11 +102,12 @@ export function TransactionsScreen({
             <Icon name="plus" size={20} />
           </button>
         </div>
+
       </div>
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
       <div className="px-4 pt-5 space-y-6">
-        {expenses.length === 0 ? (
+        {isEmpty ? (
           <Card className="p-12 text-center">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl select-none"
@@ -89,7 +125,7 @@ export function TransactionsScreen({
             </button>
           </Card>
         ) : (
-          grouped.map(({ label, items }) => (
+          grouped.map(({ label, items, dayExpenses, dayIncome }) => (
             <div key={label}>
               {/* Date group header */}
               <div className="flex items-center gap-3 mb-3">
@@ -97,25 +133,68 @@ export function TransactionsScreen({
                   {label}
                 </p>
                 <div className="flex-1 h-px bg-slate-100" />
-                <p className="text-xs font-bold text-slate-600 tabular-nums shrink-0">
-                  {formatMoney(items.reduce((s, e) => s + e.amount, 0), config)}
-                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  {dayIncome > 0 && (
+                    <span className="text-xs font-bold text-green-600 tabular-nums">
+                      +{formatMoney(dayIncome, config)}
+                    </span>
+                  )}
+                  {dayExpenses > 0 && (
+                    <span className="text-xs font-bold text-slate-600 tabular-nums">
+                      {formatMoney(dayExpenses, config)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <Card className="overflow-hidden">
-                {items.map((e, i) => {
-                  const pocket = pockets.find(p => p.id === e.pocketId)
-                  const pi = pockets.findIndex(p => p.id === e.pocketId)
+                {items.map((row, i) => {
+                  const isLast = i === items.length - 1
+
+                  if (row.kind === 'income') {
+                    return (
+                      <div
+                        key={row.data.id}
+                        className={`flex items-center gap-3 px-4 py-3.5 bg-green-50/70 ${!isLast ? 'border-b border-green-100' : ''}`}
+                      >
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-100 text-base shrink-0 select-none">
+                          💚
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-green-800 tabular-nums">
+                            +{formatMoney(row.data.amount, config)}
+                          </p>
+                          {row.data.note ? (
+                            <p className="text-xs text-green-600 truncate capitalize">{row.data.note}</p>
+                          ) : (
+                            <p className="text-xs text-green-500">Ingreso</p>
+                          )}
+                        </div>
+                        {!isViewingPast && (
+                          <button
+                            onClick={() => onDeleteExtraIncome(row.data.id)}
+                            className="w-7 h-7 flex items-center justify-center text-green-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                          >
+                            <Icon name="x" size={13} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  const expense = row.data as Expense
+                  const pocket  = pockets.find(p => p.id === expense.pocketId)
+                  const pi      = pockets.findIndex(p => p.id === expense.pocketId)
                   return (
                     <TransactionItem
-                      key={e.id}
-                      expense={e}
+                      key={expense.id}
+                      expense={expense}
                       pocket={pocket}
                       pocketIndex={pi}
                       config={config}
                       onEdit={onEdit}
                       onDelete={onDelete}
-                      showDivider={i < items.length - 1}
+                      showDivider={!isLast}
                     />
                   )
                 })}

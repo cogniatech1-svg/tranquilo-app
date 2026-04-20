@@ -108,12 +108,7 @@ export function AddExpenseSheet({
       }
 
       onSaveIncome?.(parsed.amount, note)
-      showToast(`💚 Ingreso de ${formatMoney(parsed.amount, config)} registrado`)
-      setText('')
-      setPocketId('')
-      setTypeOverride(null)
-      setError('')
-      setTimeout(() => textareaRef.current?.focus(), 50)
+      onClose()
       return
     }
 
@@ -184,8 +179,8 @@ export function AddExpenseSheet({
             autoFocus={isOpen && !editingExpense}
             placeholder={
               txType === 'income'
-                ? `ej. Salario 3000000  ·  Freelance 500000`
-                : `ej. ${config.exampleExpense}  ·  Domicilio pizza`
+                ? `ej. Salario 3000000`
+                : `ej. ${config.exampleExpense}`
             }
             value={text}
             onChange={e => { setText(e.target.value); setError('') }}

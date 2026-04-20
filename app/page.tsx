@@ -354,6 +354,7 @@ export default function Home() {
         {activeTab === 'movimientos' && (
           <TransactionsScreen
             expenses={activeExpenses}
+            extraIncomes={isViewingPast ? [] : extraIncomes}
             pockets={pockets}
             config={config}
             activeMonth={activeMonth}
@@ -362,6 +363,7 @@ export default function Home() {
             onAdd={openAddSheet}
             onEdit={openEditSheet}
             onDelete={handleDeleteExpense}
+            onDeleteExtraIncome={handleDeleteExtraIncome}
           />
         )}
         {activeTab === 'presupuesto' && (
