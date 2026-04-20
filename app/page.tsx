@@ -58,6 +58,7 @@ export default function Home() {
 
   const [sheetOpen,        setSheetOpen]        = useState(false)
   const [editingExpense,   setEditingExpense]   = useState<Expense | null>(null)
+  const [editingIncome,    setEditingIncome]    = useState<ExtraIncome | null>(null)
   const [defaultSheetType, setDefaultSheetType] = useState<'income' | 'expense' | null>(null)
 
   const config: CountryConfig = COUNTRIES[countryCode]
@@ -172,9 +173,10 @@ export default function Home() {
   const totalIncome = activeMonthIncome + (isViewingPast ? 0 : extraIncomeTotal)
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
-  const openAddSheet  = useCallback(() => { setEditingExpense(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
-  const openEditSheet = useCallback((e: Expense) => { setEditingExpense(e); setDefaultSheetType(null); setSheetOpen(true) }, [])
-  const closeSheet    = useCallback(() => { setSheetOpen(false); setEditingExpense(null); setDefaultSheetType(null) }, [])
+  const openAddSheet        = useCallback(() => { setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
+  const openEditSheet       = useCallback((e: Expense) => { setEditingExpense(e); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
+  const openEditIncomeSheet = useCallback((i: ExtraIncome) => { setEditingIncome(i); setEditingExpense(null); setDefaultSheetType('income'); setSheetOpen(true) }, [])
+  const closeSheet          = useCallback(() => { setSheetOpen(false); setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null) }, [])
 
   // ── Data handlers ──────────────────────────────────────────────────────────
   const handleSaveExpense = useCallback((payload: ExpensePayload) => {
@@ -289,6 +291,10 @@ export default function Home() {
     setExtraIncomes(prev => prev.filter(e => e.id !== id))
   }, [])
 
+  const handleUpdateExtraIncome = useCallback((id: string, amount: number, note: string, date: string) => {
+    setExtraIncomes(prev => prev.map(e => e.id === id ? { ...e, amount, note, date } : e))
+  }, [])
+
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setExpenses([])
@@ -362,6 +368,7 @@ export default function Home() {
             onAdd={openAddSheet}
             onEdit={openEditSheet}
             onDelete={handleDeleteExpense}
+            onEditIncome={openEditIncomeSheet}
             onDeleteExtraIncome={handleDeleteExtraIncome}
           />
         )}
@@ -415,12 +422,14 @@ export default function Home() {
       <AddExpenseSheet
         isOpen={sheetOpen}
         editingExpense={editingExpense}
+        editingIncome={editingIncome}
         pockets={pockets}
         conceptMap={conceptMap}
         config={config}
         defaultType={defaultSheetType ?? undefined}
         onSave={handleSaveExpense}
         onSaveIncome={handleAddExtraIncome}
+        onUpdateIncome={handleUpdateExtraIncome}
         onSwitchToIncome={handleSwitchExpenseToIncome}
         onClose={closeSheet}
       />

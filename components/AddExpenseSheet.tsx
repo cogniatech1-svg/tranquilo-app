@@ -10,19 +10,21 @@ import { Icon } from './ui/Icon'
 import { PrimaryButton } from './ui/PrimaryButton'
 import { getPocketIcon, DS } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { Expense, ExpensePayload, Pocket } from '../lib/types'
+import type { Expense, ExtraIncome, ExpensePayload, Pocket } from '../lib/types'
 import { parseTransaction } from '../lib/utils'
 import { formatMoney } from '../lib/config'
 
 interface Props {
   isOpen: boolean
   editingExpense: Expense | null
+  editingIncome?: ExtraIncome | null
   pockets: Pocket[]
   conceptMap: Record<string, string>
   config: CountryConfig
   defaultType?: 'income' | 'expense'
   onSave: (p: ExpensePayload) => void
   onSaveIncome?: (amount: number, note: string) => void
+  onUpdateIncome?: (id: string, amount: number, note: string, date: string) => void
   onSwitchToIncome?: (expenseId: string, amount: number, note: string, date: string) => void
   onClose: () => void
 }
@@ -30,12 +32,14 @@ interface Props {
 export function AddExpenseSheet({
   isOpen,
   editingExpense,
+  editingIncome,
   pockets,
   conceptMap,
   config,
   defaultType,
   onSave,
   onSaveIncome,
+  onUpdateIncome,
   onSwitchToIncome,
   onClose,
 }: Props) {
@@ -54,7 +58,15 @@ export function AddExpenseSheet({
       setText(`${editingExpense.concept} ${editingExpense.amount}`)
       setPocketId(editingExpense.pocketId)
       setDate(editingExpense.date.slice(0, 10))
-      setTypeOverride('expense')   // always start as expense when editing
+      setTypeOverride('expense')
+    } else if (editingIncome) {
+      const textVal = editingIncome.note
+        ? `${editingIncome.note} ${editingIncome.amount}`
+        : String(editingIncome.amount)
+      setText(textVal)
+      setPocketId('')
+      setDate(editingIncome.date.slice(0, 10))
+      setTypeOverride('income')
     } else {
       setText('')
       setPocketId('')
@@ -62,7 +74,7 @@ export function AddExpenseSheet({
       setTypeOverride(defaultType ?? null)
     }
     setError('')
-  }, [isOpen, editingExpense])
+  }, [isOpen, editingExpense, editingIncome])
 
   // ── Parse current text ───────────────────────────────────────────────────
   const parsed = useMemo(
@@ -101,8 +113,13 @@ export function AddExpenseSheet({
       const isoDate = new Date(date + 'T12:00:00').toISOString()
 
       if (editingExpense) {
-        // Switching an existing expense to income: remove expense, create income entry
         onSwitchToIncome?.(editingExpense.id, parsed.amount, note, isoDate)
+        onClose()
+        return
+      }
+
+      if (editingIncome) {
+        onUpdateIncome?.(editingIncome.id, parsed.amount, note, isoDate)
         onClose()
         return
       }
@@ -159,9 +176,11 @@ export function AddExpenseSheet({
 
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-slate-900">
-            {editingExpense
-              ? txType === 'income' ? 'Editar ingreso' : 'Editar gasto'
-              : txType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'}
+            {editingIncome
+              ? 'Editar ingreso'
+              : editingExpense
+                ? txType === 'income' ? 'Editar ingreso' : 'Editar gasto'
+                : txType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'}
           </h2>
           <button
             onClick={onClose}

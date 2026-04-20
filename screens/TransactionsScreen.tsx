@@ -17,6 +17,7 @@ interface Props {
   onAdd: () => void
   onEdit: (e: Expense) => void
   onDelete: (id: string) => void
+  onEditIncome: (i: ExtraIncome) => void
   onDeleteExtraIncome: (id: string) => void
 }
 
@@ -35,6 +36,7 @@ export function TransactionsScreen({
   onAdd,
   onEdit,
   onDelete,
+  onEditIncome,
   onDeleteExtraIncome,
 }: Props) {
   const isViewingPast = activeMonth !== realCurrentMonth
@@ -152,31 +154,40 @@ export function TransactionsScreen({
                   const isLast = i === items.length - 1
 
                   if (row.kind === 'income') {
+                    const inc = row.data as ExtraIncome
                     return (
                       <div
-                        key={row.data.id}
+                        key={inc.id}
                         className={`flex items-center gap-3 px-4 py-3.5 bg-green-50/70 ${!isLast ? 'border-b border-green-100' : ''}`}
                       >
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-100 text-base shrink-0 select-none">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-100 text-xl shrink-0 select-none">
                           💚
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-green-800 tabular-nums">
-                            +{formatMoney(row.data.amount, config)}
+                            +{formatMoney(inc.amount, config)}
                           </p>
-                          {row.data.note ? (
-                            <p className="text-xs text-green-600 truncate capitalize">{row.data.note}</p>
+                          {inc.note ? (
+                            <p className="text-xs text-green-600 truncate capitalize">{inc.note}</p>
                           ) : (
                             <p className="text-xs text-green-500">Ingreso</p>
                           )}
                         </div>
                         {!isViewingPast && (
-                          <button
-                            onClick={() => onDeleteExtraIncome(row.data.id)}
-                            className="w-7 h-7 flex items-center justify-center text-green-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                          >
-                            <Icon name="x" size={13} />
-                          </button>
+                          <div className="flex gap-0.5 shrink-0">
+                            <button
+                              onClick={() => onEditIncome(inc)}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                              <Icon name="edit" size={14} />
+                            </button>
+                            <button
+                              onClick={() => onDeleteExtraIncome(inc.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                            >
+                              <Icon name="trash" size={14} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     )
