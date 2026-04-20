@@ -348,7 +348,6 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onAdd={openAddSheet}
-            onDeleteExtraIncome={handleDeleteExtraIncome}
           />
         )}
         {activeTab === 'movimientos' && (

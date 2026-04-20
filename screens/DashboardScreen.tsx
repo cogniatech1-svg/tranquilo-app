@@ -32,7 +32,6 @@ interface Props {
   realCurrentMonth: string
   onChangeMonth: (m: string) => void
   onAdd: () => void
-  onDeleteExtraIncome: (id: string) => void
 }
 
 export function DashboardScreen({
@@ -48,7 +47,6 @@ export function DashboardScreen({
   realCurrentMonth,
   onChangeMonth,
   onAdd,
-  onDeleteExtraIncome,
 }: Props) {
   const isViewingPast = activeMonth !== realCurrentMonth
   const today    = useMemo(() => new Date(), [])
@@ -318,36 +316,6 @@ export function DashboardScreen({
             </div>
           </div>
 
-          {/* ── Extra income list ── */}
-          {extraIncomes.length > 0 && (
-            <div
-              className="rounded-2xl bg-white border border-slate-100 divide-y divide-slate-50"
-              style={{ boxShadow: '0 1px 4px rgba(15,23,42,.04)' }}
-            >
-              {extraIncomes.map(ei => (
-                <div key={ei.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="text-base leading-none">💚</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 tabular-nums">
-                      +{formatMoney(ei.amount, config)}
-                    </p>
-                    {ei.note && (
-                      <p className="text-[11px] text-slate-400 truncate capitalize">{ei.note}</p>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-300 shrink-0">
-                    {new Date(ei.date).toLocaleDateString(config.locale, { day: 'numeric', month: 'short' })}
-                  </p>
-                  <button
-                    onClick={() => onDeleteExtraIncome(ei.id)}
-                    className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                  >
-                    <Icon name="x" size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       ) : (
         /* ── Stats row (budget-only or empty mode) ───────────────────────── */
