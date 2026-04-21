@@ -9,38 +9,22 @@ const geist = Geist({
 })
 
 export const metadata: Metadata = {
-  title: 'Tranquilo — Finanzas Personales',
+  title: 'Tranquilo',
   description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Tranquilo',
+  },
   icons: {
-    icon: '/favicon-v2.png',
-    shortcut: '/favicon-v2.png',
-    apple: '/icons/icon-192.png',
-  },
-  openGraph: {
-    title: 'Tranquilo — Finanzas Personales',
-    description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
-    type: 'website',
-    url: 'https://tranquilo-app.vercel.app',
-    images: [
-      {
-        url: 'https://tranquilo-app.vercel.app/icons/icon-512.png',
-        width: 512,
-        height: 512,
-        alt: 'Tranquilo - App de finanzas personales',
-      },
-      {
-        url: 'https://tranquilo-app.vercel.app/icons/icon-192.png',
-        width: 192,
-        height: 192,
-        alt: 'Tranquilo - App de finanzas personales',
-      },
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Tranquilo — Finanzas Personales',
-    description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
-    images: ['https://tranquilo-app.vercel.app/icons/icon-512.png'],
+    apple: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
   },
 }
 
@@ -61,25 +45,19 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Manifest y iconos PWA */}
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/icons/icon-512.png" sizes="512x512" />
-
-        {/* Meta tags para PWA y móvil */}
+        {/* ── Android / Chrome ─────────────────────────────── */}
         <meta name="mobile-web-app-capable" content="yes" />
+
+        {/* ── iOS Safari ───────────────────────────────────── */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Tranquilo" />
-        <meta name="application-name" content="Tranquilo" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
 
-        {/* Windows */}
+        {/* ── Windows ──────────────────────────────────────── */}
         <meta name="msapplication-TileColor" content="#0D6259" />
         <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
-        <meta name="msapplication-config" content="none" />
-
-        {/* Android */}
-        <meta name="theme-color" content="#0D6259" />
       </head>
       <body className={`${geist.variable} antialiased`}>
         {children}
@@ -112,7 +90,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── Service worker registration (auto-updates PWA) ────────────────────────── */}
+        {/* ── Service worker registration ───────────────────── */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -132,11 +110,9 @@ export default function RootLayout({
               navigator.serviceWorker.controller
             ) {
               newWorker.postMessage({ type: 'SKIP_WAITING' });
-              window.location.reload();
             }
           });
         });
-        setInterval(() => registration.update(), 5000);
       })
       .catch(function(err) {
         console.warn('[SW] Registration failed:', err);
@@ -146,7 +122,6 @@ export default function RootLayout({
             `,
           }}
         />
-
       </body>
     </html>
   )
