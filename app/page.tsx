@@ -363,6 +363,7 @@ export default function Home() {
             onAdd={openAddSheet}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
+            onOpenProfile={() => setActiveTab('perfil')}
           />
         )}
         {activeTab === 'movimientos' && (
@@ -415,19 +416,8 @@ export default function Home() {
         )}
         {activeTab === 'perfil' && (
           <ProfileScreen
-            expenseCount={expenses.length}
-            pocketCount={pockets.length}
-            currentMonth={currentMonth}
-            monthlyHistory={monthlyHistory}
-            monthlyBudget={monthlyBudget}
-            monthlyIncome={monthlyIncome}
-            extraIncomeTotal={extraIncomeTotal}
-            extraIncomes={extraIncomes}
             config={config}
             onClearData={handleClearData}
-            onSetIncome={handleSetIncome}
-            onEditExtraIncome={openEditIncomeSheet}
-            onDeleteExtraIncome={handleDeleteExtraIncome}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
           />

@@ -34,6 +34,7 @@ interface Props {
   onAdd: () => void
   isPrivacyMode: boolean
   onTogglePrivacy: () => void
+  onOpenProfile?: () => void
 }
 
 export function DashboardScreen({
@@ -51,9 +52,71 @@ export function DashboardScreen({
   onAdd,
   isPrivacyMode,
   onTogglePrivacy,
+  onOpenProfile,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
+
+  const handleExportCSV = () => {
+    const raw = localStorage.getItem('tranquilo_v1')
+    const data = raw ? JSON.parse(raw) : {}
+
+    const pocketNames: Record<string, string> = {}
+    for (const p of (data.pockets ?? [])) pocketNames[p.id] = p.name
+
+    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'Monto', 'Descripción']]
+
+    // Gastos del mes actual
+    for (const e of (data.expenses ?? [])) {
+      rows.push([
+        e.date.slice(0, 10),
+        'gasto',
+        pocketNames[e.pocketId] ?? e.pocketId ?? '',
+        String(e.amount),
+        e.concept ?? '',
+      ])
+    }
+
+    // Ingresos extras
+    for (const i of (data.extraIncomes ?? [])) {
+      rows.push([
+        i.date.slice(0, 10),
+        'ingreso',
+        'Ingresos',
+        String(i.amount),
+        i.note ?? '',
+      ])
+    }
+
+    // Meses anteriores
+    for (const [, record] of Object.entries(data.monthlyHistory ?? {})) {
+      const rec = record as { expenses?: Array<{ date: string; pocketId: string; amount: number; concept: string }> }
+      for (const e of (rec.expenses ?? [])) {
+        rows.push([
+          e.date.slice(0, 10),
+          'gasto',
+          pocketNames[e.pocketId] ?? e.pocketId ?? '',
+          String(e.amount),
+          e.concept ?? '',
+        ])
+      }
+    }
+
+    // Ordenar por fecha descendente
+    const [header, ...body] = rows
+    body.sort((a, b) => b[0].localeCompare(a[0]))
+
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const csv = [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setMenuOpen(false)
+  }
   const isViewingPast = activeMonth !== realCurrentMonth
   const today    = useMemo(() => new Date(), [])
   const todayStr = today.toISOString().slice(0, 10)
@@ -179,8 +242,20 @@ export function DashboardScreen({
         <div className="flex items-center justify-between mb-8 relative">
           <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
 
-          {/* ☰ Menu button */}
-          <div className="relative">
+          {/* Profile button + Menu button */}
+          <div className="flex items-center gap-2">
+            {/* Profile button */}
+            <button
+              onClick={onOpenProfile}
+              className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
+              style={{ backdropFilter: 'blur(4px)' }}
+              title="Perfil"
+            >
+              <Icon name="user" size={20} />
+            </button>
+
+            {/* ☰ Menu button */}
+            <div className="relative">
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
@@ -200,27 +275,15 @@ export function DashboardScreen({
                 <div
                   className="fixed bg-white rounded-2xl z-40 overflow-hidden opacity-100 transition-opacity duration-200"
                   style={{
-                    width: 280,
+                    width: 260,
                     top: '80px',
                     right: '20px',
                     boxShadow: '0 8px 32px rgba(15,23,42,.18)'
                   }}
                 >
-                  {/* Configuración */}
-                  <button
-                    onClick={() => { /* navigate to perfil */ setMenuOpen(false) }}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <Icon name="user" size={16} className="text-slate-400" />
-                      Configuración
-                    </span>
-                    <Icon name="chevron" size={14} className="text-slate-300" />
-                  </button>
-
                   {/* Exportar datos */}
                   <button
-                    onClick={() => { /* trigger export */ setMenuOpen(false) }}
+                    onClick={handleExportCSV}
                     className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
                   >
                     <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -237,7 +300,7 @@ export function DashboardScreen({
                       <p className="text-[10px] text-slate-400 mt-0.5">Privacidad</p>
                     </div>
                     <button
-                      onClick={() => { onTogglePrivacy() }}
+                      onClick={() => { onTogglePrivacy(); setMenuOpen(false) }}
                       className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
                         isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
                       }`}
@@ -252,6 +315,7 @@ export function DashboardScreen({
                 </div>
               </>
             )}
+            </div>
           </div>
         </div>
 
