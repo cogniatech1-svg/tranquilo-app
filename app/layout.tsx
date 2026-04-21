@@ -84,8 +84,7 @@ export default function RootLayout({
       <body className={`${geist.variable} antialiased`}>
         {children}
 
-        {/* ── Service worker registration (DISABLED for debugging) ───────────────────── */}
-        {/*
+        {/* ── Service worker registration (auto-updates PWA) ────────────────────────── */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -105,9 +104,11 @@ export default function RootLayout({
               navigator.serviceWorker.controller
             ) {
               newWorker.postMessage({ type: 'SKIP_WAITING' });
+              window.location.reload();
             }
           });
         });
+        setInterval(() => registration.update(), 5000);
       })
       .catch(function(err) {
         console.warn('[SW] Registration failed:', err);
@@ -117,7 +118,7 @@ export default function RootLayout({
             `,
           }}
         />
-        */}
+
       </body>
     </html>
   )
