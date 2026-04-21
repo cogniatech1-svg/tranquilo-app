@@ -88,7 +88,7 @@ function generateInsights(
         : (primaryRate < 10
             ? `Reducir ${fm(Math.max(0, projected * 0.1 - primarySavings))} más llevaría tu ahorro al 10%.`
             : `Mantén el gasto por debajo de ${fm(dailyAvg)}/día para cerrar con este ahorro.`)
-      const insight = {
+      const insight: Insight = {
         kind: primaryRate >= 10 ? 'positive' : 'info',
         icon: '🏦',
         title: `${plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proyectado'}: ${fm(primarySavings)} (${primaryRate}%)`,
