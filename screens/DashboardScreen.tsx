@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { StatCard } from '../components/StatCard'
 import { PocketCard } from '../components/PocketCard'
 import { TransactionItem } from '../components/TransactionItem'
@@ -53,7 +53,14 @@ export function DashboardScreen({
   onTogglePrivacy,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
+
+  // Skeleton loading effect
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 300)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
@@ -225,6 +232,32 @@ export function DashboardScreen({
     <div className="pb-8">
 
       {/* ── Hero Card ────────────────────────────────────────────────────── */}
+      {isLoading ? (
+        // Skeleton Hero Card
+        <div
+          className="rounded-b-[2.5rem] px-5 pt-12 pb-8 overflow-hidden relative"
+          style={{
+            background: 'linear-gradient(135deg, #0D6259 0%, #0891B2 100%)',
+            boxShadow: '0 8px 40px rgba(4,47,46,.30)',
+          }}
+        >
+          <div className="space-y-4">
+            {/* Date skeleton */}
+            <div className="flex justify-between items-center mb-8">
+              <div className="h-3 w-24 bg-white/20 rounded animate-pulse" />
+              <div className="h-10 w-10 bg-white/20 rounded-2xl animate-pulse" />
+            </div>
+            {/* Status skeleton */}
+            <div className="h-4 w-32 bg-white/20 rounded animate-pulse mb-4" />
+            {/* Main number skeleton */}
+            <div className="h-16 w-48 bg-white/20 rounded animate-pulse mb-2" />
+            {/* Context skeleton */}
+            <div className="h-4 w-40 bg-white/20 rounded animate-pulse mb-4" />
+            {/* Progress bar skeleton */}
+            <div className="h-3 w-full bg-white/10 rounded-full animate-pulse" />
+          </div>
+        </div>
+      ) : (
       <div
         className="rounded-b-[2.5rem] px-5 pt-12 pb-8 overflow-hidden relative transition-all duration-500"
         style={{
@@ -360,9 +393,28 @@ export function DashboardScreen({
           </p>
         )}
       </div>
+      )}
 
       {/* ── Financial summary (income mode) ─────────────────────────────── */}
-      {hasIncome ? (
+      {isLoading ? (
+        // Skeleton Financial Summary
+        <div className="px-4 mt-5 space-y-2">
+          <div
+            className="rounded-2xl bg-white overflow-hidden border border-slate-100"
+            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
+          >
+            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="px-4 py-3.5 space-y-2">
+                  <div className="h-3 w-16 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-4 w-20 bg-slate-300 rounded animate-pulse" />
+                  <div className="h-2 w-24 bg-slate-100 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : hasIncome ? (
         <div className="px-4 mt-5 space-y-2">
           {/* ── Summary grid ── */}
           <div
