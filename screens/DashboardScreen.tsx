@@ -177,14 +177,16 @@ export function DashboardScreen({
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
+          <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
+
           {/* ☰ Menu button */}
           <div className="relative">
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="w-9 h-9 bg-white/15 hover:bg-white/25 active:scale-95 rounded-xl flex items-center justify-center text-white transition-all border border-white/15"
+              className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
               style={{ backdropFilter: 'blur(4px)' }}
             >
-              <Icon name="menu" size={16} />
+              <Icon name="menu" size={20} />
             </button>
 
             {menuOpen && (
@@ -194,18 +196,54 @@ export function DashboardScreen({
                   className="fixed inset-0 z-30"
                   onClick={() => setMenuOpen(false)}
                 />
-                {/* Dropdown */}
+                {/* Dropdown panel */}
                 <div
-                  className="absolute top-full left-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden"
-                  style={{ minWidth: 200, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
+                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden"
+                  style={{ width: 280, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
                 >
-                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                  {/* Agregar gasto */}
+                  <button
+                    onClick={() => { onAdd(); setMenuOpen(false) }}
+                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <Icon name="plus" size={16} className="text-teal-600" />
+                      Agregar gasto
+                    </span>
+                  </button>
+
+                  {/* Configuración */}
+                  <button
+                    onClick={() => { /* navigate to perfil */ setMenuOpen(false) }}
+                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <Icon name="user" size={16} className="text-slate-400" />
+                      Configuración
+                    </span>
+                    <Icon name="chevron" size={14} className="text-slate-300" />
+                  </button>
+
+                  {/* Exportar datos */}
+                  <button
+                    onClick={() => { /* trigger export */ setMenuOpen(false) }}
+                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <span className="text-base">📥</span>
+                      Exportar datos
+                    </span>
+                    <Icon name="chevron" size={14} className="text-slate-300" />
+                  </button>
+
+                  {/* Ocultar montos toggle */}
+                  <div className="px-4 py-3.5 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Modo privacidad</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Privacidad</p>
                     </div>
                     <button
-                      onClick={() => { onTogglePrivacy(); setMenuOpen(false) }}
+                      onClick={() => { onTogglePrivacy() }}
                       className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
                         isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
                       }`}
@@ -221,27 +259,6 @@ export function DashboardScreen({
               </>
             )}
           </div>
-
-          <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
-
-          <button
-            onClick={onAdd}
-            className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20 relative overflow-hidden"
-            style={{ backdropFilter: 'blur(4px)' }}
-          >
-            {/* Extremely faint leaf watermark — must not compete with + */}
-            <svg
-              aria-hidden
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              viewBox="0 0 44 44"
-              style={{ opacity: 0.07 }}
-            >
-              <path d="M22 6 C22 6 35 8 36 20 C37 30 29 37 22 40 C15 37 7 30 8 20 C9 8 22 6 22 6Z"
-                    fill="white"/>
-              <line x1="22" y1="9" x2="22" y2="37" stroke="white" strokeWidth="1"/>
-            </svg>
-            <Icon name="plus" size={20} />
-          </button>
         </div>
 
         {/* Status headline */}
