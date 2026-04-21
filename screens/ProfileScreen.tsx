@@ -98,17 +98,17 @@ export function ProfileScreen({
           boxShadow: '0 8px 40px rgba(4,47,46,.30)',
         }}
       >
-        <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-white/8 pointer-events-none" />
-        <div className="absolute bottom-0 -left-12 w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
+        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute bottom-2 -left-8 w-32 h-32 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(103,232,249,.10) 0%, transparent 70%)' }} />
 
         <div className="relative">
           {/* Logo Icon */}
-          <div className="w-20 h-20 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+          <div className="w-24 h-24 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
             <img
               src="/logo-ui.png"
               alt="Tranquilo"
-              className="w-12 h-12 object-contain"
+              className="w-16 h-16 object-contain"
             />
           </div>
           <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
