@@ -103,6 +103,24 @@ export function ProfileScreen({
           style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
 
         <div className="relative">
+          {/* Logo Icon - Plant + Chart */}
+          <div className="w-20 h-20 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Plant/Leaf */}
+              <path d="M14 24C14 28 16 32 20 34" stroke="#D4FF5E" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <ellipse cx="16" cy="20" rx="2.5" ry="4.5" fill="#D4FF5E" transform="rotate(-30 16 20)"/>
+              <ellipse cx="18" cy="26" rx="2.5" ry="4.5" fill="#D4FF5E" transform="rotate(20 18 26)"/>
+              <ellipse cx="22" cy="32" rx="2.5" ry="4.5" fill="#D4FF5E" transform="rotate(30 22 32)"/>
+
+              {/* Chart Bars */}
+              <rect x="26" y="28" width="3.5" height="6" rx="1.5" fill="#D4FF5E"/>
+              <rect x="32" y="24" width="3.5" height="10" rx="1.5" fill="#5EEAD4"/>
+              <rect x="38" y="18" width="3.5" height="16" rx="1.5" fill="#06B6D4"/>
+
+              {/* Circle connecting them */}
+              <circle cx="25" cy="26" r="8" stroke="rgba(212, 255, 94, 0.3)" strokeWidth="2" fill="none"/>
+            </svg>
+          </div>
           <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
           <p className="text-sm text-white/70">Gestiona tu cuenta</p>
         </div>
