@@ -198,8 +198,13 @@ export function DashboardScreen({
                 />
                 {/* Dropdown panel */}
                 <div
-                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden opacity-100 transition-opacity duration-200"
-                  style={{ width: 280, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
+                  className="fixed bg-white rounded-2xl z-40 overflow-hidden opacity-100 transition-opacity duration-200"
+                  style={{
+                    width: 280,
+                    top: '80px',
+                    right: '20px',
+                    boxShadow: '0 8px 32px rgba(15,23,42,.18)'
+                  }}
                 >
                   {/* Configuración */}
                   <button
