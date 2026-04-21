@@ -26,6 +26,7 @@ export function ProfileScreen({
   const [darkMode, setDarkMode] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [showPlansModal, setShowPlansModal] = useState(false)
 
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
@@ -121,7 +122,10 @@ export function ProfileScreen({
                 Premium
               </span>
             </div>
-            <button className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-semibold text-slate-800 transition-colors">
+            <button
+              onClick={() => setShowPlansModal(true)}
+              className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-semibold text-slate-800 transition-colors"
+            >
               Ver planes
             </button>
           </Card>
@@ -311,6 +315,70 @@ export function ProfileScreen({
           <p className="text-xs text-slate-400 mt-1">© 2026 Tranquilo</p>
         </div>
       </div>
+
+      {/* Plans Modal */}
+      {showPlansModal && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/40 z-50 transition-opacity"
+            onClick={() => setShowPlansModal(false)}
+          />
+          {/* Modal */}
+          <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-8">
+            <div
+              className="bg-white rounded-3xl overflow-hidden max-w-md mx-auto"
+              style={{ boxShadow: '0 20px 60px rgba(0,0,0,.20)' }}
+            >
+              {/* Header with gradient */}
+              <div
+                className="px-6 pt-8 pb-6 text-center relative overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #0D6259 0%, #0891B2 100%)',
+                }}
+              >
+                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-white/10 pointer-events-none" />
+                <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/10 pointer-events-none" />
+                <div className="relative">
+                  <h3 className="text-2xl font-bold text-white mb-2">Tranquilo Premium</h3>
+                  <p className="text-sm text-white/80">Próximamente</p>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-6 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">📊</span>
+                    <span className="text-sm text-slate-700">Insights más avanzados</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">💡</span>
+                    <span className="text-sm text-slate-700">Recomendaciones inteligentes</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">💰</span>
+                    <span className="text-sm text-slate-700">Mejor control de ahorro</span>
+                  </div>
+                </div>
+
+                {/* Button */}
+                <button className="w-full px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all active:scale-95 mt-2">
+                  Quiero acceso anticipado
+                </button>
+
+                {/* Close button */}
+                <button
+                  onClick={() => setShowPlansModal(false)}
+                  className="w-full px-4 py-2.5 text-slate-600 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
