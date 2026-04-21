@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon-v2.png',
     shortcut: '/favicon-v2.png',
-    apple: '/icons/icon-192.png',
+    apple: '/icons/icon-192-verde.png',
   },
   openGraph: {
     title: 'Tranquilo — Finanzas Personales',
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     url: 'https://tranquilo-app.vercel.app',
     images: [
       {
-        url: 'https://tranquilo-app.vercel.app/icons/icon-512.png',
+        url: 'https://tranquilo-app.vercel.app/icons/icon-512-verde.png',
         width: 512,
         height: 512,
         alt: 'Tranquilo - App de finanzas personales',
       },
       {
-        url: 'https://tranquilo-app.vercel.app/icons/icon-192.png',
+        url: 'https://tranquilo-app.vercel.app/icons/icon-192-verde.png',
         width: 192,
         height: 192,
         alt: 'Tranquilo - App de finanzas personales',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Tranquilo — Finanzas Personales',
     description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
-    images: ['https://tranquilo-app.vercel.app/icons/icon-512.png'],
+    images: ['https://tranquilo-app.vercel.app/icons/icon-512-verde.png'],
   },
 }
 
@@ -63,8 +63,8 @@ export default function RootLayout({
       <head>
         {/* Manifest y iconos PWA */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/icons/icon-512.png" sizes="512x512" />
+        <link rel="apple-touch-icon" href="/icons/icon-192-verde.png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/icons/icon-512-verde.png" sizes="512x512" />
 
         {/* Meta tags para PWA y móvil */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -75,7 +75,7 @@ export default function RootLayout({
 
         {/* Windows */}
         <meta name="msapplication-TileColor" content="#0D6259" />
-        <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
+        <meta name="msapplication-TileImage" content="/icons/icon-192-verde.png" />
         <meta name="msapplication-config" content="none" />
 
         {/* Android */}
