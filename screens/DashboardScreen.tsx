@@ -193,25 +193,14 @@ export function DashboardScreen({
               <>
                 {/* Overlay to close menu */}
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0 z-30 animate-in fade-in duration-150"
                   onClick={() => setMenuOpen(false)}
                 />
                 {/* Dropdown panel */}
                 <div
-                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden"
+                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                   style={{ width: 280, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
                 >
-                  {/* Agregar gasto */}
-                  <button
-                    onClick={() => { onAdd(); setMenuOpen(false) }}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <Icon name="plus" size={16} className="text-teal-600" />
-                      Agregar gasto
-                    </span>
-                  </button>
-
                   {/* Configuración */}
                   <button
                     onClick={() => { /* navigate to perfil */ setMenuOpen(false) }}
