@@ -193,12 +193,12 @@ export function DashboardScreen({
               <>
                 {/* Overlay to close menu */}
                 <div
-                  className="fixed inset-0 z-30 animate-in fade-in duration-150"
+                  className="fixed inset-0 z-30 opacity-0 transition-opacity duration-150"
                   onClick={() => setMenuOpen(false)}
                 />
                 {/* Dropdown panel */}
                 <div
-                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                  className="absolute top-full right-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden opacity-100 transition-opacity duration-200"
                   style={{ width: 280, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
                 >
                   {/* Configuración */}
