@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatMoney } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
 import { parseAmount } from '../lib/utils'
@@ -21,10 +21,20 @@ interface Props {
 }
 
 export function OnboardingScreen({ config, onComplete }: Props) {
-  const [step, setStep] = useState<'income' | 'budget'>('income')
+  const [step, setStep] = useState<'splash' | 'income' | 'budget'>('splash')
   const [incomeInput, setIncomeInput] = useState('')
   const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
+
+  // Auto-navigate after 1.5 seconds on splash screen
+  useEffect(() => {
+    if (step === 'splash') {
+      const timer = setTimeout(() => {
+        setStep('income')
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [step])
 
   const parsedIncome = parseAmount(incomeInput)
   const parsedBudget = parseAmount(budgetInput)
@@ -61,29 +71,43 @@ export function OnboardingScreen({ config, onComplete }: Props) {
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16 text-center max-w-sm mx-auto w-full">
 
-        {/* ── Logo ── */}
-        <div
-          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8 text-4xl select-none"
-          style={{
-            background: 'rgba(255,255,255,0.15)',
-            border: '1.5px solid rgba(255,255,255,0.35)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)',
-            backdropFilter: 'blur(6px)',
-          }}
-        >
-          <img src="/icons/icon-192.png" alt="Tranquilo" className="w-12 h-12" />
-        </div>
+        {/* ── Splash Screen ── */}
+        {step === 'splash' && (
+          <img
+            src="/logo-ui.png"
+            alt="Tranquilo"
+            className="w-48 h-48 object-contain select-none"
+          />
+        )}
 
-        {/* ── Brand ── */}
-        <h1
-          className="text-4xl font-bold text-white tracking-tight mb-2"
-          style={{ textShadow: '0 2px 12px rgba(0,0,0,0.30)' }}
-        >
-          Tranquilo
-        </h1>
-        <p className="text-white/70 text-base leading-relaxed mb-12">
-          Finanzas personales sin estrés
-        </p>
+        {/* ── Onboarding Content ── */}
+        {step !== 'splash' && (
+          <>
+            {/* ── Logo ── */}
+            <div
+              className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8 text-4xl select-none"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1.5px solid rgba(255,255,255,0.35)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)',
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              <img src="/icons/icon-192.png" alt="Tranquilo" className="w-12 h-12" />
+            </div>
+
+            {/* ── Brand ── */}
+            <h1
+              className="text-4xl font-bold text-white tracking-tight mb-2"
+              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.30)' }}
+            >
+              Tranquilo
+            </h1>
+            <p className="text-white/70 text-base leading-relaxed mb-12">
+              Finanzas personales sin estrés
+            </p>
+          </>
+        )}
 
         {/* ── Step: Income ── */}
         {step === 'income' && (
