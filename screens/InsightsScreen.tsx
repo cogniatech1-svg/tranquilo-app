@@ -199,7 +199,7 @@ function generateInsights(
 
     if (lastCat != null && lastCat > 0) {
       const diff = topSpent - lastCat
-      const pct  = Math.round(Math.abs(diff / lastCat) * 100)
+      const pct: number = Math.round(Math.abs(diff / lastCat) * 100)
       (diff > 0 && pct > 20 ? warnings : infos).push({
         kind: diff > 0 && pct > 20 ? 'warning' : 'info',
         icon: '🎯',
