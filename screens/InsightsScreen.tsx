@@ -266,7 +266,7 @@ function generateInsights(
   }
 
   // ── 5. Projection vs last month close ────────────────────────────────────
-  if (daysPassed >= 5 && pool.length < 3) {
+  if (daysPassed >= 5) {
     if (lastMonthTotal > 0) {
       const diff = projected - lastMonthTotal
       const pct  = Math.round(Math.abs(diff / lastMonthTotal) * 100)
@@ -298,7 +298,7 @@ function generateInsights(
   }
 
   // ── 6. Weekend vs weekday pattern ─────────────────────────────────────────
-  if (daysPassed >= 7 && pool.length < 4) {
+  if (daysPassed >= 7) {
     const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6
     const wkendExp  = expenses.filter(e => isWeekend(new Date(e.date)))
     const wkdayExp  = expenses.filter(e => !isWeekend(new Date(e.date)))
@@ -325,7 +325,7 @@ function generateInsights(
   }
 
   // ── 7. Month acceleration ─────────────────────────────────────────────────
-  if (daysPassed >= 10 && pool.length < 4) {
+  if (daysPassed >= 10) {
     const half       = Math.floor(daysPassed / 2)
     const firstHalf  = expenses.filter(e => new Date(e.date).getDate() <= half)
     const secondHalf = expenses.filter(e => new Date(e.date).getDate() > half)
@@ -345,7 +345,7 @@ function generateInsights(
   }
 
   // ── 8. Recurring habit ────────────────────────────────────────────────────
-  if (expenses.length >= 4 && pool.length < 4) {
+  if (expenses.length >= 4) {
     const freq: Record<string, { count: number; total: number }> = {}
     for (const e of expenses) {
       const k = e.concept.toLowerCase()
