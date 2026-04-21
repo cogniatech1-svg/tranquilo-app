@@ -98,7 +98,7 @@ export function ProfileScreen({
       >
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
-            👤
+            👤‌
           </div>
           <h2 className="text-2xl font-bold text-white">Perfil</h2>
           <p className="text-xs text-white/70 mt-1">Gestiona tu cuenta</p>
