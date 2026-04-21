@@ -103,6 +103,14 @@ export function ProfileScreen({
           style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
 
         <div className="relative">
+          {/* Logo Icon */}
+          <div className="w-20 h-20 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+            <img
+              src="/logo-ui.png"
+              alt="Tranquilo"
+              className="w-12 h-12 object-contain"
+            />
+          </div>
           <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
           <p className="text-sm text-white/70">Gestiona tu cuenta</p>
         </div>
