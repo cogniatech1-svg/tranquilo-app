@@ -84,6 +84,34 @@ export default function RootLayout({
       <body className={`${geist.variable} antialiased`}>
         {children}
 
+        {/* ── Version check (force PWA update) ──────────────────────────────────────── */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  let lastVersion = localStorage.getItem('tranquilo_version');
+
+  function checkVersion() {
+    fetch('/version.json?t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        if (lastVersion && lastVersion !== data.version) {
+          localStorage.setItem('tranquilo_version', data.version);
+          window.location.reload();
+        } else if (!lastVersion) {
+          localStorage.setItem('tranquilo_version', data.version);
+        }
+      })
+      .catch(() => {});
+  }
+
+  checkVersion();
+  setInterval(checkVersion, 3000);
+})();
+            `,
+          }}
+        />
+
         {/* ── Service worker registration (auto-updates PWA) ────────────────────────── */}
         <script
           dangerouslySetInnerHTML={{
