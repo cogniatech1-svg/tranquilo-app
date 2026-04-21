@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { StatCard } from '../components/StatCard'
 import { PocketCard } from '../components/PocketCard'
 import { TransactionItem } from '../components/TransactionItem'
@@ -6,7 +6,7 @@ import { SectionHeader } from '../components/ui/SectionHeader'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
 import { Card } from '../components/ui/Card'
-import { CALM_GRADS, DS, formatMoney } from '../lib/config'
+import { CALM_GRADS, DS, formatMoney, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, ExtraIncome, Pocket } from '../lib/types'
 import { getCalmState, getDaysInMonth, getSpendingOveragePct } from '../lib/utils'
@@ -32,6 +32,8 @@ interface Props {
   realCurrentMonth: string
   onChangeMonth: (m: string) => void
   onAdd: () => void
+  isPrivacyMode: boolean
+  onTogglePrivacy: () => void
 }
 
 export function DashboardScreen({
@@ -47,7 +49,11 @@ export function DashboardScreen({
   realCurrentMonth,
   onChangeMonth,
   onAdd,
+  isPrivacyMode,
+  onTogglePrivacy,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const isViewingPast = activeMonth !== realCurrentMonth
   const today    = useMemo(() => new Date(), [])
   const todayStr = today.toISOString().slice(0, 10)
@@ -171,7 +177,53 @@ export function DashboardScreen({
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
+          {/* ☰ Menu button */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="w-9 h-9 bg-white/15 hover:bg-white/25 active:scale-95 rounded-xl flex items-center justify-center text-white transition-all border border-white/15"
+              style={{ backdropFilter: 'blur(4px)' }}
+            >
+              <Icon name="menu" size={16} />
+            </button>
+
+            {menuOpen && (
+              <>
+                {/* Overlay to close menu */}
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setMenuOpen(false)}
+                />
+                {/* Dropdown */}
+                <div
+                  className="absolute top-full left-0 mt-2 bg-white rounded-2xl z-40 overflow-hidden"
+                  style={{ minWidth: 200, boxShadow: '0 8px 32px rgba(15,23,42,.18)' }}
+                >
+                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Modo privacidad</p>
+                    </div>
+                    <button
+                      onClick={() => { onTogglePrivacy(); setMenuOpen(false) }}
+                      className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
+                        isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                          isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
+
           <button
             onClick={onAdd}
             className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20 relative overflow-hidden"
@@ -205,13 +257,13 @@ export function DashboardScreen({
 
         {/* Main number */}
         <p className="text-[2.75rem] font-bold text-white tabular-nums leading-none mb-1">
-          {formatMoney(totalSpent, config)}
+          {mm(totalSpent)}
         </p>
 
         {/* Context */}
         {effectiveBudget > 0 && (
           <p className="text-sm text-white/65 tabular-nums mb-5">
-            de {formatMoney(effectiveBudget, config)} este mes
+            de {mm(effectiveBudget)} este mes
           </p>
         )}
 
@@ -219,8 +271,8 @@ export function DashboardScreen({
         {effectiveBudget > 0 && (
           <p className="text-base font-bold tabular-nums" style={{ color: remaining >= 0 ? '#5EEAD4' : '#F87171' }}>
             {remaining >= 0
-              ? `Te quedan ${formatMoney(remaining, config)}${monthlyBudget > 0 ? ' del presupuesto' : ''}`
-              : `Excediste el presupuesto por ${formatMoney(-remaining, config)}`}
+              ? `Te quedan ${mm(remaining)}${monthlyBudget > 0 ? ' del presupuesto' : ''}`
+              : `Excediste el presupuesto por ${mm(-remaining)}`}
           </p>
         )}
 
@@ -261,10 +313,10 @@ export function DashboardScreen({
               {/* Ingresos */}
               <div className="px-4 py-3.5">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Ingresos</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(totalIncome, config)}</p>
-                {extraIncomeTotal > 0 && (
+                <p className="text-sm font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
+                {extraIncomeTotal > 0 && !isPrivacyMode && (
                   <p className="text-[9px] text-slate-400 tabular-nums mt-0.5">
-                    Base {formatMoney(monthlyIncome, config)} + {formatMoney(extraIncomeTotal, config)} extra
+                    Base {mm(monthlyIncome)} + {mm(extraIncomeTotal)} extra
                   </p>
                 )}
               </div>
@@ -275,7 +327,7 @@ export function DashboardScreen({
                   className="text-sm font-bold tabular-nums"
                   style={{ color: (monthlyBudget > 0 ? totalSpent > monthlyBudget : totalSpent > totalIncome) ? '#EF4444' : '#0F172A' }}
                 >
-                  {formatMoney(totalSpent, config)}
+                  {mm(totalSpent)}
                 </p>
                 <p className="text-[9px] text-slate-400 tabular-nums">
                   {monthlyBudget > 0
@@ -290,7 +342,7 @@ export function DashboardScreen({
                   className="text-sm font-bold tabular-nums"
                   style={{ color: remaining >= 0 ? DS.primary : '#EF4444' }}
                 >
-                  {remaining >= 0 ? formatMoney(remaining, config) : `−${formatMoney(-remaining, config)}`}
+                  {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
                 </p>
                 <p className="text-[9px] text-slate-400 mt-0.5">
                   {monthlyBudget > 0 ? 'del presupuesto' : 'del ingreso'}
@@ -304,7 +356,7 @@ export function DashboardScreen({
                   style={{ color: savingsDisplay >= 0 ? '#16A34A' : '#EF4444' }}
                 >
                   {plannedSavings !== null || day >= 3
-                    ? (savingsDisplay >= 0 ? formatMoney(savingsDisplay, config) : `−${formatMoney(-savingsDisplay, config)}`)
+                    ? (savingsDisplay >= 0 ? mm(savingsDisplay) : `−${mm(-savingsDisplay)}`)
                     : '—'}
                 </p>
                 {(plannedSavings !== null || day >= 3) && (
@@ -320,11 +372,11 @@ export function DashboardScreen({
       ) : (
         /* ── Stats row (budget-only or empty mode) ───────────────────────── */
         <div className="px-4 mt-5 grid grid-cols-3 gap-3">
-          <StatCard label="Hoy" value={formatMoney(todaySpent, config)} />
-          <StatCard label="Esta semana" value={formatMoney(weekSpent, config)} />
+          <StatCard label="Hoy" value={mm(todaySpent)} />
+          <StatCard label="Esta semana" value={mm(weekSpent)} />
           <StatCard
             label="Disponible"
-            value={monthlyBudget > 0 ? formatMoney(Math.max(0, monthlyBudget - totalSpent), config) : '—'}
+            value={monthlyBudget > 0 ? mm(Math.max(0, monthlyBudget - totalSpent)) : '—'}
             accent={monthlyBudget > 0}
           />
         </div>
@@ -333,8 +385,8 @@ export function DashboardScreen({
       {/* ── Hoy / Esta semana (when income mode is active) ─────────────── */}
       {hasIncome && (
         <div className="px-4 mt-3 grid grid-cols-2 gap-3">
-          <StatCard label="Hoy" value={formatMoney(todaySpent, config)} />
-          <StatCard label="Esta semana" value={formatMoney(weekSpent, config)} />
+          <StatCard label="Hoy" value={mm(todaySpent)} />
+          <StatCard label="Esta semana" value={mm(weekSpent)} />
         </div>
       )}
 
@@ -384,6 +436,7 @@ export function DashboardScreen({
                   pocketIndex={i}
                   config={config}
                   compact
+                  isPrivacyMode={isPrivacyMode}
                 />
               </div>
             ))}
@@ -407,6 +460,7 @@ export function DashboardScreen({
                   pocketIndex={pi}
                   config={config}
                   showDivider={i < recentExpenses.length - 1}
+                  isPrivacyMode={isPrivacyMode}
                 />
               )
             })}

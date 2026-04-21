@@ -55,4 +55,5 @@ export interface StoredData {
   currentMonth?: string
   monthlyHistory?: Record<string, MonthRecord>
   countryCode?: CountryCode
+  isPrivacyMode?: boolean
 }

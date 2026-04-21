@@ -1,6 +1,5 @@
 import { Icon } from './ui/Icon'
-import { getPocketIcon, getPocketPalette } from '../lib/config'
-import { formatMoney } from '../lib/config'
+import { getPocketIcon, getPocketPalette, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, Pocket } from '../lib/types'
 
@@ -12,6 +11,7 @@ interface Props {
   onEdit?: (e: Expense) => void
   onDelete?: (id: string) => void
   showDivider?: boolean
+  isPrivacyMode?: boolean
 }
 
 export function TransactionItem({
@@ -22,6 +22,7 @@ export function TransactionItem({
   onEdit,
   onDelete,
   showDivider = true,
+  isPrivacyMode = false,
 }: Props) {
   const icon = pocket ? getPocketIcon(pocket.id, pocket.name, pocket.icon) : '💳'
   const pal = getPocketPalette(pocket?.id ?? '', pocketIndex)
@@ -54,7 +55,7 @@ export function TransactionItem({
 
       {/* Amount */}
       <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
-        {formatMoney(expense.amount, config)}
+        {maskMoney(expense.amount, config, isPrivacyMode)}
       </span>
 
       {/* Actions */}

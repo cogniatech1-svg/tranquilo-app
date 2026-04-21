@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Card } from '../components/ui/Card'
 import { Icon } from '../components/ui/Icon'
 import { TransactionItem } from '../components/TransactionItem'
-import { formatMoney, DS } from '../lib/config'
+import { maskMoney, DS } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, ExtraIncome, Pocket } from '../lib/types'
 
@@ -19,6 +19,7 @@ interface Props {
   onDelete: (id: string) => void
   onEditIncome: (i: ExtraIncome) => void
   onDeleteExtraIncome: (id: string) => void
+  isPrivacyMode?: boolean
 }
 
 type Row =
@@ -38,7 +39,9 @@ export function TransactionsScreen({
   onDelete,
   onEditIncome,
   onDeleteExtraIncome,
+  isPrivacyMode = false,
 }: Props) {
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const isViewingPast = activeMonth !== realCurrentMonth
 
   const totalSpent = useMemo(
@@ -92,7 +95,7 @@ export function TransactionsScreen({
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Movimientos</h1>
             {!isEmpty && (
               <p className="text-sm text-slate-500 mt-0.5">
-                {expenses.length} gastos · {formatMoney(totalSpent, config)}
+                {expenses.length} gastos · {mm(totalSpent)}
               </p>
             )}
           </div>
@@ -138,12 +141,12 @@ export function TransactionsScreen({
                 <div className="flex items-center gap-2 shrink-0">
                   {dayIncome > 0 && (
                     <span className="text-xs font-bold text-green-600 tabular-nums">
-                      +{formatMoney(dayIncome, config)}
+                      +{mm(dayIncome)}
                     </span>
                   )}
                   {dayExpenses > 0 && (
                     <span className="text-xs font-bold text-slate-600 tabular-nums">
-                      {formatMoney(dayExpenses, config)}
+                      {mm(dayExpenses)}
                     </span>
                   )}
                 </div>
@@ -165,7 +168,7 @@ export function TransactionsScreen({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-green-800 tabular-nums">
-                            +{formatMoney(inc.amount, config)}
+                            +{mm(inc.amount)}
                           </p>
                           {inc.note ? (
                             <p className="text-xs text-green-600 truncate capitalize">{inc.note}</p>
@@ -206,6 +209,7 @@ export function TransactionsScreen({
                       onEdit={onEdit}
                       onDelete={onDelete}
                       showDivider={!isLast}
+                      isPrivacyMode={isPrivacyMode}
                     />
                   )
                 })}

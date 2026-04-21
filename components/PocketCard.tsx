@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card } from './ui/Card'
 import { ProgressBar } from './ui/ProgressBar'
 import { Icon } from './ui/Icon'
-import { getPocketIcon, getPocketPalette, formatMoney, guessIconFromName } from '../lib/config'
+import { getPocketIcon, getPocketPalette, maskMoney, guessIconFromName } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
@@ -18,6 +18,7 @@ interface Props {
   onEdit?: (id: string, name: string, budget: number, icon?: string) => void
   onDelete?: (id: string) => void
   compact?: boolean
+  isPrivacyMode?: boolean
 }
 
 export function PocketCard({
@@ -28,7 +29,9 @@ export function PocketCard({
   onEdit,
   onDelete,
   compact = false,
+  isPrivacyMode = false,
 }: Props) {
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editing, setEditing]       = useState(false)
   const [draftName, setDraftName]   = useState(pocket.name)
   const [draftBudget, setDraftBudget] = useState(
@@ -134,8 +137,8 @@ export function PocketCard({
             className="text-xs font-bold tabular-nums shrink-0"
             style={{ color: isOver ? '#EF4444' : pal.text }}
           >
-            {formatMoney(spent, config)}
-            {pocket.budget > 0 ? ` / ${formatMoney(pocket.budget, config)}` : ''}
+            {mm(spent)}
+            {pocket.budget > 0 ? ` / ${mm(pocket.budget)}` : ''}
           </span>
         </div>
         {pocket.budget > 0 && (
@@ -143,7 +146,7 @@ export function PocketCard({
             <ProgressBar ratio={ratio} thick color={isOver ? undefined : pal.bar} />
             {isOver && (
               <p className="text-[10px] font-bold text-red-600 mt-1 tabular-nums">
-                Exceso: {formatMoney(excess, config)}
+                Exceso: {mm(excess)}
               </p>
             )}
           </>
@@ -201,17 +204,17 @@ export function PocketCard({
               className="text-base font-bold tabular-nums"
               style={{ color: isOver ? '#EF4444' : '#0F172A' }}
             >
-              {formatMoney(spent, config)}
+              {mm(spent)}
             </span>
             <span className="text-xs text-slate-400 tabular-nums">
-              / {formatMoney(pocket.budget, config)}
+              / {mm(pocket.budget)}
             </span>
           </div>
           <ProgressBar ratio={ratio} thick color={isOver ? undefined : pal.bar} />
           {isOver ? (
             <div className="flex items-center justify-between mt-1.5">
               <p className="text-[10px] font-bold text-red-600 tabular-nums">
-                Exceso: {formatMoney(excess, config)}
+                Exceso: {mm(excess)}
               </p>
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">
                 +{Math.round((excess / pocket.budget) * 100)}%
@@ -220,14 +223,14 @@ export function PocketCard({
           ) : (
             <p className="text-[10px] mt-1.5 tabular-nums font-semibold" style={{ color: pal.text }}>
               {Math.round(ratio * 100)}% del presupuesto
-              {leftover > 0 && ` · ${formatMoney(leftover, config)} libre`}
+              {leftover > 0 && ` · ${mm(leftover)} libre`}
             </p>
           )}
         </>
       ) : (
         <>
           <p className="text-base font-bold text-slate-900 tabular-nums mb-2">
-            {formatMoney(spent, config)}
+            {mm(spent)}
           </p>
           {onEdit && (
             <button

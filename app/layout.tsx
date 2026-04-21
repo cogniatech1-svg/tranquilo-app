@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: 'Tranquilo — Finanzas Personales',
   description: 'Ajustes pequeños para llegar tranquilo a fin de mes',
   icons: {
-    icon: '/icons/icon-192.png',
+    icon: '/favicon-v2.png',
+    shortcut: '/favicon-v2.png',
     apple: '/icons/icon-192.png',
   },
   openGraph: {
@@ -62,7 +63,6 @@ export default function RootLayout({
       <head>
         {/* Manifest y iconos PWA */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" sizes="192x192" />
         <link rel="apple-touch-icon" href="/icons/icon-512.png" sizes="512x512" />
 

@@ -55,6 +55,7 @@ export default function Home() {
   >({})
 
   const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
+  const [isPrivacyMode,        setIsPrivacyMode]         = useState(false)
 
   const [sheetOpen,        setSheetOpen]        = useState(false)
   const [editingExpense,   setEditingExpense]   = useState<Expense | null>(null)
@@ -107,7 +108,8 @@ export default function Home() {
           setExtraIncomes(data.extraIncomes ?? [])
           setConceptMap(data.conceptMap ?? {})
           setMonthlyHistory(history)
-          if (income > 0 || budget > 0 || (data.expenses?.length ?? 0) > 0) setScreen('main')
+          if (data.isPrivacyMode) setIsPrivacyMode(true)
+        if (income > 0 || budget > 0 || (data.expenses?.length ?? 0) > 0) setScreen('main')
         }
       }
     } catch {
@@ -131,9 +133,10 @@ export default function Home() {
         currentMonth,
         monthlyHistory,
         countryCode,
+        isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, currentMonth, monthlyHistory, countryCode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
@@ -316,6 +319,10 @@ export default function Home() {
     setMonthlyIncome(income)
   }, [])
 
+  const handleTogglePrivacy = useCallback(() => {
+    setIsPrivacyMode(prev => !prev)
+  }, [])
+
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, income: number) => {
     setCountryCode(code)
     if (budget > 0) setMonthlyBudget(budget)
@@ -354,6 +361,8 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onAdd={openAddSheet}
+            isPrivacyMode={isPrivacyMode}
+            onTogglePrivacy={handleTogglePrivacy}
           />
         )}
         {activeTab === 'movimientos' && (
@@ -370,6 +379,7 @@ export default function Home() {
             onDelete={handleDeleteExpense}
             onEditIncome={openEditIncomeSheet}
             onDeleteExtraIncome={handleDeleteExtraIncome}
+            isPrivacyMode={isPrivacyMode}
           />
         )}
         {activeTab === 'presupuesto' && (
@@ -388,6 +398,7 @@ export default function Home() {
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
             isViewingPast={isViewingPast}
+            isPrivacyMode={isPrivacyMode}
           />
         )}
         {activeTab === 'insights' && (
@@ -399,6 +410,7 @@ export default function Home() {
             monthlyIncome={totalIncome}
             monthlyHistory={monthlyHistory}
             config={config}
+            isPrivacyMode={isPrivacyMode}
           />
         )}
         {activeTab === 'perfil' && (
@@ -413,6 +425,8 @@ export default function Home() {
             config={config}
             onClearData={handleClearData}
             onSetIncome={handleSetIncome}
+            isPrivacyMode={isPrivacyMode}
+            onTogglePrivacy={handleTogglePrivacy}
           />
         )}
       </div>

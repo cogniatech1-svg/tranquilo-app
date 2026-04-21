@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { InsightDonut } from '../components/InsightDonut'
-import { DS, formatMoney, getPocketPalette, getPocketIcon, POCKET_PALETTE } from '../lib/config'
+import { DS, formatMoney, maskMoney, getPocketPalette, getPocketIcon, POCKET_PALETTE } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, MonthRecord, Pocket } from '../lib/types'
 
@@ -17,6 +17,7 @@ interface Props {
   monthlyIncome: number
   monthlyHistory: Record<string, MonthRecord>
   config: CountryConfig
+  isPrivacyMode?: boolean
 }
 
 type InsightKind = 'warning' | 'positive' | 'info'
@@ -473,7 +474,9 @@ export function InsightsScreen({
   monthlyIncome,
   monthlyHistory,
   config,
+  isPrivacyMode = false,
 }: Props) {
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
 
   const totalSpentRaw = useMemo(
@@ -541,7 +544,7 @@ export function InsightsScreen({
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Insights</h1>
         {expenses.length > 0 && (
           <p className="text-sm text-slate-500 mt-0.5">
-            {expenses.length} movimientos · {formatMoney(totalSpentRaw, config)}
+            {expenses.length} movimientos · {mm(totalSpentRaw)}
           </p>
         )}
       </div>
@@ -648,7 +651,7 @@ export function InsightsScreen({
                             <span className="text-sm font-bold text-slate-800 truncate">{name}</span>
                             <div className="flex items-baseline gap-2 shrink-0">
                               <span className="text-sm font-bold text-slate-900 tabular-nums">
-                                {formatMoney(spent, config)}
+                                {mm(spent)}
                               </span>
                               <span className="text-[10px] font-bold" style={{ color: pal.text }}>
                                 {pct}% {pctLabel}
@@ -662,12 +665,12 @@ export function InsightsScreen({
                           />
                           {budget > 0 && budget - spent > 0 && (
                             <p className="text-[10px] mt-1 tabular-nums font-semibold" style={{ color: pal.text }}>
-                              {formatMoney(budget - spent, config)} libre de {formatMoney(budget, config)}
+                              {mm(budget - spent)} libre de {mm(budget)}
                             </p>
                           )}
                           {budget > 0 && budget - spent <= 0 && (
                             <p className="text-[10px] mt-1 tabular-nums font-semibold text-red-500">
-                              Excedido en {formatMoney(spent - budget, config)}
+                              Excedido en {mm(spent - budget)}
                             </p>
                           )}
                         </div>
@@ -695,7 +698,7 @@ export function InsightsScreen({
                                     <span className="text-[10px] text-slate-400 font-medium shrink-0 w-12">{dateStr}</span>
                                     <span className="text-xs text-slate-700 flex-1 truncate capitalize">{e.concept}</span>
                                     <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
-                                      {formatMoney(e.amount, config)}
+                                      {mm(e.amount)}
                                     </span>
                                   </div>
                                 )
@@ -705,7 +708,7 @@ export function InsightsScreen({
                                   {pocketExpenses.length} movimiento{pocketExpenses.length !== 1 ? 's' : ''}
                                 </span>
                                 <span className="text-xs font-bold tabular-nums" style={{ color: pal.text }}>
-                                  {formatMoney(spent, config)}
+                                  {mm(spent)}
                                 </span>
                               </div>
                             </div>
@@ -739,7 +742,7 @@ export function InsightsScreen({
                           {concept}
                         </span>
                         <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
-                          {formatMoney(amount, config)}
+                          {mm(amount)}
                         </span>
                       </div>
                       <ProgressBar ratio={amount / (totalSpentRaw || 1)} color={pal.bar} />
@@ -750,7 +753,7 @@ export function InsightsScreen({
               <div className="border-t border-slate-100 pt-3.5 flex items-center justify-between">
                 <span className="text-sm font-bold text-slate-500">Total</span>
                 <span className="text-sm font-bold text-slate-900 tabular-nums">
-                  {formatMoney(totalSpentRaw, config)}
+                  {mm(totalSpentRaw)}
                 </span>
               </div>
             </Card>
@@ -789,7 +792,7 @@ export function InsightsScreen({
                         )}
                       </div>
                       <span className="text-sm font-bold text-slate-900 tabular-nums">
-                        {formatMoney(m.totalSpent, config)}
+                        {mm(m.totalSpent)}
                       </span>
                     </div>
 
@@ -801,13 +804,13 @@ export function InsightsScreen({
                             m.savings >= 0 ? 'text-teal-600' : 'text-red-500'
                           }`}>
                             {m.savings >= 0
-                              ? `Ahorraste ${formatMoney(m.savings, config)}`
-                              : `Superaste por ${formatMoney(-m.savings, config)}`}
+                              ? `Ahorraste ${mm(m.savings)}`
+                              : `Superaste por ${mm(-m.savings)}`}
                             {m.savingsRate !== null && m.savings > 0 && ` (${m.savingsRate}%)`}
                           </span>
                         ) : m.budget > 0 ? (
                           <span className="text-[10px] text-slate-400 tabular-nums">
-                            de {formatMoney(m.budget, config)} presupuesto
+                            de {mm(m.budget)} presupuesto
                           </span>
                         ) : null}
                         {m.topCategory && (

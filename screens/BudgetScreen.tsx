@@ -7,7 +7,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { PocketCard } from '../components/PocketCard'
 import { Icon } from '../components/ui/Icon'
-import { DS, formatMoney } from '../lib/config'
+import { DS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
@@ -30,6 +30,7 @@ interface Props {
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
+  isPrivacyMode?: boolean
 }
 
 export function BudgetScreen({
@@ -47,7 +48,9 @@ export function BudgetScreen({
   onEditPocket,
   onDeletePocket,
   onAddPocket,
+  isPrivacyMode = false,
 }: Props) {
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editingBudget, setEditingBudget] = useState(false)
   const [budgetInput, setBudgetInput] = useState('')
   const [addingPocket, setAddingPocket] = useState(false)
@@ -114,14 +117,14 @@ export function BudgetScreen({
               <div className="px-3 py-3.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Presupuesto</p>
                 <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
-                  {formatMoney(monthlyBudget, config)}
+                  {mm(monthlyBudget)}
                 </p>
               </div>
               {/* Asignado a bolsillos */}
               <div className="px-3 py-3.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Asignado</p>
                 <p className="text-sm font-bold tabular-nums leading-tight" style={{ color: DS.primary }}>
-                  {formatMoney(totalPocketBudget, config)}
+                  {mm(totalPocketBudget)}
                 </p>
                 {assignedPct > 0 && (
                   <p className="text-[9px] text-slate-400 mt-0.5">{assignedPct}%</p>
@@ -135,8 +138,8 @@ export function BudgetScreen({
                   style={{ color: unassigned >= 0 ? '#16A34A' : '#EF4444' }}
                 >
                   {unassigned >= 0
-                    ? formatMoney(unassigned, config)
-                    : `−${formatMoney(-unassigned, config)}`}
+                    ? mm(unassigned)
+                    : `−${mm(-unassigned)}`}
                 </p>
               </div>
             </div>
@@ -217,10 +220,10 @@ export function BudgetScreen({
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Gastado</p>
                 <p className="text-xl font-bold text-slate-900 tabular-nums">
-                  {formatMoney(totalSpent, config)}
+                  {mm(totalSpent)}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5 tabular-nums">
-                  de {formatMoney(monthlyBudget, config)} este mes
+                  de {mm(monthlyBudget)} este mes
                 </p>
               </div>
               <div>
@@ -230,8 +233,8 @@ export function BudgetScreen({
                   style={{ color: totalSpent > monthlyBudget ? '#EF4444' : DS.primary }}
                 >
                   {totalSpent > monthlyBudget
-                    ? `−${formatMoney(totalSpent - monthlyBudget, config)}`
-                    : formatMoney(monthlyBudget - totalSpent, config)}
+                    ? `−${mm(totalSpent - monthlyBudget)}`
+                    : mm(monthlyBudget - totalSpent)}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5 tabular-nums">
                   {Math.round(globalRatio * 100)}% usado
@@ -254,7 +257,7 @@ export function BudgetScreen({
             Bolsillos
             {totalPocketBudget > 0 && (
               <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
-                {formatMoney(totalPocketBudget, config)} asignados
+                {mm(totalPocketBudget)} asignados
               </span>
             )}
           </SectionHeader>
@@ -335,6 +338,7 @@ export function BudgetScreen({
                 config={config}
                 onEdit={onEditPocket}
                 onDelete={onDeletePocket}
+                isPrivacyMode={isPrivacyMode}
               />
             ))}
           </div>
@@ -355,7 +359,7 @@ export function BudgetScreen({
                     : `${exceededPockets.length} bolsillos excedidos`}
                 </p>
                 <p className="text-xs text-red-600 mt-0.5 tabular-nums">
-                  Exceso total: {formatMoney(totalExcess, config)}
+                  Exceso total: {mm(totalExcess)}
                 </p>
               </div>
             </div>
@@ -367,7 +371,7 @@ export function BudgetScreen({
                   <div key={p.id} className="flex items-center justify-between">
                     <span className="text-xs text-red-700 font-medium">{p.name}</span>
                     <span className="text-xs font-bold text-red-600 tabular-nums">
-                      +{formatMoney(exc, config)}
+                      +{mm(exc)}
                     </span>
                   </div>
                 )
@@ -381,8 +385,8 @@ export function BudgetScreen({
                   Quedan{' '}
                   <span className="font-bold tabular-nums">
                     {budgetRemaining >= 0
-                      ? formatMoney(budgetRemaining, config)
-                      : `−${formatMoney(-budgetRemaining, config)}`}
+                      ? mm(budgetRemaining)
+                      : `−${mm(-budgetRemaining)}`}
                   </span>
                   {budgetRemaining < 0 ? ' (presupuesto excedido).' : ' del presupuesto total.'}
                 </>
@@ -401,7 +405,7 @@ export function BudgetScreen({
             }}
           >
             <p className="text-sm font-bold text-slate-800 mb-1">
-              {formatMoney(unassigned, config)} restantes por asignar
+              {mm(unassigned)} restantes por asignar
             </p>
             <p className="text-xs text-slate-500 mb-3 leading-relaxed">
               Esta parte del presupuesto no está asignada a ningún bolsillo. Puedes:
@@ -431,7 +435,7 @@ export function BudgetScreen({
             }}
           >
             <p className="text-sm font-bold text-orange-800 mb-1">
-              Bolsillos sobre-asignados en {formatMoney(-unassigned, config)}
+              Bolsillos sobre-asignados en {mm(-unassigned)}
             </p>
             <p className="text-xs text-orange-600 leading-relaxed">
               Los presupuestos de tus bolsillos superan el presupuesto total. Reduce alguno para cuadrar.

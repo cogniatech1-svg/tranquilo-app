@@ -53,6 +53,10 @@ export function formatMoney(amount: number, config: CountryConfig): string {
   }).format(Math.round(amount))
 }
 
+export function maskMoney(amount: number, config: CountryConfig, isPrivacy: boolean): string {
+  return isPrivacy ? '••••' : formatMoney(amount, config)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN TOKENS
 // ─────────────────────────────────────────────────────────────────────────────

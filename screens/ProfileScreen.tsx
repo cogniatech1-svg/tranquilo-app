@@ -7,7 +7,7 @@ import { StatCard } from '../components/StatCard'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
-import { DS, formatMoney } from '../lib/config'
+import { DS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { MonthRecord } from '../lib/types'
 import { parseAmount } from '../lib/utils'
@@ -24,6 +24,8 @@ interface Props {
   config: CountryConfig
   onClearData: () => void
   onSetIncome: (income: number) => void
+  isPrivacyMode?: boolean
+  onTogglePrivacy?: () => void
 }
 
 export function ProfileScreen({
@@ -37,8 +39,11 @@ export function ProfileScreen({
   config,
   onClearData,
   onSetIncome,
+  isPrivacyMode = false,
+  onTogglePrivacy,
 }: Props) {
   const totalIncome = monthlyIncome + extraIncomeTotal
+  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [confirming, setConfirming] = useState(false)
   const [editingIncome, setEditingIncome] = useState(false)
   const [incomeInput, setIncomeInput] = useState('')
@@ -243,11 +248,11 @@ export function ProfileScreen({
             {totalIncome > 0 ? (
               <>
                 <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
-                  {formatMoney(totalIncome, config)}
+                  {mm(totalIncome)}
                 </p>
-                {extraIncomeTotal > 0 && (
+                {extraIncomeTotal > 0 && !isPrivacyMode && (
                   <p className="text-xs text-slate-400 tabular-nums mt-0.5">
-                    Base {formatMoney(monthlyIncome, config)} + {formatMoney(extraIncomeTotal, config)} extra
+                    Base {mm(monthlyIncome)} + {mm(extraIncomeTotal)} extra
                   </p>
                 )}
               </>
@@ -257,6 +262,28 @@ export function ProfileScreen({
           </Card>
         )}
 
+        {/* ── Privacy toggle ────────────────────────────────────────────────── */}
+        <Card className="px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Modo privacidad</p>
+            </div>
+            <button
+              onClick={onTogglePrivacy}
+              className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
+                isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </Card>
+
         {/* ── Monthly history ───────────────────────────────────────────────── */}
         {monthList.length > 0 && (
           <div>
@@ -264,7 +291,7 @@ export function ProfileScreen({
               Histórico
               {avgSpent > 0 && (
                 <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
-                  Prom. {formatMoney(avgSpent, config)}
+                  Prom. {mm(avgSpent)}
                 </span>
               )}
             </SectionHeader>
@@ -294,7 +321,7 @@ export function ProfileScreen({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm font-semibold text-slate-800 tabular-nums truncate">
-                          {formatMoney(totalSpent, config)}
+                          {mm(totalSpent)}
                         </span>
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
@@ -308,7 +335,7 @@ export function ProfileScreen({
                         <>
                           <ProgressBar ratio={ratio} thick />
                           <p className="text-[9px] text-slate-400 mt-1 tabular-nums">
-                            {Math.round(ratio * 100)}% de {formatMoney(budget, config)}
+                            {Math.round(ratio * 100)}% de {mm(budget)}
                           </p>
                         </>
                       )}
