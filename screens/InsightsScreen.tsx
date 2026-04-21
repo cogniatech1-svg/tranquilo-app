@@ -248,7 +248,7 @@ function generateInsights(
 
       if (pct >= 10) {
         const weeklyBudget = monthlyBudget > 0 ? monthlyBudget / (daysInMonth / 7) : null
-        const vsWeekBudget = weeklyBudget ? ` Tu objetivo semanal: ${fm(weeklyBudget)}.` : ''
+        const vsWeekBudget: string = weeklyBudget ? ` Tu objetivo semanal: ${fm(weeklyBudget)}.` : ''
         (higher ? warnings : positives).push({
           kind: higher ? 'warning' : 'positive',
           icon: higher ? '📈' : '📉',
