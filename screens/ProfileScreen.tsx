@@ -1,74 +1,34 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
-import { StatCard } from '../components/StatCard'
-import { ProgressBar } from '../components/ui/ProgressBar'
-import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
-import { DS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { MonthRecord, ExtraIncome } from '../lib/types'
-import { parseAmount } from '../lib/utils'
-import { FeedbackSheet } from '../components/FeedbackSheet'
+import type { ExtraIncome } from '../lib/types'
 
 interface Props {
-  expenseCount: number
-  pocketCount: number
-  currentMonth: string
-  monthlyHistory: Record<string, MonthRecord> | undefined
-  monthlyBudget: number
-  monthlyIncome: number
-  extraIncomeTotal?: number
-  extraIncomes?: ExtraIncome[]
   config: CountryConfig
   onClearData: () => void
-  onSetIncome: (income: number) => void
-  onEditExtraIncome?: (i: ExtraIncome) => void
-  onDeleteExtraIncome?: (id: string) => void
   isPrivacyMode?: boolean
   onTogglePrivacy?: () => void
 }
 
 export function ProfileScreen({
-  expenseCount,
-  pocketCount,
-  currentMonth,
-  monthlyHistory,
-  monthlyBudget,
-  monthlyIncome,
-  extraIncomeTotal = 0,
-  extraIncomes = [],
   config,
   onClearData,
-  onSetIncome,
-  onEditExtraIncome,
-  onDeleteExtraIncome,
   isPrivacyMode = false,
   onTogglePrivacy,
 }: Props) {
-  const totalIncome = monthlyIncome + extraIncomeTotal
-  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
-  const [confirming, setConfirming] = useState(false)
-  const [editingIncome, setEditingIncome] = useState(false)
-  const [incomeInput, setIncomeInput] = useState('')
+  const [pinEnabled, setPinEnabled] = useState(false)
+  const [showPinInput, setShowPinInput] = useState(false)
+  const [pin, setPin] = useState('')
+  const [darkMode, setDarkMode] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-
-  const handleExport = () => {
-    const raw  = localStorage.getItem('tranquilo_v1')
-    const data = raw ? JSON.parse(raw) : {}
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href     = url
-    a.download = 'mis-datos-financieros.json'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const handleExportCSV = () => {
-    const raw  = localStorage.getItem('tranquilo_v1')
+    const raw = localStorage.getItem('tranquilo_v1')
     const data = raw ? JSON.parse(raw) : {}
 
     const pocketNames: Record<string, string> = {}
@@ -76,7 +36,7 @@ export function ProfileScreen({
 
     const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'Monto', 'Descripción']]
 
-    // Current-month expenses
+    // Gastos del mes actual
     for (const e of (data.expenses ?? [])) {
       rows.push([
         e.date.slice(0, 10),
@@ -87,7 +47,7 @@ export function ProfileScreen({
       ])
     }
 
-    // Extra incomes
+    // Ingresos extras
     for (const i of (data.extraIncomes ?? [])) {
       rows.push([
         i.date.slice(0, 10),
@@ -98,7 +58,7 @@ export function ProfileScreen({
       ])
     }
 
-    // Historical months
+    // Meses anteriores
     for (const [, record] of Object.entries(data.monthlyHistory ?? {})) {
       const rec = record as { expenses?: Array<{ date: string; pocketId: string; amount: number; concept: string }> }
       for (const e of (rec.expenses ?? [])) {
@@ -112,389 +72,243 @@ export function ProfileScreen({
       }
     }
 
-    // Sort by date descending
+    // Ordenar por fecha descendente
     const [header, ...body] = rows
     body.sort((a, b) => b[0].localeCompare(a[0]))
 
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    const csv    = [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
-    const blob   = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url    = URL.createObjectURL(blob)
-    const a      = document.createElement('a')
-    a.href       = url
-    a.download   = 'mis-finanzas.csv'
+    const csv = [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const saveIncome = () => {
-    const v = parseAmount(incomeInput)
-    if (v > 0) {
-      onSetIncome(v)
-      setEditingIncome(false)
-      setIncomeInput('')
-    }
-  }
-
-  const monthName = new Date(currentMonth + '-15').toLocaleDateString(config.locale, {
-    month: 'long',
-    year: 'numeric',
-  })
-
-  const monthList = useMemo(() => {
-    if (!monthlyHistory) return []
-    return Object.entries(monthlyHistory)
-      .map(([month, data]) => ({
-        month,
-        totalSpent: data.totalSpent,
-        budget: data.budget || monthlyBudget,
-        count: data.expenses.length,
-      }))
-      .sort((a, b) => b.month.localeCompare(a.month))
-      .slice(0, 12)
-  }, [monthlyHistory, monthlyBudget])
-
-  const avgSpent = monthList.length > 0
-    ? monthList.reduce((s, m) => s + m.totalSpent, 0) / monthList.length
-    : 0
-
   return (
-    <div className="pb-6">
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+    <div className="pb-20">
+      {/* Header */}
       <div
-        className="px-5 pt-14 pb-8 text-center relative overflow-hidden"
+        className="px-5 pt-12 pb-8 text-center relative overflow-hidden"
         style={{
           background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
-          boxShadow: '0 4px 28px rgba(4,47,46,.35)',
         }}
       >
-        <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/[0.04] pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-cyan-400/[0.07] pointer-events-none" />
         <div className="relative">
-          <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 select-none border border-white/30 relative overflow-hidden"
-            style={{
-              background: 'rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
-            }}
-          >
-            <img
-              src="/logo-ui.png"
-              alt="Tranquilo"
-              className="w-20 h-20 object-contain"
-            />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
+            👤
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.25)' }}>
-            Tranquilo
-          </h2>
-          <p className="text-xs text-white/70 mt-1 font-medium">Finanzas personales</p>
-          <p className="text-xs text-white/45 mt-0.5 capitalize">{monthName}</p>
+          <h2 className="text-2xl font-bold text-white">Perfil</h2>
+          <p className="text-xs text-white/70 mt-1">Gestiona tu cuenta</p>
         </div>
       </div>
 
-      <div className="px-4 pt-5 space-y-6">
-        {/* ── Month stats ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Gastos este mes"
-            value={String(expenseCount)}
-            sub="movimientos"
-            accent
-          />
-          <StatCard
-            label="Bolsillos activos"
-            value={String(pocketCount)}
-            sub="categorías"
-          />
+      <div className="px-4 pt-6 space-y-5">
+        {/* 1. USUARIO */}
+        <div>
+          <SectionHeader title="Usuario" />
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Plan</p>
+                <p className="text-xs text-slate-500 mt-0.5">Acceso completo</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
+                Premium
+              </span>
+            </div>
+            <button className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-semibold text-slate-800 transition-colors">
+              Ver planes
+            </button>
+          </Card>
         </div>
 
-        {/* ── Income ───────────────────────────────────────────────────────── */}
-        {editingIncome ? (
-          <Card className="p-5 space-y-4">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-              Ingresos mensuales
-            </p>
-            <div className="flex gap-2.5">
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
-                value={incomeInput}
-                onChange={e => setIncomeInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveIncome()}
-                className="flex-1 min-w-0 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none transition-colors bg-slate-50 focus:bg-white"
-              />
-              <PrimaryButton onClick={saveIncome} className="px-5 py-3 text-sm shrink-0">
-                Guardar
-              </PrimaryButton>
+        {/* 2. SEGURIDAD */}
+        <div>
+          <SectionHeader title="Seguridad" />
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">PIN de acceso</p>
+                <p className="text-xs text-slate-500 mt-0.5">Protege tu app</p>
+              </div>
               <button
-                onClick={() => { setEditingIncome(false); setIncomeInput('') }}
-                className="px-3 text-slate-400 hover:text-slate-600"
+                onClick={() => setPinEnabled(!pinEnabled)}
+                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
+                  pinEnabled ? 'bg-teal-500' : 'bg-slate-200'
+                }`}
               >
-                <Icon name="x" size={16} />
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                    pinEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </button>
             </div>
-          </Card>
-        ) : (
-          <Card className="p-5">
-            <div className="flex items-start justify-between mb-1">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-                Ingresos mensuales
-              </p>
+
+            {pinEnabled && !showPinInput && (
               <button
-                onClick={() => { setEditingIncome(true); setIncomeInput(monthlyIncome > 0 ? String(monthlyIncome) : '') }}
-                className="text-xs font-semibold transition-colors"
-                style={{ color: DS.primary }}
+                onClick={() => setShowPinInput(true)}
+                className="w-full px-3 py-2 text-xs font-semibold text-teal-600 hover:text-teal-700 text-left"
               >
-                {monthlyIncome > 0 ? 'Editar' : 'Agregar'}
+                ➜ Configurar PIN
               </button>
-            </div>
-            {totalIncome > 0 ? (
-              <>
-                <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
-                  {mm(totalIncome)}
-                </p>
-                {extraIncomeTotal > 0 && !isPrivacyMode && (
-                  <p className="text-xs text-slate-400 tabular-nums mt-0.5">
-                    Base {mm(monthlyIncome)} + {mm(extraIncomeTotal)} extra
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-slate-400 mt-1">No configurado</p>
+            )}
+
+            {showPinInput && (
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  placeholder="Ingresa un PIN de 4 dígitos"
+                  maxLength={4}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono text-center"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowPinInput(false)}
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (pin.length === 4 && /^\d+$/.test(pin)) {
+                        setShowPinInput(false)
+                        setPin('')
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 text-xs font-semibold bg-teal-500 text-white hover:bg-teal-600 rounded-lg transition-colors"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
             )}
           </Card>
-        )}
-
-        {/* ── Extra incomes ─────────────────────────────────────────────────── */}
-        {extraIncomes.length > 0 && (
-          <Card className="p-5 space-y-3">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-              Ingresos adicionales
-            </p>
-            <div className="space-y-2">
-              {extraIncomes.map((income) => (
-                <div
-                  key={income.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">
-                      {income.note || 'Ingreso extra'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {new Date(income.date).toLocaleDateString(config.locale, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-3">
-                    <span className="text-sm font-bold tabular-nums text-slate-900">
-                      {mm(income.amount)}
-                    </span>
-                    <button
-                      onClick={() => onEditExtraIncome?.(income)}
-                      className="p-1.5 text-slate-300 hover:text-slate-500 rounded-lg hover:bg-white transition-colors"
-                      title="Editar"
-                    >
-                      <Icon name="edit" size={12} />
-                    </button>
-                    <button
-                      onClick={() => onDeleteExtraIncome?.(income.id)}
-                      className="p-1.5 text-slate-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Icon name="trash" size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {/* ── Privacy toggle ────────────────────────────────────────────────── */}
-        <Card className="px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Modo privacidad</p>
-            </div>
-            <button
-              onClick={onTogglePrivacy}
-              className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
-                isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                  isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </Card>
-
-        {/* ── Monthly history ───────────────────────────────────────────────── */}
-        {monthList.length > 0 && (
-          <div>
-            <SectionHeader>
-              Histórico
-              {avgSpent > 0 && (
-                <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
-                  Prom. {mm(avgSpent)}
-                </span>
-              )}
-            </SectionHeader>
-            <Card className="p-4 space-y-3">
-              {monthList.map(({ month, totalSpent, budget, count }) => {
-                const [year, monthNum] = month.split('-')
-                const mName = new Date(`${year}-${monthNum}-15`).toLocaleDateString(config.locale, {
-                  month: 'short',
-                  year: '2-digit',
-                })
-                const ratio = budget > 0 ? totalSpent / budget : 0
-                const isOver = ratio > 1
-
-                return (
-                  <div
-                    key={month}
-                    className="flex items-center gap-3 pb-3 border-b border-slate-100 last:border-b-0 last:pb-0"
-                  >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-col text-center bg-slate-50">
-                      <span className="text-[10px] font-bold text-slate-600 capitalize">
-                        {mName.split(' ')[0]}
-                      </span>
-                      <span className="text-[8px] font-medium text-slate-400">
-                        {mName.split(' ')[1] ?? ''}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-sm font-semibold text-slate-800 tabular-nums truncate">
-                          {mm(totalSpent)}
-                        </span>
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                            isOver ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'
-                          }`}
-                        >
-                          {count} gasto{count !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      {budget > 0 && (
-                        <>
-                          <ProgressBar ratio={ratio} thick />
-                          <p className="text-[9px] text-slate-400 mt-1 tabular-nums">
-                            {Math.round(ratio * 100)}% de {mm(budget)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </Card>
-          </div>
-        )}
-
-        {/* ── Tagline ───────────────────────────────────────────────────────── */}
-        <div
-          className="rounded-2xl px-5 py-4 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #F0FDFA, #EDE9FE)',
-            border: '1px solid rgba(15,118,110,.12)',
-          }}
-        >
-          <p
-            className="text-sm font-bold leading-relaxed"
-            style={{ color: DS.primary }}
-          >
-            "Ajustes pequeños para llegar tranquilo a fin de mes."
-          </p>
         </div>
 
-        {/* ── Export ────────────────────────────────────────────────────────── */}
-        <Card className="px-5 py-4 space-y-3">
-          <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-            Exportar datos
-          </p>
-          <button
-            onClick={handleExport}
-            className="w-full flex items-center justify-between text-sm font-semibold transition-colors"
-            style={{ color: DS.primary }}
-          >
-            <span className="flex items-center gap-2">
-              <span className="text-base leading-none">📥</span>
-              Exportar mis datos (JSON)
-            </span>
-            <Icon name="chevron" size={14} className="text-slate-300" />
-          </button>
-          <div className="border-t border-slate-100" />
-          <button
-            onClick={handleExportCSV}
-            className="w-full flex items-center justify-between text-sm font-semibold transition-colors"
-            style={{ color: DS.primary }}
-          >
-            <span className="flex items-center gap-2">
-              <span className="text-base leading-none">📊</span>
-              Exportar a Excel (CSV)
-            </span>
-            <Icon name="chevron" size={14} className="text-slate-300" />
-          </button>
-        </Card>
-
-        {/* ── Feedback ──────────────────────────────────────────────────────── */}
-        <Card className="px-5 py-4">
-          <button
-            onClick={() => setFeedbackOpen(true)}
-            className="w-full flex items-center justify-between text-sm font-semibold transition-colors"
-            style={{ color: DS.primary }}
-          >
-            <span className="flex items-center gap-2">
-              <span className="text-base leading-none">💬</span>
-              Enviar feedback
-            </span>
-            <Icon name="chevron" size={14} className="text-slate-300" />
-          </button>
-        </Card>
-
-        {/* ── Danger zone ───────────────────────────────────────────────────── */}
-        <Card className="px-5 py-4">
-          {confirming ? (
-            <div className="space-y-3">
-              <p className="text-sm font-bold text-red-600">¿Borrar todos los datos?</p>
-              <p className="text-xs text-slate-400">Esta acción no se puede deshacer.</p>
-              <div className="flex gap-2.5">
-                <button
-                  onClick={() => { onClearData(); setConfirming(false) }}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-2xl text-sm font-semibold transition-colors"
-                >
-                  Sí, borrar todo
-                </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="flex-1 border-2 border-slate-100 py-3 rounded-2xl text-sm text-slate-600 font-medium hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : (
+        {/* 3. DATOS */}
+        <div>
+          <SectionHeader title="Datos" />
+          <Card className="p-4 space-y-2">
             <button
-              onClick={() => setConfirming(true)}
-              className="text-sm text-red-400 hover:text-red-500 font-semibold transition-colors"
+              onClick={handleExportCSV}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors"
             >
-              Borrar todos los datos
+              <span className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg">📥</span>
+                <span className="text-sm font-semibold text-slate-800">Exportar datos (CSV)</span>
+              </span>
+              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
             </button>
-          )}
-        </Card>
-      </div>
 
-      <FeedbackSheet isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <span className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg">🗑️</span>
+                <span className="text-sm font-semibold text-red-600">Borrar todos los datos</span>
+              </span>
+              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
+            </button>
+
+            {confirmClear && (
+              <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-xs font-semibold text-red-700 mb-2">¿Estás seguro? Esta acción no se puede deshacer.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClearData()
+                      setConfirmClear(false)
+                    }}
+                    className="flex-1 px-3 py-2 text-xs font-semibold bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors"
+                  >
+                    Borrar
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* 4. PREFERENCIAS */}
+        <div>
+          <SectionHeader title="Preferencias" />
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Tema oscuro</p>
+                <p className="text-xs text-slate-500 mt-0.5">Cambia el aspecto de la app</p>
+              </div>
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
+                  darkMode ? 'bg-slate-700' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                    darkMode ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
+                <p className="text-xs text-slate-500 mt-0.5">Privacidad en tu pantalla</p>
+              </div>
+              <button
+                onClick={() => onTogglePrivacy?.()}
+                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
+                  isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                    isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </Card>
+        </div>
+
+        {/* 5. SOPORTE */}
+        <div>
+          <SectionHeader title="Soporte" />
+          <Card className="p-4">
+            <button
+              onClick={() => setFeedbackOpen(true)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors"
+            >
+              <span className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg">💬</span>
+                <span className="text-sm font-semibold text-slate-800">Enviar feedback</span>
+              </span>
+              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
+            </button>
+          </Card>
+        </div>
+
+        {/* Versión */}
+        <div className="text-center pt-4 pb-8">
+          <p className="text-xs text-slate-400">Tranquilo v1.0.0</p>
+          <p className="text-xs text-slate-400 mt-1">© 2026 Tranquilo</p>
+        </div>
+      </div>
     </div>
   )
 }
