@@ -28,6 +28,13 @@ export function ProfileScreen({
   const [confirmClear, setConfirmClear] = useState(false)
   const [showPlansModal, setShowPlansModal] = useState(false)
 
+  // Get current month and year
+  const currentDate = new Date()
+  const monthYear = currentDate.toLocaleDateString(config.locale, {
+    month: 'long',
+    year: 'numeric',
+  })
+
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
     const data = raw ? JSON.parse(raw) : {}
@@ -104,15 +111,15 @@ export function ProfileScreen({
 
         <div className="relative">
           {/* Logo Icon */}
-          <div className="w-24 h-24 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+          <div className="w-28 h-28 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
             <img
               src="/logo-ui.png"
               alt="Tranquilo"
-              className="w-16 h-16 object-contain"
+              className="w-20 h-20 object-contain"
             />
           </div>
           <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
-          <p className="text-sm text-white/70">Gestiona tu cuenta</p>
+          <p className="text-sm text-white/70 capitalize">{monthYear}</p>
         </div>
       </div>
 
