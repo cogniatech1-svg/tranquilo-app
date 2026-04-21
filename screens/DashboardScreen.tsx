@@ -34,7 +34,6 @@ interface Props {
   onAdd: () => void
   isPrivacyMode: boolean
   onTogglePrivacy: () => void
-  onOpenProfile?: () => void
 }
 
 export function DashboardScreen({
@@ -52,7 +51,6 @@ export function DashboardScreen({
   onAdd,
   isPrivacyMode,
   onTogglePrivacy,
-  onOpenProfile,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
@@ -242,20 +240,8 @@ export function DashboardScreen({
         <div className="flex items-center justify-between mb-8 relative">
           <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
 
-          {/* Profile button + Menu button */}
-          <div className="flex items-center gap-2">
-            {/* Profile button */}
-            <button
-              onClick={onOpenProfile}
-              className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
-              style={{ backdropFilter: 'blur(4px)' }}
-              title="Perfil"
-            >
-              <Icon name="user" size={20} />
-            </button>
-
-            {/* ☰ Menu button */}
-            <div className="relative">
+          {/* ☰ Menu button */}
+          <div className="relative">
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
@@ -315,7 +301,6 @@ export function DashboardScreen({
                 </div>
               </>
             )}
-            </div>
           </div>
         </div>
 

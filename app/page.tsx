@@ -363,7 +363,6 @@ export default function Home() {
             onAdd={openAddSheet}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
-            onOpenProfile={() => setActiveTab('perfil')}
           />
         )}
         {activeTab === 'movimientos' && (
