@@ -9,7 +9,7 @@ import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
 import { DS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { MonthRecord } from '../lib/types'
+import type { MonthRecord, ExtraIncome } from '../lib/types'
 import { parseAmount } from '../lib/utils'
 import { FeedbackSheet } from '../components/FeedbackSheet'
 
@@ -21,9 +21,12 @@ interface Props {
   monthlyBudget: number
   monthlyIncome: number
   extraIncomeTotal?: number
+  extraIncomes?: ExtraIncome[]
   config: CountryConfig
   onClearData: () => void
   onSetIncome: (income: number) => void
+  onEditExtraIncome?: (i: ExtraIncome) => void
+  onDeleteExtraIncome?: (id: string) => void
   isPrivacyMode?: boolean
   onTogglePrivacy?: () => void
 }
@@ -36,9 +39,12 @@ export function ProfileScreen({
   monthlyBudget,
   monthlyIncome,
   extraIncomeTotal = 0,
+  extraIncomes = [],
   config,
   onClearData,
   onSetIncome,
+  onEditExtraIncome,
+  onDeleteExtraIncome,
   isPrivacyMode = false,
   onTogglePrivacy,
 }: Props) {
@@ -259,6 +265,54 @@ export function ProfileScreen({
             ) : (
               <p className="text-sm text-slate-400 mt-1">No configurado</p>
             )}
+          </Card>
+        )}
+
+        {/* ── Extra incomes ─────────────────────────────────────────────────── */}
+        {extraIncomes.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+              Ingresos adicionales
+            </p>
+            <div className="space-y-2">
+              {extraIncomes.map((income) => (
+                <div
+                  key={income.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">
+                      {income.note || 'Ingreso extra'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {new Date(income.date).toLocaleDateString(config.locale, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-3">
+                    <span className="text-sm font-bold tabular-nums text-slate-900">
+                      {mm(income.amount)}
+                    </span>
+                    <button
+                      onClick={() => onEditExtraIncome?.(income)}
+                      className="p-1.5 text-slate-300 hover:text-slate-500 rounded-lg hover:bg-white transition-colors"
+                      title="Editar"
+                    >
+                      <Icon name="edit" size={12} />
+                    </button>
+                    <button
+                      onClick={() => onDeleteExtraIncome?.(income.id)}
+                      className="p-1.5 text-slate-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Eliminar"
+                    >
+                      <Icon name="trash" size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
 

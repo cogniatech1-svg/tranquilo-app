@@ -30,6 +30,11 @@ interface Insight {
   action: string
 }
 
+interface InsightResult {
+  primary: Insight | null
+  secondary: Insight[]
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // INSIGHT ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,10 +46,12 @@ function generateInsights(
   monthlyIncome: number,
   monthlyHistory: Record<string, MonthRecord>,
   config: CountryConfig,
-): Insight[] {
-  if (expenses.length === 0) return []
+): InsightResult {
+  if (expenses.length === 0) return { primary: null, secondary: [] }
 
-  const pool: Insight[] = []
+  const warnings: Insight[] = []
+  const positives: Insight[] = []
+  const infos: Insight[] = []
   const totalSpent  = expenses.reduce((s, e) => s + e.amount, 0)
   const today       = new Date()
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
@@ -81,7 +88,7 @@ function generateInsights(
         : (primaryRate < 10
             ? `Reducir ${fm(Math.max(0, projected * 0.1 - primarySavings))} más llevaría tu ahorro al 10%.`
             : `Mantén el gasto por debajo de ${fm(dailyAvg)}/día para cerrar con este ahorro.`)
-      pool.push({
+      const insight = {
         kind: primaryRate >= 10 ? 'positive' : 'info',
         icon: '🏦',
         title: `${plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proyectado'}: ${fm(primarySavings)} (${primaryRate}%)`,
@@ -89,9 +96,11 @@ function generateInsights(
           ? `Si gastas el presupuesto completo (${fm(monthlyBudget)}), ahorras ${fm(primarySavings)} de ${fm(monthlyIncome)}.${vsLast}`
           : `Al ritmo de ${fm(dailyAvg)}/día gastarás ${fm(projected)} de ${fm(monthlyIncome)}.${vsLast}`,
         action: actionText,
-      })
+      }
+      if (insight.kind === 'positive') positives.push(insight)
+      else infos.push(insight)
     } else {
-      pool.push({
+      warnings.push({
         kind: 'warning',
         icon: '⚠️',
         title: plannedSavings !== null
@@ -113,7 +122,7 @@ function generateInsights(
 
     if (remaining < 0) {
       const dailyCut = daysLeft > 0 ? (-remaining) / daysLeft : 0
-      pool.push({
+      warnings.push({
         kind: 'warning',
         icon: '🚨',
         title: `Presupuesto superado en ${fm(-remaining)}`,
@@ -122,7 +131,7 @@ function generateInsights(
       })
     } else if (overagePct > 10) {
       const dailyAllowance = remaining / Math.max(1, daysLeft)
-      pool.push({
+      warnings.push({
         kind: 'warning',
         icon: '📊',
         title: `Vas ${overagePct}% por encima del ritmo ideal`,
@@ -131,7 +140,7 @@ function generateInsights(
       })
     } else if (overagePct <= 0) {
       const dailyAllowance = remaining / Math.max(1, daysLeft)
-      pool.push({
+      positives.push({
         kind: 'positive',
         icon: '✅',
         title: `Vas alineado con tu presupuesto`,
@@ -165,7 +174,7 @@ function generateInsights(
     const budgetImpact = monthlyBudget > 0
       ? ` Esto deja ${fm(Math.max(0, monthlyBudget - totalSpent))} disponibles del presupuesto total.`
       : ''
-    pool.push({
+    warnings.push({
       kind: 'warning',
       icon: '⚠️',
       title: `${p.name}: excedido en ${fm(overBy)} (+${overPct}%)`,
@@ -191,7 +200,7 @@ function generateInsights(
     if (lastCat != null && lastCat > 0) {
       const diff = topSpent - lastCat
       const pct  = Math.round(Math.abs(diff / lastCat) * 100)
-      pool.push({
+      (diff > 0 && pct > 20 ? warnings : infos).push({
         kind: diff > 0 && pct > 20 ? 'warning' : 'info',
         icon: '🎯',
         title: `${top.name}: ${fm(topSpent)} (${diff > 0 ? '+' : '-'}${pct}% vs. mes pasado)`,
@@ -201,7 +210,7 @@ function generateInsights(
           : `Buen control en ${top.name.toLowerCase()} — ${fm(Math.abs(diff))} menos que el mes pasado.`,
       })
     } else if (sharePct >= 45 && sortedPockets.length >= 2) {
-      pool.push({
+      infos.push({
         kind: 'info',
         icon: '🎯',
         title: `${top.name} concentra el ${sharePct}% del gasto total`,
@@ -240,7 +249,7 @@ function generateInsights(
       if (pct >= 10) {
         const weeklyBudget = monthlyBudget > 0 ? monthlyBudget / (daysInMonth / 7) : null
         const vsWeekBudget = weeklyBudget ? ` Tu objetivo semanal: ${fm(weeklyBudget)}.` : ''
-        pool.push({
+        (higher ? warnings : positives).push({
           kind: higher ? 'warning' : 'positive',
           icon: higher ? '📈' : '📉',
           title: `Esta semana: ${fm(thisTotal)} (${higher ? '+' : '-'}${pct}% vs. semana anterior)`,
@@ -259,7 +268,7 @@ function generateInsights(
       const diff = projected - lastMonthTotal
       const pct  = Math.round(Math.abs(diff / lastMonthTotal) * 100)
       if (pct >= 5) {
-        pool.push({
+        (diff > 0 ? warnings : positives).push({
           kind: diff > 0 ? 'warning' : 'positive',
           icon: '📅',
           title: `Proyección al cierre: ${fm(projected)} (${diff > 0 ? '+' : '-'}${pct}% vs. mes pasado)`,
@@ -272,7 +281,7 @@ function generateInsights(
     } else if (monthlyBudget > 0) {
       const diff = projected - monthlyBudget
       if (Math.abs(diff) / monthlyBudget >= 0.05) {
-        pool.push({
+        (diff > 0 ? warnings : positives).push({
           kind: diff > 0 ? 'warning' : 'positive',
           icon: '📅',
           title: `Proyección al cierre: ${fm(projected)}`,
@@ -301,7 +310,7 @@ function generateInsights(
 
       if (ratio >= 1.5) {
         const extraPerWeek = (wkendAvg - wkdayAvg) * 2
-        pool.push({
+        infos.push({
           kind: 'info',
           icon: '📅',
           title: `Gastas ${ratio.toFixed(1)}x más los fines de semana`,
@@ -322,7 +331,7 @@ function generateInsights(
 
     if (secondAvg > firstAvg * 1.4 && firstAvg > 0) {
       const accelPct = Math.round((secondAvg / firstAvg - 1) * 100)
-      pool.push({
+      warnings.push({
         kind: 'warning',
         icon: '📈',
         title: `Tu ritmo de gasto aumentó ${accelPct}% a mitad de mes`,
@@ -353,7 +362,7 @@ function generateInsights(
         ? ` Mes pasado: ${fm(lastHabit)} (${lastMonth!.expenses!.filter(e => e.concept.toLowerCase() === concept).length} veces).`
         : ''
 
-      pool.push({
+      infos.push({
         kind: 'info',
         icon: '🔁',
         title: `"${concept}" × ${count}: ${fm(total)} este mes`,
@@ -363,7 +372,24 @@ function generateInsights(
     }
   }
 
-  return pool.slice(0, 4)
+  // Priorizar: warnings (exceso, riesgo) > positives (ahorro) > infos
+  const allInsights = [...warnings, ...positives, ...infos]
+
+  let primary: Insight | null = null
+  let secondary: Insight[] = []
+
+  if (warnings.length > 0) {
+    primary = warnings[0]
+    secondary = [...warnings.slice(1), ...positives, ...infos].slice(0, 2)
+  } else if (positives.length > 0) {
+    primary = positives[0]
+    secondary = [...positives.slice(1), ...infos].slice(0, 2)
+  } else if (infos.length > 0) {
+    primary = infos[0]
+    secondary = infos.slice(1, 3)
+  }
+
+  return { primary, secondary }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -523,7 +549,7 @@ export function InsightsScreen({
     [byPocket],
   )
 
-  const insights = useMemo(
+  const { primary: primaryInsight, secondary: secondaryInsights } = useMemo(
     () => generateInsights(expenses, pockets, spentByPocket, monthlyBudget, monthlyIncome, monthlyHistory, config),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [expenses, pockets, spentByPocket, monthlyBudget, monthlyIncome, monthlyHistory, config],
@@ -567,37 +593,68 @@ export function InsightsScreen({
         <div className="px-4 pt-5 space-y-6">
 
           {/* ── Insight cards ─────────────────────────────────────────────── */}
-          {insights.length > 0 && (
+          {primaryInsight && (
             <div>
               <SectionHeader>Este mes</SectionHeader>
-              <div className="space-y-3">
-                {insights.map((ins, i) => {
-                  const s = KIND_STYLE[ins.kind]
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-2xl overflow-hidden flex"
-                      style={{
-                        background: s.bg,
-                        border: `1px solid ${s.border}22`,
-                        boxShadow: '0 1px 4px rgba(15,23,42,.06)',
-                      }}
-                    >
-                      <div className="w-1 shrink-0" style={{ background: s.border }} />
-                      <div className="flex-1 px-4 py-3.5">
-                        <div className="flex items-start gap-2 mb-1.5">
-                          <span className="text-base leading-none mt-0.5 shrink-0">{ins.icon}</span>
-                          <p className="text-sm font-bold text-slate-900 leading-snug">{ins.title}</p>
-                        </div>
-                        <p className="text-xs text-slate-600 leading-relaxed mb-2.5 pl-6">{ins.body}</p>
-                        <p className="text-xs font-semibold leading-snug pl-6" style={{ color: s.action }}>
-                          → {ins.action}
-                        </p>
+
+              {/* Primary insight — destacado */}
+              {(() => {
+                const s = KIND_STYLE[primaryInsight.kind]
+                return (
+                  <div
+                    className="rounded-2xl overflow-hidden flex mb-3"
+                    style={{
+                      background: s.bg,
+                      border: `2px solid ${s.border}`,
+                      boxShadow: '0 4px 12px rgba(15,23,42,.12)',
+                    }}
+                  >
+                    <div className="w-1.5 shrink-0" style={{ background: s.border }} />
+                    <div className="flex-1 px-5 py-4">
+                      <div className="flex items-start gap-2.5 mb-2">
+                        <span className="text-2xl leading-none mt-0.5 shrink-0">{primaryInsight.icon}</span>
+                        <p className="text-base font-bold text-slate-900 leading-snug">{primaryInsight.title}</p>
                       </div>
+                      <p className="text-sm text-slate-600 leading-relaxed mb-3 pl-8">{primaryInsight.body}</p>
+                      <p className="text-sm font-semibold leading-snug pl-8" style={{ color: s.action }}>
+                        → {primaryInsight.action}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })()}
+
+              {/* Secondary insights — compactos */}
+              {secondaryInsights.length > 0 && (
+                <div className="space-y-2">
+                  {secondaryInsights.map((ins, i) => {
+                    const s = KIND_STYLE[ins.kind]
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-2xl overflow-hidden flex"
+                        style={{
+                          background: s.bg,
+                          border: `1px solid ${s.border}22`,
+                          boxShadow: '0 1px 4px rgba(15,23,42,.06)',
+                        }}
+                      >
+                        <div className="w-1 shrink-0" style={{ background: s.border }} />
+                        <div className="flex-1 px-4 py-3">
+                          <div className="flex items-start gap-2 mb-1">
+                            <span className="text-sm leading-none mt-0.5 shrink-0">{ins.icon}</span>
+                            <p className="text-xs font-bold text-slate-900 leading-snug">{ins.title}</p>
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-relaxed mb-1.5 pl-5">{ins.body}</p>
+                          <p className="text-[11px] font-semibold leading-snug pl-5" style={{ color: s.action }}>
+                            → {ins.action}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -665,7 +722,7 @@ export function InsightsScreen({
                           />
                           {budget > 0 && budget - spent > 0 && (
                             <p className="text-[10px] mt-1 tabular-nums font-semibold" style={{ color: pal.text }}>
-                              {mm(budget - spent)} libre de {mm(budget)}
+                              {mm(budget - spent)} Disponible de {mm(budget)}
                             </p>
                           )}
                           {budget > 0 && budget - spent <= 0 && (

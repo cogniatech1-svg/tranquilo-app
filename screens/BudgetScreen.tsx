@@ -405,7 +405,7 @@ export function BudgetScreen({
             }}
           >
             <p className="text-sm font-bold text-slate-800 mb-1">
-              {mm(unassigned)} restantes por asignar
+              {mm(unassigned)} Disponibles por asignar
             </p>
             <p className="text-xs text-slate-500 mb-3 leading-relaxed">
               Esta parte del presupuesto no está asignada a ningún bolsillo. Puedes:

@@ -78,7 +78,7 @@ export function CircularProgress({
               de {formatMoney(monthlyBudget, config)}
             </span>
             <span className="text-sm font-bold tabular-nums mt-2" style={{ color: '#67E8F9' }}>
-              {formatMoney(available, config)} libre
+              {formatMoney(available, config)} Disponible
             </span>
           </>
         ) : (

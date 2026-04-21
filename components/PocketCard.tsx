@@ -223,7 +223,7 @@ export function PocketCard({
           ) : (
             <p className="text-[10px] mt-1.5 tabular-nums font-semibold" style={{ color: pal.text }}>
               {Math.round(ratio * 100)}% del presupuesto
-              {leftover > 0 && ` · ${mm(leftover)} libre`}
+              {leftover > 0 && ` · ${mm(leftover)} Disponible`}
             </p>
           )}
         </>

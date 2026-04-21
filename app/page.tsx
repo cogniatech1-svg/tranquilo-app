@@ -422,9 +422,12 @@ export default function Home() {
             monthlyBudget={monthlyBudget}
             monthlyIncome={monthlyIncome}
             extraIncomeTotal={extraIncomeTotal}
+            extraIncomes={extraIncomes}
             config={config}
             onClearData={handleClearData}
             onSetIncome={handleSetIncome}
+            onEditExtraIncome={openEditIncomeSheet}
+            onDeleteExtraIncome={handleDeleteExtraIncome}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
           />
