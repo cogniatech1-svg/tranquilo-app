@@ -94,14 +94,16 @@ export function ProfileScreen({
         className="px-5 pt-12 pb-8 text-center relative overflow-hidden"
         style={{
           background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
+          boxShadow: '0 8px 40px rgba(4,47,46,.30)',
         }}
       >
+        <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-white/8 pointer-events-none" />
+        <div className="absolute bottom-0 -left-12 w-48 h-48 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
+
         <div className="relative">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">
-            👤‌
-          </div>
-          <h2 className="text-2xl font-bold text-white">Perfil</h2>
-          <p className="text-xs text-white/70 mt-1">Gestiona tu cuenta</p>
+          <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
+          <p className="text-sm text-white/70">Gestiona tu cuenta</p>
         </div>
       </div>
 
