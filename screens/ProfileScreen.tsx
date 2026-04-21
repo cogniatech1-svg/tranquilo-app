@@ -108,7 +108,7 @@ export function ProfileScreen({
       <div className="px-4 pt-6 space-y-5">
         {/* 1. USUARIO */}
         <div>
-          <SectionHeader title="Usuario" />
+          <SectionHeader>Usuario</SectionHeader>
           <Card className="p-4">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -127,7 +127,7 @@ export function ProfileScreen({
 
         {/* 2. SEGURIDAD */}
         <div>
-          <SectionHeader title="Seguridad" />
+          <SectionHeader>Seguridad</SectionHeader>
           <Card className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -193,7 +193,7 @@ export function ProfileScreen({
 
         {/* 3. DATOS */}
         <div>
-          <SectionHeader title="Datos" />
+          <SectionHeader>Datos</SectionHeader>
           <Card className="p-4 space-y-2">
             <button
               onClick={handleExportCSV}
@@ -244,7 +244,7 @@ export function ProfileScreen({
 
         {/* 4. PREFERENCIAS */}
         <div>
-          <SectionHeader title="Preferencias" />
+          <SectionHeader>Preferencias</SectionHeader>
           <Card className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -288,7 +288,7 @@ export function ProfileScreen({
 
         {/* 5. SOPORTE */}
         <div>
-          <SectionHeader title="Soporte" />
+          <SectionHeader>Soporte</SectionHeader>
           <Card className="p-4">
             <button
               onClick={() => setFeedbackOpen(true)}
