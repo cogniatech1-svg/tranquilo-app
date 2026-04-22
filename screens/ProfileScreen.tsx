@@ -27,6 +27,7 @@ export function ProfileScreen({
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [showPlansModal, setShowPlansModal] = useState(false)
+  const [importMessage, setImportMessage] = useState('')
 
   // Get current month and year
   const currentDate = new Date()
@@ -93,6 +94,77 @@ export function ProfileScreen({
     a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const csv = event.target?.result as string
+        const lines = csv.trim().split('\n')
+        if (lines.length < 2) {
+          setImportMessage('❌ CSV vacío o inválido')
+          return
+        }
+
+        const raw = localStorage.getItem('tranquilo_v1')
+        const data = raw ? JSON.parse(raw) : { expenses: [], extraIncomes: [], pockets: [] }
+
+        const pocketMap: Record<string, string> = {}
+        for (const p of (data.pockets ?? [])) {
+          pocketMap[p.name] = p.id
+        }
+
+        let importedCount = 0
+        const currentDate = new Date().toISOString().split('T')[0]
+
+        // Skip header, process data rows
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim()
+          if (!line) continue
+
+          const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').replace('""', '"'))
+          if (parts.length < 4) continue
+
+          const [fecha, tipo, categoria, monto] = parts
+          const descripcion = parts.slice(4).join(',')
+
+          if (tipo === 'gasto') {
+            const pocketId = pocketMap[categoria] || 'recreacion'
+            data.expenses.push({
+              id: Date.now().toString() + Math.random(),
+              date: fecha + 'T00:00:00',
+              pocketId,
+              amount: parseInt(monto) || 0,
+              concept: descripcion,
+            })
+            importedCount++
+          } else if (tipo === 'ingreso') {
+            data.extraIncomes.push({
+              id: Date.now().toString() + Math.random(),
+              date: fecha + 'T00:00:00',
+              amount: parseInt(monto) || 0,
+              note: descripcion,
+              category: 'extra' as const,
+            })
+            importedCount++
+          }
+        }
+
+        localStorage.setItem('tranquilo_v1', JSON.stringify(data))
+        setImportMessage(`✅ ${importedCount} movimientos importados correctamente`)
+        setTimeout(() => {
+          setImportMessage('')
+          window.location.reload()
+        }, 2000)
+      } catch (err) {
+        setImportMessage('❌ Error al importar. Verifica el formato del CSV')
+      }
+    }
+    reader.readAsText(file)
   }
 
   return (
@@ -226,6 +298,28 @@ export function ProfileScreen({
               </span>
               <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
             </button>
+
+            <label className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
+              <span className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg">📤</span>
+                <span className="text-sm font-semibold text-slate-800">Importar datos (CSV)</span>
+              </span>
+              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+            </label>
+
+            {importMessage && (
+              <p className={`text-xs font-semibold text-center py-2 rounded ${
+                importMessage.includes('✅') ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'
+              }`}>
+                {importMessage}
+              </p>
+            )}
 
             <button
               onClick={() => setConfirmClear(true)}
