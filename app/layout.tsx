@@ -44,9 +44,7 @@ export default function RootLayout({
     <html lang="es">
       <head>
         {/* ── Favicon ──────────────────────────────────────── */}
-        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192-verde.png" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512-verde.png" />
-        <link rel="shortcut icon" href="/icons/icon-192-verde.png" />
+        <link rel="icon" type="image/png" href="/icons/icon-192-verde.png" />
 
         {/* ── Android / Chrome ─────────────────────────────── */}
         <meta name="mobile-web-app-capable" content="yes" />
