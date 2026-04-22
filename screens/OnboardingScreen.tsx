@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatMoney } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
 import { parseAmount } from '../lib/utils'
@@ -21,10 +21,16 @@ interface Props {
 }
 
 export function OnboardingScreen({ config, onComplete }: Props) {
+  const [hydrated, setHydrated] = useState(false)
   const [step, setStep] = useState<'income' | 'budget'>('income')
   const [incomeInput, setIncomeInput] = useState('')
   const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
+
+  // Ensure component is hydrated before rendering to avoid splash screen
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
 
   const parsedIncome = parseAmount(incomeInput)
   const parsedBudget = parseAmount(budgetInput)
@@ -46,6 +52,9 @@ export function OnboardingScreen({ config, onComplete }: Props) {
     }
     onComplete(config.code, budget, parsedIncome)
   }
+
+  // Don't render until hydrated to prevent flash of logo-only screen
+  if (!hydrated) return null
 
   return (
     <div
