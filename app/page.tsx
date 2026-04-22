@@ -27,6 +27,7 @@ import {
 // STORAGE
 // ─────────────────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'tranquilo_v1'
+const ONBOARDING_FLAG = 'hasOnboarded'
 
 const DEFAULT_POCKETS: Pocket[] = [
   { id: 'recreacion',   name: 'Recreación',   budget: 100_000 },
@@ -67,6 +68,9 @@ export default function Home() {
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
+      // Check if user has completed onboarding
+      const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const data = JSON.parse(raw) as StoredData
@@ -98,7 +102,7 @@ export default function Home() {
           setExpenses([])
           setExtraIncomes([])           // extras are monthly — reset on new month
           setMonthlyHistory(history)
-          setScreen('main')
+          if (hasOnboarded) setScreen('main')
         } else {
           setCurrentMonth(data.currentMonth ?? thisMonth)
           setPockets(normalised)
@@ -109,7 +113,7 @@ export default function Home() {
           setConceptMap(data.conceptMap ?? {})
           setMonthlyHistory(history)
           if (data.isPrivacyMode) setIsPrivacyMode(true)
-        if (income > 0 || budget > 0 || (data.expenses?.length ?? 0) > 0) setScreen('main')
+          if (hasOnboarded) setScreen('main')
         }
       }
     } catch {
@@ -300,6 +304,7 @@ export default function Home() {
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(ONBOARDING_FLAG)
     setExpenses([])
     setExtraIncomes([])
     setPockets(DEFAULT_POCKETS)
@@ -324,6 +329,9 @@ export default function Home() {
   }, [])
 
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, income: number) => {
+    // Mark onboarding as complete
+    localStorage.setItem(ONBOARDING_FLAG, 'true')
+
     setCountryCode(code)
     if (budget > 0) setMonthlyBudget(budget)
     if (income > 0) setMonthlyIncome(income)
