@@ -72,9 +72,8 @@ export function OnboardingScreen({ config, onComplete }: Props) {
 
         {/* ── Logo ── */}
         <div
-          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8 text-4xl select-none"
+          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8"
           style={{
-            background: 'rgba(255,255,255,0.15)',
             border: '1.5px solid rgba(255,255,255,0.35)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)',
             backdropFilter: 'blur(6px)',
