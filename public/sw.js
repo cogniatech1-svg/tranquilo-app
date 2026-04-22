@@ -1,10 +1,9 @@
 const CACHE_NAME = 'tranquilo-v' + Date.now()
 const urlsToCache = [
   '/',
-  '/logo-ui.png',
-  '/favicon-v2.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/manifest.json',
+  '/icons/icon-192-verde.png',
+  '/icons/icon-512-verde.png'
 ]
 
 self.addEventListener('install', (event) => {
