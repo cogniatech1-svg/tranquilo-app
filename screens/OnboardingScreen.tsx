@@ -71,8 +71,15 @@ export function OnboardingScreen({ config, onComplete }: Props) {
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16 text-center max-w-sm mx-auto w-full">
 
         {/* ── Logo ── */}
-        <div className="w-20 h-20 flex items-center justify-center mb-8">
-          <img src="/icons/logo-clean-v2.png" className="w-16 h-16" />
+        <div
+          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8"
+          style={{
+            border: '1.5px solid rgba(255,255,255,0.35)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)',
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <img src="/icons/logo-tranquilo.png" alt="Tranquilo" className="w-16 h-16" />
         </div>
 
         {/* ── Brand ── */}
