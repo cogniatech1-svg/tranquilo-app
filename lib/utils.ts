@@ -5,6 +5,10 @@ import type { CalmState, Expense, ParsedTransaction, Pocket } from './types'
 // Maps Spanish-language words to canonical category IDs.
 // Custom pockets are matched by name fallback — see findCategory.
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CATEGORY KEYWORDS MAP (exact match)
+// Maps individual keywords to category IDs for fast lookup
+// ─────────────────────────────────────────────────────────────────────────────
 const KEYWORD_CATEGORY: Record<string, string> = {
   // alimentación
   café: 'alimentacion',     tinto: 'alimentacion',    taza: 'alimentacion',
@@ -39,6 +43,41 @@ const KEYWORD_CATEGORY: Record<string, string> = {
   clinica: 'salud',         hospital: 'salud',        dentista: 'salud',
   terapia: 'salud',         droga: 'salud',           laboratorio: 'salud',
   optometria: 'salud',      vacuna: 'salud',
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CATEGORY KEYWORDS BY TYPE (fuzzy match support)
+// For tolerating spelling variations: "almuuerzo" → "almuerzo" → "alimentacion"
+// ─────────────────────────────────────────────────────────────────────────────
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  alimentacion: [
+    'comida', 'almuerzo', 'desayuno', 'cena', 'café', 'cafe',
+    'pizza', 'hamburguesa', 'restaurante', 'mercado', 'supermercado',
+    'rappi', 'ifood', 'domicilio', 'sushi', 'tacos', 'empanada',
+    'snack', 'dulces', 'helado', 'pandebono', 'arepas', 'panadería',
+    'tinto', 'almuerzo',
+  ],
+  transporte: [
+    'uber', 'taxi', 'bus', 'metro', 'tren', 'gasolina',
+    'parqueadero', 'pasaje', 'peaje', 'moto', 'didi', 'cabify',
+    'transmilenio', 'autobús', 'transporte',
+  ],
+  recreacion: [
+    'cine', 'netflix', 'spotify', 'bar', 'cerveza', 'trago',
+    'discoteca', 'fiesta', 'juego', 'deporte', 'gym', 'libro',
+    'concierto', 'viaje', 'hotel', 'streaming', 'youtube', 'disney',
+  ],
+  hogar: [
+    'arriendo', 'renta', 'alquiler', 'servicios', 'internet',
+    'agua', 'luz', 'gas', 'limpieza', 'mueble', 'decoración',
+    'electrodoméstico', 'casa',
+  ],
+  salud: [
+    'médico', 'medico', 'doctor', 'farmacia', 'medicina',
+    'consulta', 'examen', 'clínica', 'clinica', 'hospital',
+    'dentista', 'terapia', 'droga', 'laboratorio', 'optometría',
+    'vacuna', 'salud',
+  ],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,12 +125,37 @@ const ACTION_VERBS: Record<string, string> = {
 const GENERIC_VERBS = new Set(['compre', 'compré', 'pague', 'pagué', 'viaje', 'viajé', 'fui', 'gaste', 'gasté'])
 
 /**
- * Finds the best matching pocket ID for a given concept.
+ * Check if a word partially matches a keyword (for spelling tolerance).
+ * Returns true if the word shares significant substring with the keyword.
+ * e.g. "almuuerzo" matches "almuerzo" (similarity > 70%)
+ */
+function fuzzyMatch(word: string, keyword: string, minSimilarity = 0.7): boolean {
+  if (word === keyword) return true
+  if (word.length < 4 || keyword.length < 4) return false
+
+  // Check if word is substring of keyword or vice versa
+  if (keyword.includes(word) || word.includes(keyword)) return true
+
+  // Calculate character similarity (simple Levenshtein-like check)
+  const common = Math.min(word.length, keyword.length)
+  let matches = 0
+  for (let i = 0; i < common; i++) {
+    if (word[i] === keyword[i]) matches++
+  }
+
+  const similarity = matches / Math.max(word.length, keyword.length)
+  return similarity >= minSimilarity
+}
+
+/**
+ * Finds the best matching category for a given concept.
  * Priority:
  *   1. User history (conceptMap) — exact key
- *   2. User history — word-by-word
- *   3. Built-in keyword map — if pocket with that ID exists
- *   4. Pocket name matching — fuzzy match against category name
+ *   2. Built-in keyword map — exact match
+ *   3. Category keywords — exact match
+ *   4. Category keywords — fuzzy/partial match (for spelling tolerance)
+ *   5. Pocket name matching
+ *   6. Return null if no match
  */
 export function findCategory(
   concept: string,
@@ -111,7 +175,7 @@ export function findCategory(
   const exact = check(conceptMap[exactKey])
   if (exact) return exact
 
-  // 2. Word-by-word against history then built-in map (strict: pocket ID must exist)
+  // 2. Word-by-word exact match against history then built-in keyword map
   for (const word of words) {
     const fromHistory = check(conceptMap[word])
     if (fromHistory) return fromHistory
@@ -119,24 +183,36 @@ export function findCategory(
     if (fromBuiltin) return fromBuiltin
   }
 
-  // 3. Name-based fallback: keyword implies a category whose name matches a pocket
-  //    e.g. word "uber" → category "transporte" → pocket named "Transporte"
+  // 3. Exact match in category keywords
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const word of words) {
+      if (keywords.includes(word)) {
+        const categoryId = check(category) || (pocketIds.has(category) ? category : null)
+        if (categoryId) return categoryId
+      }
+    }
+  }
+
+  // 4. Fuzzy match in category keywords (for spelling tolerance)
+  // e.g. "almuuerzo" → "almuerzo" → "alimentacion"
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const word of words) {
+      for (const keyword of keywords) {
+        if (fuzzyMatch(word, keyword)) {
+          const categoryId = check(category) || (pocketIds.has(category) ? category : null)
+          if (categoryId) return categoryId
+        }
+      }
+    }
+  }
+
+  // 5. Name-based fallback: keyword implies a category whose name matches a pocket
   for (const word of words) {
     const impliedCategory = KEYWORD_CATEGORY[word]
     if (!impliedCategory) continue
     const match = pockets.find(p => {
       const n = normalizeKey(p.name)
       return n.includes(impliedCategory) || impliedCategory.includes(n)
-    })
-    if (match) return match.id
-  }
-
-  // 4. Concept word directly matches a pocket name
-  for (const word of words) {
-    if (word.length < 4) continue
-    const match = pockets.find(p => {
-      const n = normalizeKey(p.name)
-      return n.includes(word) || word.includes(n)
     })
     if (match) return match.id
   }
