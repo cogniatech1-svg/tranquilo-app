@@ -219,9 +219,23 @@ export function getDaysInMonth(m: string): number {
 }
 
 export function parseAmount(text: string): number {
-  const t = text.replace(/\$/g, '')
+  const t = text.replace(/\$/g, '').trim()
 
-  // Support "15k" format (thousands)
+  // Support "6m" or "2 m" format (millions)
+  const mFormat = t.match(/(\d+(?:[.,]\d+)?)\s*m(?:illones?)?/i)
+  if (mFormat) {
+    const base = parseFloat(mFormat[1].replace(',', '.'))
+    return Math.round(base * 1000000)
+  }
+
+  // Support "6 mil" or "6mil" format (thousands with word)
+  const milFormat = t.match(/(\d+(?:[.,]\d+)?)\s*mil(?:es)?/i)
+  if (milFormat) {
+    const base = parseFloat(milFormat[1].replace(',', '.'))
+    return Math.round(base * 1000)
+  }
+
+  // Support "15k" or "15 k" format (thousands)
   const kFormat = t.match(/(\d+(?:[.,]\d+)?)\s*k/i)
   if (kFormat) {
     const base = parseFloat(kFormat[1].replace(',', '.'))
@@ -252,10 +266,12 @@ export function extractConcept(text: string): string {
     'son', 'fue', 'fueron', 'soy', 'eres', 'somos', 'sois',
   ])
 
-  // Remove currency symbols and numbers (amounts)
+  // Remove amounts in various formats
   const cleaned = text
-    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '') // Numbers with separators (1.000, 1,000)
-    .replace(/\$?\d+/g, '')                     // Plain numbers
+    .replace(/\$?\d+(?:[.,]\d+)?\s*(?:mil|millones?)/gi, '')  // "6 mil", "2 millones"
+    .replace(/\$?\d+(?:[.,]\d+)?\s*[km]/gi, '')                // "6k", "2m", "6 k", "2 m"
+    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '')                 // Numbers with separators (1.000, 1,000)
+    .replace(/\$?\d+/g, '')                                    // Plain numbers
     .toLowerCase()
     .trim()
 
