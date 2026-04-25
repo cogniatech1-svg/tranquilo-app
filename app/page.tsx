@@ -57,6 +57,7 @@ export default function Home() {
 
   const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
   const [isPrivacyMode,        setIsPrivacyMode]         = useState(false)
+  const [learnedCategoryMap,   setLearnedCategoryMap]    = useState<Record<string, string>>({})
 
   const [sheetOpen,        setSheetOpen]        = useState(false)
   const [editingExpense,   setEditingExpense]   = useState<Expense | null>(null)
@@ -99,6 +100,7 @@ export default function Home() {
           setMonthlyBudget(budget)
           setMonthlyIncome(income)
           setConceptMap(data.conceptMap ?? {})
+          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
           setExpenses([])
           setExtraIncomes([])           // extras are monthly — reset on new month
           setMonthlyHistory(history)
@@ -111,6 +113,7 @@ export default function Home() {
           setExpenses(data.expenses ?? [])
           setExtraIncomes(data.extraIncomes ?? [])
           setConceptMap(data.conceptMap ?? {})
+          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
           setMonthlyHistory(history)
           if (data.isPrivacyMode) setIsPrivacyMode(true)
           if (hasOnboarded) setScreen('main')
@@ -134,13 +137,14 @@ export default function Home() {
         monthlyBudget,
         monthlyIncome,
         conceptMap,
+        learnedCategoryMap,
         currentMonth,
         monthlyHistory,
         countryCode,
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
@@ -311,6 +315,7 @@ export default function Home() {
     setMonthlyBudget(0)
     setMonthlyIncome(0)
     setConceptMap({})
+    setLearnedCategoryMap({})
     setCurrentMonth(getCurrentMonth())
     setMonthlyHistory({})
     setScreen('onboarding')
@@ -439,6 +444,8 @@ export default function Home() {
         editingIncome={editingIncome}
         pockets={pockets}
         conceptMap={conceptMap}
+        learnedCategoryMap={learnedCategoryMap}
+        setLearnedCategoryMap={setLearnedCategoryMap}
         config={config}
         defaultType={defaultSheetType ?? undefined}
         onSave={handleSaveExpense}
