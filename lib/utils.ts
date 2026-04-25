@@ -53,6 +53,28 @@ const INCOME_KEYWORDS = new Set([
   'aguinaldo', 'prima', 'quincena', 'nomina', 'nómina',
 ])
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTION VERB → CONCEPT MAP
+// Maps Spanish action verbs to canonical concept names (for auto-categorization)
+// ─────────────────────────────────────────────────────────────────────────────
+const ACTION_VERBS: Record<string, string> = {
+  // Eating actions
+  'almorcé': 'almuerzo',
+  'almorce': 'almuerzo',
+  'comí': 'comida',
+  'comi': 'comida',
+  'cené': 'cena',
+  'cene': 'cena',
+  'desayuné': 'desayuno',
+  'desayune': 'desayuno',
+  'comiendo': 'comida',
+  'comiendo': 'comida',
+  'tomé': 'café',
+  'tome': 'café',
+  'café': 'café',
+  'cafe': 'café',
+}
+
 /**
  * Finds the best matching pocket ID for a given concept.
  * Priority:
@@ -122,12 +144,38 @@ export function parseTransaction(
   pockets: Pocket[],
 ): ParsedTransaction {
   const amount      = parseAmount(text)
-  const description = extractConcept(text)
-  const words       = normalizeKey(description).split(/\s+/)
-  const type        = words.some(w => INCOME_KEYWORDS.has(w)) ? 'income' : 'expense'
-  const category    = type === 'expense'
-    ? findCategory(description, conceptMap, pockets)
-    : null
+  const normalized  = normalizeKey(text)
+  const words       = normalized.split(/\s+/)
+
+  // Check for action verbs first
+  let description = null
+  for (const word of words) {
+    if (ACTION_VERBS[word]) {
+      description = ACTION_VERBS[word]
+      break
+    }
+  }
+
+  // If no action verb found, extract concept normally
+  if (!description) {
+    description = extractConcept(text)
+  }
+
+  const descriptionWords = normalizeKey(description).split(/\s+/)
+  const type             = descriptionWords.some(w => INCOME_KEYWORDS.has(w)) ? 'income' : 'expense'
+
+  // For action verbs, try to auto-assign category based on the detected action
+  let category: string | null = null
+  if (type === 'expense') {
+    // If description came from an action verb, use keyword map to find category
+    const keyword = Object.entries(ACTION_VERBS).find(([, concept]) => concept === description)?.[0]
+    if (keyword && KEYWORD_CATEGORY[keyword]) {
+      category = KEYWORD_CATEGORY[keyword]
+    } else {
+      // Fall back to normal category detection
+      category = findCategory(description, conceptMap, pockets)
+    }
+  }
 
   return { type, amount, category, description }
 }
@@ -144,10 +192,23 @@ export function getDaysInMonth(m: string): number {
 
 export function parseAmount(text: string): number {
   const t = text.replace(/\$/g, '')
+
+  // Support "15k" format (thousands)
+  const kFormat = t.match(/(\d+(?:[.,]\d+)?)\s*k/i)
+  if (kFormat) {
+    const base = parseFloat(kFormat[1].replace(',', '.'))
+    return Math.round(base * 1000)
+  }
+
+  // Support "15.000" format (European thousands separator)
   const col = t.match(/\d{1,3}(?:\.\d{3})+/)
   if (col) return parseInt(col[0].replace(/\./g, ''), 10)
+
+  // Support "15,000" format (US thousands separator)
   const com = t.match(/\d{1,3}(?:,\d{3})+/)
   if (com) return parseInt(com[0].replace(/,/g, ''), 10)
+
+  // Support plain numbers "15000"
   const plain = t.match(/\d+/g)
   if (!plain) return 0
   return Math.max(...plain.map(n => parseInt(n, 10)))
