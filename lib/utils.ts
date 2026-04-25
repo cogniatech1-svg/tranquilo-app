@@ -154,11 +154,29 @@ export function parseAmount(text: string): number {
 }
 
 export function extractConcept(text: string): string {
-  return text
-    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '')
-    .replace(/\$?\d+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim() || 'Gasto'
+  // Common Spanish stopwords to remove (articles, prepositions, action verbs, pronouns)
+  const stopwords = new Set([
+    'me', 'gasté', 'gaste', 'compré', 'compre', 'pagué', 'pague',
+    'en', 'de', 'por', 'a', 'el', 'la', 'los', 'las', 'un', 'una',
+    'unos', 'unas', 'y', 'o', 'pero', 'porque', 'para', 'con', 'sin',
+    'más', 'menos', 'muy', 'todo', 'nada', 'algo', 'alguien', 'es',
+    'son', 'fue', 'fueron', 'soy', 'eres', 'somos', 'sois',
+  ])
+
+  // Remove currency symbols and numbers (amounts)
+  const cleaned = text
+    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '') // Numbers with separators (1.000, 1,000)
+    .replace(/\$?\d+/g, '')                     // Plain numbers
+    .toLowerCase()
+    .trim()
+
+  // Split into words and filter out stopwords
+  const words = cleaned
+    .split(/\s+/)
+    .filter(word => word.length > 0 && !stopwords.has(word))
+
+  // Return first meaningful word or 'Gasto' if nothing left
+  return words.length > 0 ? words[0] : 'Gasto'
 }
 
 export function normalizeKey(s: string): string {
