@@ -58,7 +58,7 @@ const INCOME_KEYWORDS = new Set([
 // Maps Spanish action verbs to canonical concept names (for auto-categorization)
 // ─────────────────────────────────────────────────────────────────────────────
 const ACTION_VERBS: Record<string, string> = {
-  // Eating actions
+  // Specific eating actions → concept
   'almorcé': 'almuerzo',
   'almorce': 'almuerzo',
   'comí': 'comida',
@@ -67,13 +67,23 @@ const ACTION_VERBS: Record<string, string> = {
   'cene': 'cena',
   'desayuné': 'desayuno',
   'desayune': 'desayuno',
-  'comiendo': 'comida',
-  'comiendo': 'comida',
   'tomé': 'café',
   'tome': 'café',
-  'café': 'café',
-  'cafe': 'café',
+
+  // Generic verbs (look for next word as concept)
+  'compré': '', // marker for "look ahead"
+  'compre': '',
+  'pagué': '',
+  'pague': '',
+  'viajé': '',
+  'viaje': '',
+  'fui': '',
+  'gasté': '',
+  'gaste': '',
 }
+
+// Verbs that should look for the next meaningful word as concept
+const GENERIC_VERBS = new Set(['compre', 'compré', 'pague', 'pagué', 'viaje', 'viajé', 'fui', 'gaste', 'gasté'])
 
 /**
  * Finds the best matching pocket ID for a given concept.
@@ -145,14 +155,38 @@ export function parseTransaction(
 ): ParsedTransaction {
   const amount      = parseAmount(text)
   const normalized  = normalizeKey(text)
-  const words       = normalized.split(/\s+/)
+  const words       = normalized.split(/\s+/).filter(w => w.length > 0)
 
   // Check for action verbs first
-  let description = null
-  for (const word of words) {
-    if (ACTION_VERBS[word]) {
-      description = ACTION_VERBS[word]
-      break
+  let description: string | null = null
+  let detectedVerb: string | null = null
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
+    if (ACTION_VERBS.hasOwnProperty(word)) {
+      detectedVerb = word
+      const concept = ACTION_VERBS[word]
+
+      // If verb has specific concept, use it
+      if (concept) {
+        description = concept
+        break
+      }
+
+      // If generic verb (compré, viajé, etc), look for next meaningful word
+      if (GENERIC_VERBS.has(word)) {
+        // Skip prepositions and numbers, find next real word
+        for (let j = i + 1; j < words.length; j++) {
+          const nextWord = words[j]
+          // Skip common prepositions and numbers
+          if (['en', 'de', 'por', 'a', 'el', 'la', 'los', 'las', 'un', 'una'].includes(nextWord) || /^\d/.test(nextWord)) {
+            continue
+          }
+          description = nextWord
+          break
+        }
+        break
+      }
     }
   }
 
@@ -164,17 +198,11 @@ export function parseTransaction(
   const descriptionWords = normalizeKey(description).split(/\s+/)
   const type             = descriptionWords.some(w => INCOME_KEYWORDS.has(w)) ? 'income' : 'expense'
 
-  // For action verbs, try to auto-assign category based on the detected action
+  // For action verbs, try to auto-assign category based on the detected action or concept
   let category: string | null = null
   if (type === 'expense') {
-    // If description came from an action verb, use keyword map to find category
-    const keyword = Object.entries(ACTION_VERBS).find(([, concept]) => concept === description)?.[0]
-    if (keyword && KEYWORD_CATEGORY[keyword]) {
-      category = KEYWORD_CATEGORY[keyword]
-    } else {
-      // Fall back to normal category detection
-      category = findCategory(description, conceptMap, pockets)
-    }
+    // First, try to find category based on the detected concept
+    category = findCategory(description, conceptMap, pockets)
   }
 
   return { type, amount, category, description }
