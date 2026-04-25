@@ -52,6 +52,7 @@ export interface StoredData {
   monthlyIncome?: number
   budget?: number
   conceptMap?: Record<string, string>
+  learnedCategoryMap?: Record<string, string>   // word → category mapping (learned from user corrections)
   currentMonth?: string
   monthlyHistory?: Record<string, MonthRecord>
   countryCode?: CountryCode

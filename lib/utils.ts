@@ -150,17 +150,19 @@ function fuzzyMatch(word: string, keyword: string, minSimilarity = 0.7): boolean
 /**
  * Finds the best matching category for a given concept.
  * Priority:
- *   1. User history (conceptMap) — exact key
- *   2. Built-in keyword map — exact match
- *   3. Category keywords — exact match
- *   4. Category keywords — fuzzy/partial match (for spelling tolerance)
- *   5. Pocket name matching
- *   6. Return null if no match
+ *   1. Learned category map (from user corrections) — exact match
+ *   2. User history (conceptMap) — exact key
+ *   3. Built-in keyword map — exact match
+ *   4. Category keywords — exact match
+ *   5. Category keywords — fuzzy/partial match (for spelling tolerance)
+ *   6. Pocket name matching
+ *   7. Return null if no match
  */
 export function findCategory(
   concept: string,
   conceptMap: Record<string, string>,
   pockets: Pocket[],
+  learnedCategoryMap?: Record<string, string>,
 ): string | null {
   if (!concept || concept === 'Gasto') return null
   const pocketIds = new Set(pockets.map(p => p.id))
@@ -170,6 +172,16 @@ export function findCategory(
 
   const exactKey = normalizeKey(concept)
   const words    = exactKey.split(/\s+/)
+
+  // 0. Learned category map (highest priority for user-trained data)
+  if (learnedCategoryMap) {
+    const learned = check(learnedCategoryMap[exactKey])
+    if (learned) return learned
+    for (const word of words) {
+      const fromLearned = check(learnedCategoryMap[word])
+      if (fromLearned) return fromLearned
+    }
+  }
 
   // 1. Exact match against user history
   const exact = check(conceptMap[exactKey])
@@ -228,6 +240,7 @@ export function parseTransaction(
   text: string,
   conceptMap: Record<string, string>,
   pockets: Pocket[],
+  learnedCategoryMap?: Record<string, string>,
 ): ParsedTransaction {
   const amount      = parseAmount(text)
   const normalized  = normalizeKey(text)
@@ -277,8 +290,9 @@ export function parseTransaction(
   // For action verbs, try to auto-assign category based on the detected action or concept
   let category: string | null = null
   if (type === 'expense') {
-    // First, try to find category based on the detected concept
-    category = findCategory(description, conceptMap, pockets)
+    // Try to find category based on the detected concept
+    // Passes learnedCategoryMap for user-trained data
+    category = findCategory(description, conceptMap, pockets, learnedCategoryMap)
   }
 
   return { type, amount, category, description }
