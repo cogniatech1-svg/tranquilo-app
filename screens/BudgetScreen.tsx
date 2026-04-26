@@ -28,6 +28,7 @@ interface Props {
   onChangeMonth: (m: string) => void
   isViewingPast: boolean
   onSetBudget: (v: number) => void
+  onSetIncome: (v: number) => void
   onSetSavings: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
@@ -48,6 +49,7 @@ export function BudgetScreen({
   onChangeMonth,
   isViewingPast,
   onSetBudget,
+  onSetIncome,
   onSetSavings,
   onEditPocket,
   onDeletePocket,
@@ -55,6 +57,8 @@ export function BudgetScreen({
   isPrivacyMode = false,
 }: Props) {
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
+  const [editingIncome, setEditingIncome] = useState(false)
+  const [incomeInput, setIncomeInput] = useState('')
   const [editingBudget, setEditingBudget] = useState(false)
   const [budgetInput, setBudgetInput] = useState('')
   const [editingSavings, setEditingSavings] = useState(false)
@@ -68,6 +72,15 @@ export function BudgetScreen({
 
   const autoIcon = guessIconFromName(newName)
   const selectedIcon = newIcon || autoIcon
+
+  const saveIncome = () => {
+    const v = parseAmount(incomeInput)
+    if (v > 0) {
+      onSetIncome(v)
+      setEditingIncome(false)
+      setIncomeInput('')
+    }
+  }
 
   const saveBudget = () => {
     const v = parseAmount(budgetInput)
@@ -132,6 +145,54 @@ export function BudgetScreen({
       </div>
 
       <div className="px-4 pt-5 space-y-6">
+
+        {/* ── 0. INGRESOS MENSUALES ─────────────────────────────────────── */}
+        {editingIncome || monthlyIncome === 0 ? (
+          <Card className="p-5 space-y-4">
+            <SectionHeader>Ingresos mensuales</SectionHeader>
+            <div className="flex gap-2.5">
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
+                value={incomeInput}
+                onChange={e => setIncomeInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveIncome()}
+                className="flex-1 min-w-0 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none transition-colors bg-slate-50 focus:bg-white"
+              />
+              <PrimaryButton onClick={saveIncome} className="px-5 py-3 text-sm shrink-0">
+                Guardar
+              </PrimaryButton>
+              {monthlyIncome > 0 && (
+                <button
+                  onClick={() => { setEditingIncome(false); setIncomeInput('') }}
+                  className="px-3 text-slate-400 hover:text-slate-600"
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-5">
+            <div className="flex items-start justify-between mb-4">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+                Ingresos mensuales
+              </p>
+              <button
+                onClick={() => { setEditingIncome(true); setIncomeInput(String(monthlyIncome)) }}
+                className="text-xs font-semibold transition-colors"
+                style={{ color: DS.primary }}
+              >
+                Editar
+              </button>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">
+              {mm(monthlyIncome)}
+            </p>
+          </Card>
+        )}
 
         {/* ── 1. ORIGEN DEL DINERO ──────────────────────────────────────── */}
         {monthlyIncome > 0 && (

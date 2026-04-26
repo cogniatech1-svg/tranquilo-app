@@ -415,6 +415,7 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onSetBudget={setMonthlyBudget}
+            onSetIncome={setMonthlyIncome}
             onSetSavings={setMonthlySavings}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
