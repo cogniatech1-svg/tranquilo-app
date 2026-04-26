@@ -13,6 +13,7 @@ import type { CountryConfig } from '../lib/config'
 import type { Expense, ExtraIncome, ExpensePayload, Pocket } from '../lib/types'
 import { parseTransaction } from '../lib/utils'
 import { formatMoney } from '../lib/config'
+import { useSpeechRecognition } from '../lib/hooks/useSpeechRecognition'
 
 interface Props {
   isOpen: boolean
@@ -27,6 +28,8 @@ interface Props {
   onUpdateIncome?: (id: string, amount: number, note: string, date: string) => void
   onSwitchToIncome?: (expenseId: string, amount: number, note: string, date: string) => void
   onClose: () => void
+  learnedCategoryMap?: Record<string, string>
+  setLearnedCategoryMap?: (map: Record<string, string>) => void
 }
 
 export function AddExpenseSheet({
@@ -42,6 +45,8 @@ export function AddExpenseSheet({
   onUpdateIncome,
   onSwitchToIncome,
   onClose,
+  learnedCategoryMap,
+  setLearnedCategoryMap,
 }: Props) {
   const [text,         setText]         = useState('')
   const [pocketId,     setPocketId]     = useState('')
@@ -50,6 +55,24 @@ export function AddExpenseSheet({
   const [toast,        setToast]        = useState('')
   const [date,         setDate]         = useState(() => localToday())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── Voice recognition ────────────────────────────────────────────────────
+  const { isListening, transcript, startListening, stopListening, error: voiceError } = useSpeechRecognition({
+    language: 'es-CO',
+    onResult: (voiceText) => {
+      setText(voiceText)
+      setToast(`Escuché: ${voiceText}`)
+      setTimeout(() => setToast(''), 2500)
+      // Auto-save with parsed data
+      setTimeout(() => {
+        handleSaveVoice(voiceText)
+      }, 500)
+    },
+    onError: (err) => {
+      setToast(`Error de voz: ${err}`)
+      setTimeout(() => setToast(''), 2000)
+    },
+  })
 
   // ── Reset on open ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -78,9 +101,9 @@ export function AddExpenseSheet({
 
   // ── Parse current text ───────────────────────────────────────────────────
   const parsed = useMemo(
-    () => parseTransaction(text, conceptMap, pockets),
+    () => parseTransaction(text, conceptMap, pockets, learnedCategoryMap),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [text],
+    [text, learnedCategoryMap],
   )
 
   // Auto-fill pocket from parsed category — only when creating (not editing)
@@ -95,6 +118,50 @@ export function AddExpenseSheet({
   const suggestedPocket = parsed.category
     ? pockets.find(p => p.id === parsed.category)
     : null
+
+  // ── Auto-save for voice (simple, no confirmation) ────────────────────────
+  const handleSaveVoice = (voiceText: string) => {
+    const voiceParsed = parseTransaction(voiceText, conceptMap, pockets, learnedCategoryMap)
+
+    if (!voiceParsed.amount) return // Silent fail if no amount detected
+
+    const voiceType = voiceParsed.type
+    const resolvedPocketId = voiceParsed.category || (pockets[0]?.id ?? '')
+
+    // Learn from voice if category was detected
+    if (voiceParsed.category && learnedCategoryMap && setLearnedCategoryMap) {
+      const words = voiceText.split(/\s+/).filter(w => w.length > 0)
+      if (words.length > 0) {
+        const keyword = words[0].toLowerCase()
+        if (!/^\d+$/.test(keyword) && keyword !== voiceParsed.category) {
+          const newMap = {
+            ...learnedCategoryMap,
+            [keyword]: voiceParsed.category,
+          }
+          setLearnedCategoryMap(newMap)
+        }
+      }
+    }
+
+    if (voiceType === 'income') {
+      const note = voiceParsed.description === 'Gasto' ? '' : voiceParsed.description
+      const isoDate = new Date(date + 'T12:00:00').toISOString()
+      onSaveIncome?.(voiceParsed.amount, note)
+    } else {
+      const isoDate = new Date(date + 'T12:00:00').toISOString()
+      onSave({
+        concept: voiceParsed.description,
+        amount: voiceParsed.amount,
+        pocketId: resolvedPocketId,
+        date: isoDate,
+      })
+    }
+
+    // Reset and close
+    setText('')
+    setPocketId('')
+    onClose()
+  }
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = () => {
@@ -132,6 +199,24 @@ export function AddExpenseSheet({
     // Expense path
     const resolvedPocketId = pocketId || parsed.category || (pockets[0]?.id ?? '')
     const pocketName = pockets.find(p => p.id === resolvedPocketId)?.name ?? ''
+
+    // ── Learning: user manually selected category (different from parser's suggestion) ──
+    if (pocketId && pocketId !== parsed.category && learnedCategoryMap && setLearnedCategoryMap) {
+      // Extract first meaningful word from description
+      const words = parsed.description.split(/\s+/).filter(w => w.length > 0)
+      if (words.length > 0) {
+        const keyword = words[0].toLowerCase()
+        // Only learn if it's not purely numeric
+        if (!/^\d+$/.test(keyword)) {
+          const newMap = {
+            ...learnedCategoryMap,
+            [keyword]: pocketId,
+          }
+          setLearnedCategoryMap(newMap)
+        }
+      }
+    }
+
     onSave({
       concept: parsed.description,
       amount:  parsed.amount,
@@ -191,21 +276,36 @@ export function AddExpenseSheet({
         </div>
 
         <div className="space-y-3.5">
-          {/* Text input */}
-          <textarea
-            ref={textareaRef}
-            rows={2}
-            autoFocus={isOpen && !editingExpense}
-            placeholder={
-              txType === 'income'
-                ? `ej. Salario 3000000`
-                : `ej. ${config.exampleExpense}`
-            }
-            value={text}
-            onChange={e => { setText(e.target.value); setError('') }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
-            className={`w-full border-2 border-slate-100 ${borderFocus} rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white`}
-          />
+          {/* Text input + voice button */}
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              rows={2}
+              autoFocus={isOpen && !editingExpense}
+              placeholder={
+                txType === 'income'
+                  ? `ej. Salario 3000000`
+                  : `ej. ${config.exampleExpense}`
+              }
+              value={text}
+              onChange={e => { setText(e.target.value); setError('') }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
+              className={`w-full border-2 border-slate-100 ${borderFocus} rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white`}
+            />
+            {/* Voice button */}
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              className={`absolute right-3 bottom-3 w-8 h-8 flex items-center justify-center rounded-lg transition-all text-lg ${
+                isListening
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+              title={isListening ? 'Detener grabación' : 'Grabar voz'}
+            >
+              {isListening ? '🔴' : '🎤'}
+            </button>
+          </div>
 
           {/* Date picker */}
           <div className="flex items-center gap-2">
