@@ -14,6 +14,7 @@ import type { Expense, ExtraIncome, ExpensePayload, Pocket } from '../lib/types'
 import { parseTransaction } from '../lib/utils'
 import { formatMoney } from '../lib/config'
 import { useSpeechRecognition } from '../lib/hooks/useSpeechRecognition'
+import { VoiceConfirmationSheet } from './VoiceConfirmationSheet'
 
 interface Props {
   isOpen: boolean
@@ -54,19 +55,20 @@ export function AddExpenseSheet({
   const [error,        setError]        = useState('')
   const [toast,        setToast]        = useState('')
   const [date,         setDate]         = useState(() => localToday())
+  const [voiceConfirmationOpen, setVoiceConfirmationOpen] = useState(false)
+  const [pendingVoiceData, setPendingVoiceData] = useState<{ text: string; parsed: any } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Voice recognition ────────────────────────────────────────────────────
   const { isListening, transcript, startListening, stopListening, error: voiceError } = useSpeechRecognition({
     language: 'es-CO',
     onResult: (voiceText) => {
-      setText(voiceText)
-      setToast(`Escuché: ${voiceText}`)
-      setTimeout(() => setToast(''), 2500)
-      // Auto-save with parsed data
-      setTimeout(() => {
-        handleSaveVoice(voiceText)
-      }, 500)
+      // Parse the voice text
+      const voiceParsed = parseTransaction(voiceText, conceptMap, pockets, learnedCategoryMap)
+
+      // Store for confirmation
+      setPendingVoiceData({ text: voiceText, parsed: voiceParsed })
+      setVoiceConfirmationOpen(true)
     },
     onError: (err) => {
       setToast(`Error de voz: ${err}`)
@@ -119,11 +121,18 @@ export function AddExpenseSheet({
     ? pockets.find(p => p.id === parsed.category)
     : null
 
-  // ── Auto-save for voice (simple, no confirmation) ────────────────────────
-  const handleSaveVoice = (voiceText: string) => {
-    const voiceParsed = parseTransaction(voiceText, conceptMap, pockets, learnedCategoryMap)
+  // ── Confirm voice input (save with learning) ────────────────────────────
+  const handleVoiceConfirm = () => {
+    if (!pendingVoiceData) return
 
-    if (!voiceParsed.amount) return // Silent fail if no amount detected
+    const { text: voiceText, parsed: voiceParsed } = pendingVoiceData
+
+    if (!voiceParsed.amount) {
+      setToast('No se detectó monto válido')
+      setVoiceConfirmationOpen(false)
+      setPendingVoiceData(null)
+      return
+    }
 
     const voiceType = voiceParsed.type
     const resolvedPocketId = voiceParsed.category || (pockets[0]?.id ?? '')
@@ -143,6 +152,7 @@ export function AddExpenseSheet({
       }
     }
 
+    // Save the transaction
     if (voiceType === 'income') {
       const note = voiceParsed.description === 'Gasto' ? '' : voiceParsed.description
       const isoDate = new Date(date + 'T12:00:00').toISOString()
@@ -157,10 +167,28 @@ export function AddExpenseSheet({
       })
     }
 
+    // Show confirmation toast
+    setToast('✓ Movimiento guardado')
+    setTimeout(() => setToast(''), 1800)
+
     // Reset and close
+    setVoiceConfirmationOpen(false)
+    setPendingVoiceData(null)
     setText('')
     setPocketId('')
     onClose()
+  }
+
+  // ── Edit voice input (open in full form) ──────────────────────────────────
+  const handleVoiceEdit = () => {
+    if (!pendingVoiceData) return
+
+    const { text: voiceText } = pendingVoiceData
+
+    // Pre-fill the form with voice data
+    setText(voiceText)
+    setVoiceConfirmationOpen(false)
+    setPendingVoiceData(null)
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────
@@ -453,6 +481,22 @@ export function AddExpenseSheet({
           </button>
         </div>
       </div>
+
+      {/* Voice confirmation modal */}
+      {pendingVoiceData && (
+        <VoiceConfirmationSheet
+          isOpen={voiceConfirmationOpen}
+          parsed={pendingVoiceData.parsed}
+          pockets={pockets}
+          config={config}
+          onConfirm={handleVoiceConfirm}
+          onEdit={handleVoiceEdit}
+          onClose={() => {
+            setVoiceConfirmationOpen(false)
+            setPendingVoiceData(null)
+          }}
+        />
+      )}
     </>
   )
 }
