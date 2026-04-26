@@ -1,13 +1,13 @@
 'use client'
 
-import { Icon } from './ui/Icon'
-import { getPocketIcon, DS, formatMoney } from '../lib/config'
+import { DS, formatMoney, getPocketIcon } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { ParsedTransaction, Pocket } from '../lib/types'
 
 interface Props {
   isOpen: boolean
   parsed: ParsedTransaction
+  voiceText: string
   pockets: Pocket[]
   config: CountryConfig
   onConfirm: () => void
@@ -18,6 +18,7 @@ interface Props {
 export function VoiceConfirmationSheet({
   isOpen,
   parsed,
+  voiceText,
   pockets,
   config,
   onConfirm,
@@ -27,6 +28,9 @@ export function VoiceConfirmationSheet({
   const pocket = parsed.category
     ? pockets.find(p => p.id === parsed.category)
     : null
+
+  const typeLabel = parsed.type === 'income' ? 'Ingreso' : 'Gasto'
+  const categoryLabel = pocket?.name || 'Sin categoría'
 
   return (
     <>
@@ -49,80 +53,53 @@ export function VoiceConfirmationSheet({
       >
         {/* Handle */}
         <div
-          className="w-10 h-1 rounded-full mx-auto mb-6"
+          className="w-10 h-1 rounded-full mx-auto mb-5"
           style={{ background: DS.primaryGrad }}
         />
 
-        {/* Header */}
+        {/* Escuchaste */}
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-1">
-            🎤 Confirmar reconocimiento
-          </h2>
-          <p className="text-sm text-slate-500">
-            Verifica que escuchamos correctamente
-          </p>
-        </div>
-
-        {/* Voice text */}
-        <div className="mb-5 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-          <p className="text-xs font-bold text-blue-600 uppercase mb-1">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
             Escuché:
           </p>
-          <p className="text-sm font-semibold text-blue-900">
-            {parsed.description}
+          <p className="text-lg font-bold text-slate-900">
+            {voiceText}
           </p>
         </div>
 
-        {/* Details grid */}
-        <div className="space-y-3 mb-6">
-          {/* Type */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-            <span className="text-xs font-bold text-slate-600 uppercase">
-              Tipo
-            </span>
-            <span
-              className={`text-sm font-bold ${
-                parsed.type === 'income'
-                  ? 'text-green-600'
-                  : 'text-slate-700'
-              }`}
-            >
-              {parsed.type === 'income' ? '💚 Ingreso' : '💳 Gasto'}
-            </span>
-          </div>
-
-          {/* Amount */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-            <span className="text-xs font-bold text-slate-600 uppercase">
-              Monto
-            </span>
-            <span className="text-sm font-bold text-slate-900 tabular-nums">
+        {/* Main summary line */}
+        <div className="mb-8 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl border border-slate-200">
+          <div className="flex items-center justify-between">
+            {/* Monto */}
+            <span className="text-2xl font-bold text-slate-900 tabular-nums">
               {formatMoney(parsed.amount, config)}
             </span>
-          </div>
 
-          {/* Category */}
-          {pocket && (
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-              <span className="text-xs font-bold text-slate-600 uppercase">
-                Categoría
+            {/* Separadores */}
+            <div className="flex items-center gap-2 px-3">
+              <div className="w-1 h-1 rounded-full bg-slate-300" />
+              <span className="text-sm font-semibold text-slate-600">
+                {typeLabel}
               </span>
-              <span className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                {getPocketIcon(pocket.id, pocket.name, pocket.icon)}
-                {pocket.name}
-              </span>
+              <div className="w-1 h-1 rounded-full bg-slate-300" />
             </div>
-          )}
 
-          {/* Concept */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-            <span className="text-xs font-bold text-slate-600 uppercase">
-              Concepto
-            </span>
-            <span className="text-sm font-bold text-slate-900 text-right max-w-xs truncate">
-              {parsed.description}
+            {/* Categoría con ícono */}
+            <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
+              {pocket && getPocketIcon(pocket.id, pocket.name, pocket.icon)}
+              {categoryLabel}
             </span>
           </div>
+        </div>
+
+        {/* Concepto */}
+        <div className="mb-8">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+            Concepto:
+          </p>
+          <p className="text-base font-semibold text-slate-700">
+            {parsed.description}
+          </p>
         </div>
 
         {/* Buttons */}

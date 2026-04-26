@@ -487,6 +487,7 @@ export function AddExpenseSheet({
         <VoiceConfirmationSheet
           isOpen={voiceConfirmationOpen}
           parsed={pendingVoiceData.parsed}
+          voiceText={pendingVoiceData.text}
           pockets={pockets}
           config={config}
           onConfirm={handleVoiceConfirm}
