@@ -50,6 +50,7 @@ export interface StoredData {
   pockets?: Pocket[]
   monthlyBudget?: number
   monthlyIncome?: number
+  monthlySavings?: number   // User-defined or calculated savings
   budget?: number
   conceptMap?: Record<string, string>
   learnedCategoryMap?: Record<string, string>   // word → category mapping (learned from user corrections)

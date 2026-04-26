@@ -46,6 +46,7 @@ export default function Home() {
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
   const [monthlyBudget, setMonthlyBudget] = useState(0)
   const [monthlyIncome, setMonthlyIncome] = useState(0)
+  const [monthlySavings, setMonthlySavings] = useState(0)
   const [pockets,       setPockets]       = useState<Pocket[]>(DEFAULT_POCKETS)
   const [expenses,      setExpenses]      = useState<Expense[]>([])
   const [extraIncomes,  setExtraIncomes]  = useState<ExtraIncome[]>([])
@@ -84,6 +85,9 @@ export default function Home() {
 
         setCountryCode(country)
 
+        // Calculate suggested savings if not set
+        const savings = data.monthlySavings ?? (income > 0 ? Math.round(income * 0.20) : 0)
+
         if (data.currentMonth && data.currentMonth !== thisMonth) {
           // New month — archive previous, reset monthly data
           if ((data.expenses?.length ?? 0) > 0) {
@@ -99,6 +103,7 @@ export default function Home() {
           setPockets(normalised)
           setMonthlyBudget(budget)
           setMonthlyIncome(income)
+          setMonthlySavings(savings)
           setConceptMap(data.conceptMap ?? {})
           setLearnedCategoryMap(data.learnedCategoryMap ?? {})
           setExpenses([])
@@ -110,6 +115,7 @@ export default function Home() {
           setPockets(normalised)
           setMonthlyBudget(budget)
           setMonthlyIncome(income)
+          setMonthlySavings(savings)
           setExpenses(data.expenses ?? [])
           setExtraIncomes(data.extraIncomes ?? [])
           setConceptMap(data.conceptMap ?? {})
@@ -136,6 +142,7 @@ export default function Home() {
         pockets,
         monthlyBudget,
         monthlyIncome,
+        monthlySavings,
         conceptMap,
         learnedCategoryMap,
         currentMonth,
@@ -144,7 +151,7 @@ export default function Home() {
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
@@ -398,7 +405,8 @@ export default function Home() {
         {activeTab === 'presupuesto' && (
           <BudgetScreen
             monthlyBudget={activeMonthBudget}
-            monthlyIncome={totalIncome}
+            monthlyIncome={monthlyIncome}
+            monthlySavings={monthlySavings}
             pockets={pockets}
             spentByPocket={spentByPocket}
             totalSpent={totalSpent}
@@ -407,6 +415,7 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onSetBudget={setMonthlyBudget}
+            onSetSavings={setMonthlySavings}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
