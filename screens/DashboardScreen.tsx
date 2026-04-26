@@ -337,10 +337,11 @@ export function DashboardScreen({
           </div>
         </div>
 
-        {/* Simplified header: Estado, Número principal, Contexto temporal, Barra */}
+        {/* Accionable header: qué hacer hoy */}
         {effectiveBudget > 0 && (() => {
           const spendingPct = Math.round((totalSpent / effectiveBudget) * 100)
           const dailySpend = daysLeft > 0 ? remaining / daysLeft : 0
+          const maxTodaySpend = Math.max(0, dailySpend)
 
           // Determinar estado con copy más directo
           let statusText = ''
@@ -363,16 +364,17 @@ export function DashboardScreen({
                 </p>
               </div>
 
-              {/* 2. Número principal (el más importante) */}
+              {/* 2. Número principal: monto restante */}
               <p className="text-[3rem] font-bold text-white tabular-nums leading-none mb-1">
                 {totalSpent > effectiveBudget
                   ? `−${mm(-remaining)}`
                   : mm(remaining)}
               </p>
 
-              {/* 3. Contexto temporal: cuánto por día */}
-              <p className="text-sm text-white/75 tabular-nums mb-5">
-                ≈ {mm(Math.max(0, dailySpend))} por día{daysLeft > 0 ? ` (${daysLeft} días)` : ''}
+              {/* 3. ACCIÓN PRINCIPAL: qué gastar hoy (la instrucción) */}
+              <p className="text-base font-bold text-white/95 tabular-nums mb-5 py-2 px-3 rounded-lg"
+                style={{ background: 'rgba(255,255,255,.10)' }}>
+                Hoy puedes gastar máximo {mm(maxTodaySpend)}
               </p>
 
               {/* 4. Barra de progreso */}
@@ -389,11 +391,6 @@ export function DashboardScreen({
                   }}
                 />
               </div>
-
-              {/* Porcentaje pequeño */}
-              <p className="text-[11px] text-white/60 mt-2">
-                {spendingPct}% del presupuesto
-              </p>
             </>
           )
         })()}
