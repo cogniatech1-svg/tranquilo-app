@@ -121,6 +121,33 @@ export function AddExpenseSheet({
     ? pockets.find(p => p.id === parsed.category)
     : null
 
+  // ── Helper: Extract keyword from text ──────────────────────────────────
+  const extractKeyword = (text: string): string | null => {
+    const words = text.split(/\s+/).filter(w => w.length > 0)
+    if (words.length === 0) return null
+    const keyword = words[0].toLowerCase()
+    // Only use meaningful words (not pure numbers)
+    if (!/^\d+$/.test(keyword)) return keyword
+    return null
+  }
+
+  // ── Helper: Learn category from user action ────────────────────────────
+  const learnCategory = (text: string, categoryId: string) => {
+    if (!learnedCategoryMap || !setLearnedCategoryMap) return
+
+    const keyword = extractKeyword(text)
+    if (!keyword) return
+
+    // Only learn if it's a new association or different from existing
+    if (learnedCategoryMap[keyword] !== categoryId) {
+      const newMap = {
+        ...learnedCategoryMap,
+        [keyword]: categoryId,
+      }
+      setLearnedCategoryMap(newMap)
+    }
+  }
+
   // ── Confirm voice input (save with learning) ────────────────────────────
   const handleVoiceConfirm = () => {
     if (!pendingVoiceData) return
@@ -138,18 +165,8 @@ export function AddExpenseSheet({
     const resolvedPocketId = voiceParsed.category || (pockets[0]?.id ?? '')
 
     // Learn from voice if category was detected
-    if (voiceParsed.category && learnedCategoryMap && setLearnedCategoryMap) {
-      const words = voiceText.split(/\s+/).filter(w => w.length > 0)
-      if (words.length > 0) {
-        const keyword = words[0].toLowerCase()
-        if (!/^\d+$/.test(keyword) && keyword !== voiceParsed.category) {
-          const newMap = {
-            ...learnedCategoryMap,
-            [keyword]: voiceParsed.category,
-          }
-          setLearnedCategoryMap(newMap)
-        }
-      }
+    if (voiceParsed.category) {
+      learnCategory(voiceText, voiceParsed.category)
     }
 
     // Save the transaction
@@ -228,21 +245,18 @@ export function AddExpenseSheet({
     const resolvedPocketId = pocketId || parsed.category || (pockets[0]?.id ?? '')
     const pocketName = pockets.find(p => p.id === resolvedPocketId)?.name ?? ''
 
-    // ── Learning: user manually selected category (different from parser's suggestion) ──
-    if (pocketId && pocketId !== parsed.category && learnedCategoryMap && setLearnedCategoryMap) {
-      // Extract first meaningful word from description
-      const words = parsed.description.split(/\s+/).filter(w => w.length > 0)
-      if (words.length > 0) {
-        const keyword = words[0].toLowerCase()
-        // Only learn if it's not purely numeric
-        if (!/^\d+$/.test(keyword)) {
-          const newMap = {
-            ...learnedCategoryMap,
-            [keyword]: pocketId,
-          }
-          setLearnedCategoryMap(newMap)
-        }
-      }
+    // ── Learning: user selected or edited category ──
+    if (pocketId) {
+      // User manually selected/changed category
+      learnCategory(text, pocketId)
+    } else if (parsed.category && !editingExpense) {
+      // Auto-suggested category (new expense only)
+      learnCategory(text, parsed.category)
+    }
+
+    // Also learn if editing existing and category changed
+    if (editingExpense && pocketId && pocketId !== editingExpense.pocketId) {
+      learnCategory(text, pocketId)
     }
 
     onSave({
