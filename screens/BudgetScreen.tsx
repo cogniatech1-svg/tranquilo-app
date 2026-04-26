@@ -27,7 +27,6 @@ interface Props {
   realCurrentMonth: string
   onChangeMonth: (m: string) => void
   isViewingPast: boolean
-  onSetBudget: (v: number) => void
   onSetIncome: (v: number) => void
   onSetSavings: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
@@ -48,7 +47,6 @@ export function BudgetScreen({
   realCurrentMonth,
   onChangeMonth,
   isViewingPast,
-  onSetBudget,
   onSetIncome,
   onSetSavings,
   onEditPocket,
@@ -59,8 +57,6 @@ export function BudgetScreen({
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editingIncome, setEditingIncome] = useState(false)
   const [incomeInput, setIncomeInput] = useState('')
-  const [editingBudget, setEditingBudget] = useState(false)
-  const [budgetInput, setBudgetInput] = useState('')
   const [editingSavings, setEditingSavings] = useState(false)
   const [savingsInput, setSavingsInput] = useState('')
   const [savingsPercentage, setSavingsPercentage] = useState('')
@@ -79,15 +75,6 @@ export function BudgetScreen({
       onSetIncome(v)
       setEditingIncome(false)
       setIncomeInput('')
-    }
-  }
-
-  const saveBudget = () => {
-    const v = parseAmount(budgetInput)
-    if (v > 0) {
-      onSetBudget(v)
-      setEditingBudget(false)
-      setBudgetInput('')
     }
   }
 
@@ -394,77 +381,6 @@ export function BudgetScreen({
             onChange={onChangeMonth}
           />
         </div>
-
-        {/* ── Monthly budget ────────────────────────────────────────────────── */}
-        {editingBudget || monthlyBudget === 0 ? (
-          <Card className="p-5 space-y-4">
-            <SectionHeader>Presupuesto mensual</SectionHeader>
-            <div className="flex gap-2.5">
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
-                value={budgetInput}
-                onChange={e => setBudgetInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveBudget()}
-                className="flex-1 min-w-0 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none transition-colors bg-slate-50 focus:bg-white"
-              />
-              <PrimaryButton onClick={saveBudget} className="px-5 py-3 text-sm shrink-0">
-                Guardar
-              </PrimaryButton>
-              {monthlyBudget > 0 && (
-                <button
-                  onClick={() => { setEditingBudget(false); setBudgetInput('') }}
-                  className="px-3 text-slate-400 hover:text-slate-600"
-                >
-                  <Icon name="x" size={16} />
-                </button>
-              )}
-            </div>
-          </Card>
-        ) : (
-          <Card className="p-5">
-            <div className="flex items-start justify-between mb-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-                Presupuesto mensual
-              </p>
-              <button
-                onClick={() => { setEditingBudget(true); setBudgetInput(String(monthlyBudget)) }}
-                className="text-xs font-semibold transition-colors"
-                style={{ color: DS.primary }}
-              >
-                Editar
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Gastado</p>
-                <p className="text-xl font-bold text-slate-900 tabular-nums">
-                  {mm(totalSpent)}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5 tabular-nums">
-                  de {mm(monthlyBudget)} este mes
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Disponible</p>
-                <p
-                  className="text-xl font-bold tabular-nums"
-                  style={{ color: totalSpent > monthlyBudget ? '#EF4444' : DS.primary }}
-                >
-                  {totalSpent > monthlyBudget
-                    ? `−${mm(totalSpent - monthlyBudget)}`
-                    : mm(monthlyBudget - totalSpent)}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5 tabular-nums">
-                  {Math.round(globalRatio * 100)}% usado
-                </p>
-              </div>
-            </div>
-            <ProgressBar ratio={globalRatio} thick />
-          </Card>
-        )}
 
         {/* ── Pockets ────────────────────────────────────────────────────────── */}
         <div>

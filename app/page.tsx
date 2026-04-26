@@ -44,7 +44,6 @@ export default function Home() {
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
-  const [monthlyBudget, setMonthlyBudget] = useState(0)
   const [monthlyIncome, setMonthlyIncome] = useState(0)
   const [monthlySavings, setMonthlySavings] = useState(0)
   const [pockets,       setPockets]       = useState<Pocket[]>(DEFAULT_POCKETS)
@@ -67,6 +66,13 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
+  // ── Derived state ──────────────────────────────────────────────────────────
+  // presupuesto = ingresos - ahorro (SIEMPRE)
+  const monthlyBudget = useMemo(
+    () => Math.max(0, monthlyIncome - monthlySavings),
+    [monthlyIncome, monthlySavings]
+  )
+
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -77,7 +83,8 @@ export default function Home() {
       if (raw) {
         const data = JSON.parse(raw) as StoredData
         const thisMonth  = getCurrentMonth()
-        const budget     = data.monthlyBudget ?? data.budget ?? 0
+        // For backwards compatibility, read old budget but don't use it
+        // New arch: presupuesto = ingresos - ahorro (calculated, not stored)
         const income     = data.monthlyIncome ?? 0
         const normalised = normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS)
         const history    = data.monthlyHistory ?? {}
@@ -95,13 +102,12 @@ export default function Home() {
             history[data.currentMonth] = {
               expenses: data.expenses ?? [],
               totalSpent,
-              budget,
-              income: data.monthlyIncome ?? 0,
+              budget: Math.max(0, income - savings),  // Calculated budget for history
+              income,
             }
           }
           setCurrentMonth(thisMonth)
           setPockets(normalised)
-          setMonthlyBudget(budget)
           setMonthlyIncome(income)
           setMonthlySavings(savings)
           setConceptMap(data.conceptMap ?? {})
@@ -113,7 +119,6 @@ export default function Home() {
         } else {
           setCurrentMonth(data.currentMonth ?? thisMonth)
           setPockets(normalised)
-          setMonthlyBudget(budget)
           setMonthlyIncome(income)
           setMonthlySavings(savings)
           setExpenses(data.expenses ?? [])
@@ -140,7 +145,6 @@ export default function Home() {
         expenses,
         extraIncomes,
         pockets,
-        monthlyBudget,
         monthlyIncome,
         monthlySavings,
         conceptMap,
@@ -151,7 +155,7 @@ export default function Home() {
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyBudget, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
@@ -319,8 +323,8 @@ export default function Home() {
     setExpenses([])
     setExtraIncomes([])
     setPockets(DEFAULT_POCKETS)
-    setMonthlyBudget(0)
     setMonthlyIncome(0)
+    setMonthlySavings(0)
     setConceptMap({})
     setLearnedCategoryMap({})
     setCurrentMonth(getCurrentMonth())
@@ -345,7 +349,8 @@ export default function Home() {
     localStorage.setItem(ONBOARDING_FLAG, 'true')
 
     setCountryCode(code)
-    if (budget > 0) setMonthlyBudget(budget)
+    // Note: budget is no longer stored separately
+    // presupuesto = ingresos - ahorro (calculated dynamically)
     if (income > 0) setMonthlyIncome(income)
     setScreen('main')
   }, [])
@@ -414,7 +419,6 @@ export default function Home() {
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
-            onSetBudget={setMonthlyBudget}
             onSetIncome={setMonthlyIncome}
             onSetSavings={setMonthlySavings}
             onEditPocket={handleEditPocket}
