@@ -372,7 +372,7 @@ export function DashboardScreen({
 
               {/* 3. Contexto temporal: cuánto por día */}
               <p className="text-sm text-white/75 tabular-nums mb-5">
-                ≈ {mm(Math.max(0, dailySpend))} Por día{daysLeft > 0 ? ` (${daysLeft} Días)` : ''}
+                ≈ {mm(Math.max(0, dailySpend))} por día{daysLeft > 0 ? ` (${daysLeft} días)` : ''}
               </p>
 
               {/* 4. Barra de progreso */}
