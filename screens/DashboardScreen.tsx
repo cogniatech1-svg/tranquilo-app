@@ -160,10 +160,8 @@ export function DashboardScreen({
   )
   const totalIncome = monthlyIncome + extraIncomeTotal
   const hasIncome   = totalIncome > 0
-  // Budget is the spending limit — income is reference only for savings
-  const remaining   = monthlyBudget > 0
-    ? monthlyBudget - totalSpent
-    : hasIncome ? totalIncome - totalSpent : 0
+  // DISPONIBLE = presupuesto (monthlyBudget) - gasto_real (totalSpent)
+  const remaining   = monthlyBudget - totalSpent
   const dailyAvg       = day > 0 ? totalSpent / day : 0
   const projectedSpent = dailyAvg * daysInMonth
   const projectedSaving = hasIncome ? totalIncome - projectedSpent : 0
@@ -423,17 +421,7 @@ export function DashboardScreen({
             className="rounded-2xl bg-white overflow-hidden border border-slate-100"
             style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
           >
-            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100">
-              {/* Ingresos */}
-              <div className="px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Ingresos</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
-                {extraIncomeTotal > 0 && !isPrivacyMode && (
-                  <p className="text-[9px] text-slate-400 tabular-nums mt-0.5">
-                    Base {mm(monthlyIncome)} + {mm(extraIncomeTotal)} extra
-                  </p>
-                )}
-              </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100">
               {/* Gastado */}
               <div className="px-4 py-3.5">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Gastado</p>
