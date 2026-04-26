@@ -504,8 +504,8 @@ export function DashboardScreen({
         </div>
       )}
 
-      {/* ── Daily feedback pill ──────────────────────────────────────────── */}
-      {dailyFeedback && (
+      {/* ── Daily feedback pill (solo si estado es positivo) ──────────────── */}
+      {dailyFeedback && (calmState === 'tranquilo' || calmState === 'neutral') && (
         <div className="px-4 mt-3 flex justify-center">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-white border border-slate-100 text-slate-700 shadow-sm">
             {dailyFeedback.emoji} {dailyFeedback.text}
