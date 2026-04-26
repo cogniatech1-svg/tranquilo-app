@@ -337,60 +337,54 @@ export function DashboardScreen({
           </div>
         </div>
 
-        {/* Status headline */}
-        <div className="flex items-center gap-2 mb-3 mt-4">
-          <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: STATUS_CONFIG[calmState].dot }}
-          />
-          <p className="text-sm font-semibold text-white/90 tracking-wide">
-            {STATUS_CONFIG[calmState].label}
-          </p>
-        </div>
-
-        {/* Main number */}
-        <p className="text-[2.75rem] font-bold text-white tabular-nums leading-none mb-1">
-          {mm(totalSpent)}
-        </p>
-
-        {/* Context */}
+        {/* Simplified header: Estado, Número principal, Barra */}
         {effectiveBudget > 0 && (
-          <p className="text-sm text-white/65 tabular-nums mb-5">
-            de {mm(effectiveBudget)} este mes
-          </p>
-        )}
+          <>
+            {/* 1. Estado (texto corto) */}
+            <div className="mb-4 mt-4">
+              <p className="text-sm font-semibold text-white/85 leading-snug">
+                {totalSpent > effectiveBudget
+                  ? `Vas por encima del presupuesto`
+                  : Math.round((totalSpent / effectiveBudget) * 100) >= 80
+                    ? `Estás cerca del límite`
+                    : `Vas dentro del presupuesto`}
+              </p>
+            </div>
 
-        {/* Remaining */}
-        {effectiveBudget > 0 && (
-          <p className="text-base font-bold tabular-nums" style={{ color: remaining >= 0 ? '#5EEAD4' : '#F87171' }}>
-            {remaining >= 0
-              ? `Te quedan ${mm(remaining)}${monthlyBudget > 0 ? ' del presupuesto' : ''}`
-              : `Excediste el presupuesto por ${mm(-remaining)}`}
-          </p>
-        )}
+            {/* 2. Número principal (el más importante) */}
+            <p className="text-[3rem] font-bold text-white tabular-nums leading-none mb-2">
+              {totalSpent > effectiveBudget
+                ? `−${mm(-remaining)}`
+                : mm(remaining)}
+            </p>
 
-        {/* Progress bar */}
-        {effectiveBudget > 0 && (
-          <div className="mt-4 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.18)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${Math.min(100, Math.round((totalSpent / effectiveBudget) * 100))}%`,
-                background: calmState === 'riesgo'
-                  ? 'linear-gradient(90deg, #F87171, #FECACA)'
-                  : calmState === 'ajustado'
-                    ? 'linear-gradient(90deg, #FBBF24, #FDE68A)'
-                    : 'linear-gradient(90deg, #14B8A6, #67E8F9)',
-              }}
-            />
-          </div>
-        )}
+            {/* Subtítulo explicativo */}
+            <p className="text-sm text-white/70 tabular-nums mb-5">
+              {totalSpent > effectiveBudget
+                ? `te pasaste`
+                : `te quedan`}
+            </p>
 
-        {/* Contextual overage insight */}
-        {overagePct > 0 && (
-          <p className="text-[11px] text-white/60 mt-3">
-            Vas {overagePct}% por encima de lo ideal para hoy
-          </p>
+            {/* 3. Barra de progreso */}
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.15)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${Math.min(100, Math.round((totalSpent / effectiveBudget) * 100))}%`,
+                  background: totalSpent > effectiveBudget
+                    ? 'linear-gradient(90deg, #EF4444, #FCA5A5)'
+                    : Math.round((totalSpent / effectiveBudget) * 100) >= 80
+                      ? 'linear-gradient(90deg, #FBBF24, #FCD34D)'
+                      : 'linear-gradient(90deg, #10B981, #6EE7B7)',
+                }}
+              />
+            </div>
+
+            {/* Porcentaje pequeño */}
+            <p className="text-[11px] text-white/60 mt-2">
+              {Math.round((totalSpent / effectiveBudget) * 100)}% gastado
+            </p>
+          </>
         )}
       </div>
       )}
