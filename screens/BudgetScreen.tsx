@@ -106,20 +106,56 @@ export function BudgetScreen({
 
       <div className="px-4 pt-5 space-y-6">
 
-        {/* ── Budget allocation overview ────────────────────────────────── */}
+        {/* ── 1. ORIGEN DEL DINERO ──────────────────────────────────────── */}
+        {monthlyIncome > 0 && (
+          <div
+            className="rounded-2xl overflow-hidden bg-white border border-slate-100"
+            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
+          >
+            <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">origen del dinero</p>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100">
+              {/* Ingresos */}
+              <div className="px-3 py-3.5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ingresos</p>
+                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
+                  {mm(monthlyIncome)}
+                </p>
+              </div>
+              {/* Ahorro */}
+              <div className="px-3 py-3.5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ahorro</p>
+                <p
+                  className="text-sm font-bold tabular-nums leading-tight"
+                  style={{ color: monthlyIncome > monthlyBudget ? '#16A34A' : '#EF4444' }}
+                >
+                  {monthlyIncome > monthlyBudget
+                    ? mm(monthlyIncome - monthlyBudget)
+                    : `−${mm(monthlyBudget - monthlyIncome)}`}
+                </p>
+              </div>
+              {/* Disponible (presupuesto) */}
+              <div className="px-3 py-3.5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">A gastar</p>
+                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
+                  {mm(monthlyBudget)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 2. DISTRIBUCIÓN ────────────────────────────────────────────── */}
         {hasBudget && (
           <div
             className="rounded-2xl overflow-hidden bg-white border border-slate-100"
             style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
           >
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              {/* Presupuesto total */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Presupuesto</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
-                  {mm(monthlyBudget)}
-                </p>
-              </div>
+            <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">distribución</p>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
               {/* Asignado a bolsillos */}
               <div className="px-3 py-3.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Asignado</p>
@@ -130,9 +166,9 @@ export function BudgetScreen({
                   <p className="text-[9px] text-slate-400 mt-0.5">{assignedPct}%</p>
                 )}
               </div>
-              {/* Restante por asignar */}
+              {/* Sin asignar */}
               <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Restante</p>
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Sin asignar</p>
                 <p
                   className="text-sm font-bold tabular-nums leading-tight"
                   style={{ color: unassigned >= 0 ? '#16A34A' : '#EF4444' }}
