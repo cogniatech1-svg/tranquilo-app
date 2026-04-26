@@ -271,7 +271,7 @@ export function DashboardScreen({
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
-          <p className="text-[11px] text-white/70 font-medium capitalize">{dateLabel}</p>
+          <p className="text-[11px] text-white/70 font-medium">{dateLabel}</p>
 
           {/* ☰ Menu button */}
           <div className="relative">
