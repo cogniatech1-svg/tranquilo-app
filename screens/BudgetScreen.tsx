@@ -155,9 +155,11 @@ export function BudgetScreen({
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ahorro</p>
                 <p
                   className="text-sm font-bold tabular-nums leading-tight"
-                  style={{ color: monthlySavings > 0 ? '#16A34A' : '#94A3B8' }}
+                  style={{ color: monthlyIncome > monthlyBudget ? '#16A34A' : '#EF4444' }}
                 >
-                  {mm(monthlySavings)}
+                  {monthlyIncome > monthlyBudget
+                    ? mm(monthlyIncome - monthlyBudget)
+                    : `−${mm(monthlyBudget - monthlyIncome)}`}
                 </p>
               </div>
               {/* Disponible (presupuesto) */}
