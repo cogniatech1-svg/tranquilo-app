@@ -83,6 +83,18 @@ export default function Home() {
 
         setCountryCode(country)
 
+        // ── VALIDACIÓN: Detectar datos corruptos y limpiarlos automáticamente ──
+        const income = data.monthlyIncome ?? 0
+        const savings = data.monthlySavings ?? 0
+        // Si savings > income, los datos están corruptos (imposible ahorrar más que ingresos)
+        if (income > 0 && savings > income) {
+          console.warn('[DATA VALIDATION] Datos corruptos detectados: savings > income. Limpiando...')
+          localStorage.removeItem(STORAGE_KEY)
+          localStorage.removeItem(ONBOARDING_FLAG)
+          setHydrated(true)
+          return
+        }
+
         // ── Reconstruir monthlyHistory desde localStorage ──
         const history: Record<string, MonthRecord> = {}
 
