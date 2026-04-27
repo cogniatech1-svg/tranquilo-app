@@ -493,11 +493,10 @@ export default function Home() {
         )}
         {activeTab === 'insights' && (
           <InsightsScreen
+            snapshot={snapshot}
             expenses={activeExpenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
-            monthlyBudget={activeMonthBudget}
-            monthlyIncome={totalIncome}
             monthlyHistory={monthlyHistory}
             config={config}
             isPrivacyMode={isPrivacyMode}

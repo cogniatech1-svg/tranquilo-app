@@ -8,13 +8,13 @@ import { InsightDonut } from '../components/InsightDonut'
 import { DS, formatMoney, maskMoney, getPocketPalette, getPocketIcon, POCKET_PALETTE } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, MonthRecord, Pocket } from '../lib/types'
+import type { FinancialSnapshot } from '../lib/financialEngine'
 
 interface Props {
+  snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
   expenses: Expense[]
   pockets: Pocket[]
   spentByPocket: Record<string, number>
-  monthlyBudget: number
-  monthlyIncome: number
   monthlyHistory: Record<string, MonthRecord>
   config: CountryConfig
   isPrivacyMode?: boolean
@@ -39,11 +39,10 @@ interface InsightResult {
 // INSIGHT ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
 function generateInsights(
+  snapshot: FinancialSnapshot,
   expenses: Expense[],
   pockets: Pocket[],
   spentByPocket: Record<string, number>,
-  monthlyBudget: number,
-  monthlyIncome: number,
   monthlyHistory: Record<string, MonthRecord>,
   config: CountryConfig,
 ): InsightResult {
@@ -52,14 +51,23 @@ function generateInsights(
   const warnings: Insight[] = []
   const positives: Insight[] = []
   const infos: Insight[] = []
-  const totalSpent  = expenses.reduce((s, e) => s + e.amount, 0)
+
+  // USAR SNAPSHOT COMO FUENTE DE VERDAD
+  const totalSpent  = snapshot.totalExpenses
+  const monthlyBudget = snapshot.budget
+  const monthlyIncome = snapshot.totalIncome
+  const remaining   = snapshot.remaining
+  const status      = snapshot.status
+
+  // USAR SNAPSHOT PARA CÁLCULOS CLAVE
+  const dailyAvg    = snapshot.day > 0 ? totalSpent / snapshot.day : 0
+  const projected   = dailyAvg * snapshot.daysInMonth
+  const timePct     = snapshot.day / snapshot.daysInMonth
+
   const today       = new Date()
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-  const daysPassed  = today.getDate()
+  const daysInMonth = snapshot.daysInMonth
+  const daysPassed  = snapshot.day
   const daysLeft    = daysInMonth - daysPassed
-  const dailyAvg    = daysPassed > 0 ? totalSpent / daysPassed : 0
-  const projected   = dailyAvg * daysInMonth
-  const timePct     = daysPassed / daysInMonth
   const fm          = (n: number) => formatMoney(n, config)
 
   const lastMonthKey   = Object.keys(monthlyHistory).sort().reverse()[0] ?? null
@@ -496,15 +504,18 @@ function buildHistorial(
 // SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 export function InsightsScreen({
+  snapshot,
   expenses,
   pockets,
   spentByPocket,
-  monthlyBudget,
-  monthlyIncome,
   monthlyHistory,
   config,
   isPrivacyMode = false,
 }: Props) {
+  // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
+  const monthlyBudget = snapshot.budget
+  const monthlyIncome = snapshot.totalIncome
+
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
 
@@ -553,9 +564,9 @@ export function InsightsScreen({
   )
 
   const { primary: primaryInsight, secondary: secondaryInsights } = useMemo(
-    () => generateInsights(expenses, pockets, spentByPocket, monthlyBudget, monthlyIncome, monthlyHistory, config),
+    () => generateInsights(snapshot, expenses, pockets, spentByPocket, monthlyHistory, config),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expenses, pockets, spentByPocket, monthlyBudget, monthlyIncome, monthlyHistory, config],
+    [snapshot, expenses, pockets, spentByPocket, monthlyHistory, config],
   )
 
   const { months: historialMonths, trendMsg } = useMemo(
