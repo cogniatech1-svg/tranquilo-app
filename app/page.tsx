@@ -157,6 +157,26 @@ export default function Home() {
     )
   }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
+  // ── Save extraIncomes to monthlyHistory when changing months ────────────────
+  // Cuando el usuario navega entre meses, guardar los extraIncomes actuales en el histórico
+  const [prevActiveMonth, setPrevActiveMonth] = useState<string>(getCurrentMonth)
+  useEffect(() => {
+    if (!hydrated || !prevActiveMonth) return
+
+    // Si cambias DE un mes a otro, guarda los extraIncomes del mes anterior
+    if (prevActiveMonth !== activeMonth) {
+      setMonthlyHistory(prev => ({
+        ...prev,
+        [prevActiveMonth]: {
+          ...(prev[prevActiveMonth] || {}),
+          extraIncomes: extraIncomes, // Guardar los extraIncomes del mes que estabas viendo
+        },
+      }))
+    }
+
+    setPrevActiveMonth(activeMonth)
+  }, [hydrated, activeMonth, extraIncomes])
+
   // ── Derived state ──────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
 
@@ -176,6 +196,11 @@ export default function Home() {
     ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
     : monthlyIncome
 
+  // IMPORTANTE: Cargar extraIncomes del mes actual o del histórico
+  const activeExtraIncomes = isViewingPast
+    ? (monthlyHistory[activeMonth]?.extraIncomes ?? [])
+    : extraIncomes
+
   const spentByPocket = useMemo(() => {
     const acc: Record<string, number> = Object.fromEntries(pockets.map(p => [p.id, 0]))
     for (const e of activeExpenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
@@ -188,11 +213,12 @@ export default function Home() {
   )
 
   const extraIncomeTotal = useMemo(
-    () => extraIncomes.reduce((s, e) => s + e.amount, 0),
-    [extraIncomes],
+    () => activeExtraIncomes.reduce((s, e) => s + e.amount, 0),
+    [activeExtraIncomes],
   )
 
-  const totalIncome = activeMonthIncome + (isViewingPast ? 0 : extraIncomeTotal)
+  // CORRECCIÓN: SIEMPRE sumar extraIncomes (incluso en meses pasados)
+  const totalIncome = activeMonthIncome + extraIncomeTotal
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
   const openAddSheet        = useCallback(() => { setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
@@ -378,7 +404,7 @@ export default function Home() {
             pockets={pockets}
             monthlyBudget={activeMonthBudget}
             monthlyIncome={activeMonthIncome}
-            extraIncomes={isViewingPast ? [] : extraIncomes}
+            extraIncomes={activeExtraIncomes}
             currentMonth={activeMonth}
             spentByPocket={spentByPocket}
             config={config}
@@ -393,7 +419,7 @@ export default function Home() {
         {activeTab === 'movimientos' && (
           <TransactionsScreen
             expenses={activeExpenses}
-            extraIncomes={isViewingPast ? [] : extraIncomes}
+            extraIncomes={activeExtraIncomes}
             pockets={pockets}
             config={config}
             activeMonth={activeMonth}

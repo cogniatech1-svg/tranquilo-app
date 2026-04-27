@@ -43,7 +43,16 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   // ────────────────────────────────────────────────────────────────
   // 1. TOTAL INCOME: suma de TODOS los extra incomes
   // ────────────────────────────────────────────────────────────────
-  const totalIncome = monthlyIncome + extraIncomes.reduce((sum, inc) => sum + inc.amount, 0)
+  const extraIncomeTotal = extraIncomes.reduce((sum, inc) => sum + inc.amount, 0)
+  const totalIncome = monthlyIncome + extraIncomeTotal
+
+  // DEBUG: Verificar que se suman TODOS los ingresos
+  console.log('[FINANCIAL ENGINE] DESGLOSE DE INGRESOS:')
+  console.log('  monthlyIncome:', monthlyIncome)
+  console.log('  extraIncomes.length:', extraIncomes.length)
+  console.log('  extraIncomes:', extraIncomes.map(e => ({ concept: e.concept, amount: e.amount })))
+  console.log('  extraIncomeTotal:', extraIncomeTotal)
+  console.log('  TOTAL INCOME:', totalIncome)
 
   // ────────────────────────────────────────────────────────────────
   // 2. TOTAL EXPENSES: suma de todos los gastos

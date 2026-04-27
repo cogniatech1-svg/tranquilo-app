@@ -25,13 +25,14 @@ export type IncomeCategory = 'salary' | 'extra' | 'other'
 export interface ExtraIncome {
   id: string
   amount: number
-  note: string    // empty string = no note
-  date: string    // ISO date
+  concept: string    // descripción del ingreso (ej: "Venta", "Bono", "Regalo")
+  date: string       // ISO date
   category?: IncomeCategory
 }
 
 export interface MonthRecord {
   expenses: Expense[]
+  extraIncomes: ExtraIncome[]  // ingresos extras del mes (para historico)
   totalSpent: number
   budget: number
   income?: number    // saved since v2 — optional for backward compat

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado Actual de Tranquilo - Todas las Pestañas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .tabs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .tab-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .tab-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+        }
+        .tab-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95em;
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .stat-value {
+            font-weight: 700;
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+        .stat-value.negative {
+            color: #ef4444;
+        }
+        .stat-value.positive {
+            color: #16a34a;
+        }
+        .grid-display {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .grid-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .grid-item-label {
+            font-size: 0.75em;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .grid-item-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #92400e;
+        }
+        .issue {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #991b1b;
+        }
+        .success {
+            background: #dcfce7;
+            border-left: 4px solid #16a34a;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #15803d;
+        }
+        .summary {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .summary h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        .problem-list {
+            list-style: none;
+        }
+        .problem-list li {
+            padding: 12px 0;
+            padding-left: 30px;
+            position: relative;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .problem-list li:before {
+            content: "⚠";
+            position: absolute;
+            left: 0;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Estado Actual de Tranquilo</h1>
+        <p class="subtitle">Resumen de todas las pestañas - 26 de Abril 2026</p>
+
+        <div class="tabs-grid">
+            <!-- INICIO / DASHBOARD -->
+            <div class="tab-card">
+                <div class="tab-name">🏠 Inicio</div>
+
+                <div class="section">
+                    <div class="section-title">Estado General</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Mensaje</span>
+                        <span class="stat-value">Te quedaste sin presupuesto</span>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Disponible</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Valor</span>
+                        <span class="stat-value negative">−$6.779.139</span>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Grid Financiero (2 columnas)</div>
+                    <div class="grid-display">
+                        <div class="grid-item">
+                            <div class="grid-item-label">Ingresos</div>
+                            <div class="grid-item-value">$16.102.170</div>
+                            <small style="color:#999">Base $8.752.707 + $7.349.463 extra</small>
+                        </div>
+                        <div class="grid-item">
+                            <div class="grid-item-label">Gastado</div>
+                            <div class="grid-item-value" style="color:#ef4444">$11.279.139</div>
+                            <small style="color:#999">251% del presupuesto</small>
+                        </div>
+                        <div class="grid-item">
+                            <div class="grid-item-label">Disponible</div>
+                            <div class="grid-item-value" style="color:#ef4444">−$6.779.139</div>
+                            <small style="color:#999">del presupuesto</small>
+                        </div>
+                        <div class="grid-item">
+                            <div class="grid-item-label">Ahorro Planeado</div>
+                            <div class="grid-item-value" style="color:#16a34a">$11.602.170</div>
+                            <small style="color:#999">72% del ingreso</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="issue">
+                    <strong>❌ PROBLEMA DETECTADO:</strong> Grid sigue siendo de 2 columnas. Debería ser 3 columnas SIN la tarjeta de Ingresos
+                </div>
+            </div>
+
+            <!-- PRESUPUESTO -->
+            <div class="tab-card">
+                <div class="tab-name">📋 Presupuesto</div>
+
+                <div class="section">
+                    <div class="section-title">Ingresos Mensuales (Editable)</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Valor</span>
+                        <span class="stat-value">$8.752.707</span>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Origen del Dinero</div>
+                    <div class="grid-display">
+                        <div class="grid-item">
+                            <div class="grid-item-label">Ingresos</div>
+                            <div class="grid-item-value">$8.752.707</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="grid-item-label">Ahorro</div>
+                            <div class="grid-item-value" style="color:#16a34a">$4.252.707</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="grid-item-label">A Gastar</div>
+                            <div class="grid-item-value">$4.500.000</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Ahorro Sugerido (Editable)</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Valor</span>
+                        <span class="stat-value positive">$4.252.707</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Porcentaje</span>
+                        <span class="stat-value">49%</span>
+                    </div>
+                </div>
+
+                <div class="issue">
+                    <strong>⚠️ INCONSISTENCIA DETECTADA:</strong> Ingresos aquí ($8.752.707) vs Dashboard ($16.102.170) - NO COINCIDEN
+                </div>
+            </div>
+
+            <!-- MOVIMIENTOS -->
+            <div class="tab-card">
+                <div class="tab-name">📝 Movimientos</div>
+                <div class="section">
+                    <p style="color:#999; font-size:0.95em">
+                        Lista de gastos e ingresos registrados. Los datos de ingresos totales aquí: <strong>$16.102.170</strong>
+                    </p>
+                </div>
+                <div class="success">
+                    ✅ Esta pestaña está actualizada correctamente
+                </div>
+            </div>
+
+            <!-- INSIGHTS -->
+            <div class="tab-card">
+                <div class="tab-name">📈 Insights</div>
+                <div class="section">
+                    <p style="color:#999; font-size:0.95em">
+                        Análisis y gráficos de gastos
+                    </p>
+                </div>
+                <div class="success">
+                    ✅ Esta pestaña está actualizada correctamente
+                </div>
+            </div>
+
+            <!-- PERFIL -->
+            <div class="tab-card">
+                <div class="tab-name">👤 Perfil</div>
+                <div class="section">
+                    <p style="color:#999; font-size:0.95em">
+                        Configuración de usuario
+                    </p>
+                </div>
+                <div class="success">
+                    ✅ Esta pestaña está actualizada correctamente
+                </div>
+            </div>
+        </div>
+
+        <!-- RESUMEN DE PROBLEMAS -->
+        <div class="summary">
+            <h2>🔍 Resumen de Problemas Detectados</h2>
+
+            <h3 style="color:#667eea; margin-top:20px; margin-bottom:15px">Cambio NO Aplicado (DashboardScreen.tsx):</h3>
+            <ul class="problem-list">
+                <li><strong>Grid sigue siendo 2x2</strong> (debería ser 3 columnas)</li>
+                <li><strong>Tarjeta "Ingresos" aún visible</strong> (debería estar removida)</li>
+                <li><strong>Disponible = −$6.779.139</strong> (NEGATIVO - indica que está usando cálculo viejo)</li>
+            </ul>
+
+            <h3 style="color:#667eea; margin-top:20px; margin-bottom:15px">Inconsistencias de Datos:</h3>
+            <ul class="problem-list">
+                <li><strong>Ingresos diferentes</strong>: Dashboard ($16.102.170) vs Presupuesto ($8.752.707)</li>
+                <li><strong>Ahorro diferente</strong>: Presupuesto ($4.252.707) vs lo que se muestra</li>
+                <li><strong>A gastar diferente</strong>: $4.500.000 en Presupuesto</li>
+            </ul>
+
+            <h3 style="color:#16a34a; margin-top:20px; margin-bottom:15px">Cambios QUE SÍ Funcionaron (Anoche):</h3>
+            <ul class="problem-list" style="list-style: none;">
+                <li style="padding-left:0; border:none; color:#666">✅ Cambios en app/page.tsx - Implementados correctamente</li>
+                <li style="padding-left:0; border:none; color:#666">✅ Cambios en BudgetScreen.tsx - Implementados correctamente</li>
+                <li style="padding-left:0; border:none; color:#666">✅ Cambios en otros archivos - Implementados correctamente</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
