@@ -22,6 +22,7 @@ import {
   normalizeKey,
   extractConcept,
   parseAmount,
+  getDefaultMonthRecord,
 } from '../lib/utils'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,14 +46,13 @@ export default function Home() {
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
-  const [monthlyIncome, setMonthlyIncome] = useState(0)
-  const [monthlySavings, setMonthlySavings] = useState(0)
-  const [pockets,       setPockets]       = useState<Pocket[]>(DEFAULT_POCKETS)
-  const [expenses,      setExpenses]      = useState<Expense[]>([])
-  const [extraIncomes,  setExtraIncomes]  = useState<ExtraIncome[]>([])
+  // ── ÚNICA FUENTE DE VERDAD: monthlyHistory ────────────────────────────────
+  // Contiene TODOS los datos financieros por mes
+  // Estructura: monthlyHistory[month] = { income, savings, expenses, extraIncomes, pockets }
+  const [monthlyHistory, setMonthlyHistory] = useState<Record<string, MonthRecord>>({})
+
   const [conceptMap,    setConceptMap]    = useState<Record<string, string>>({})
   const [currentMonth,  setCurrentMonth]  = useState<string>(getCurrentMonth)
-  const [monthlyHistory, setMonthlyHistory] = useState<Record<string, MonthRecord>>({})
 
   const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
   const [isPrivacyMode,        setIsPrivacyMode]         = useState(false)
@@ -65,88 +65,90 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-  // presupuesto = ingresos - ahorro (SIEMPRE, AUTOMÁTICO)
-  const monthlyBudget = useMemo(
-    () => Math.max(0, monthlyIncome - monthlySavings),
-    [monthlyIncome, monthlySavings]
-  )
+  // ── HELPER: Obtener datos del mes activo (SIEMPRE usa este helper) ──────────
+  const getActiveMonthData = useCallback(() => {
+    return monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+  }, [monthlyHistory, activeMonth])
 
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
-      // Check if user has completed onboarding
       const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
-
       const raw = localStorage.getItem(STORAGE_KEY)
+
       if (raw) {
         const data = JSON.parse(raw) as StoredData
-        const thisMonth  = getCurrentMonth()
-        // For backwards compatibility, read old budget but don't use it
-        // New arch: presupuesto = ingresos - ahorro (calculated, not stored)
-        const income     = data.monthlyIncome ?? 0
-        const normalised = normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS)
-        // Normalize history for backward compatibility: ensure all records have extraIncomes
-        const history: Record<string, MonthRecord> = {}
-        for (const [month, record] of Object.entries(data.monthlyHistory ?? {})) {
-          history[month] = {
-            ...record as MonthRecord,
-            extraIncomes: (record as any).extraIncomes ?? [],
-          }
-        }
-        const country    = (data.countryCode as CountryCode) ?? 'CO'
+        const thisMonth = getCurrentMonth()
+        const country = (data.countryCode as CountryCode) ?? 'CO'
 
         setCountryCode(country)
 
-        // Load monthlySavings con soporte para ambos formatos
-        // Formato nuevo: monthlySavings está guardado directamente
-        // Formato viejo: monthlyBudget estaba guardado, calcular savings = income - budget
-        let savings = data.monthlySavings ?? 0
-        if (!savings && income > 0) {
-          const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
-          savings = Math.max(0, income - oldBudget)
-        }
-        // Garantizar ahorro válido (no puede ser negativo ni mayor al ingreso)
-        if (savings > income) {
-          savings = Math.round(income * 0.20)
-        }
-        const budget = Math.max(0, income - savings)
+        // ── Reconstruir monthlyHistory desde formato viejo (backward compatibility) ──
+        const history: Record<string, MonthRecord> = {}
 
+        // Si existe monthlyHistory en los datos, migrar a nuevo formato
+        if (data.monthlyHistory) {
+          for (const [month, record] of Object.entries(data.monthlyHistory)) {
+            const rec = record as any
+            history[month] = {
+              income: rec.income ?? 0,
+              savings: rec.savings ?? 0,
+              expenses: rec.expenses ?? [],
+              extraIncomes: rec.extraIncomes ?? [],
+              pockets: rec.pockets ?? DEFAULT_POCKETS,
+            }
+          }
+        }
+
+        // Si estamos en un mes nuevo, archivar el anterior y crear registro limpio
         if (data.currentMonth && data.currentMonth !== thisMonth) {
-          // New month — archive previous, reset monthly data
+          // Archivar mes anterior si tiene datos
           if ((data.expenses?.length ?? 0) > 0 || (data.extraIncomes?.length ?? 0) > 0) {
-            const totalSpent = (data.expenses ?? []).reduce((s, e) => s + e.amount, 0)
+            const income = data.monthlyIncome ?? 0
+            let savings = data.monthlySavings ?? 0
+            if (!savings && income > 0) {
+              const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
+              savings = Math.max(0, income - oldBudget)
+            }
+            if (savings > income) savings = Math.round(income * 0.20)
+
             history[data.currentMonth] = {
+              income,
+              savings,
               expenses: data.expenses ?? [],
               extraIncomes: data.extraIncomes ?? [],
-              totalSpent,
-              budget,  // Archive the budget value from previous month
-              income,
+              pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
             }
           }
           setCurrentMonth(thisMonth)
-          setPockets(normalised)
-          setMonthlyIncome(income)
-          setMonthlySavings(savings)
-          setConceptMap(data.conceptMap ?? {})
-          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-          setExpenses([])
-          setExtraIncomes([])           // extras are monthly — reset on new month
-          setMonthlyHistory(history)
-          if (hasOnboarded) setScreen('main')
+          // Crear registro vacío para el mes nuevo
+          history[thisMonth] ??= getDefaultMonthRecord()
         } else {
-          setCurrentMonth(data.currentMonth ?? thisMonth)
-          setPockets(normalised)
-          setMonthlyIncome(income)
-          setMonthlySavings(savings)
-          setExpenses(data.expenses ?? [])
-          setExtraIncomes(data.extraIncomes ?? [])
-          setConceptMap(data.conceptMap ?? {})
-          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-          setMonthlyHistory(history)
-          if (data.isPrivacyMode) setIsPrivacyMode(true)
-          if (hasOnboarded) setScreen('main')
+          // Mismo mes: cargar datos actuales en monthlyHistory
+          const loadMonth = data.currentMonth ?? thisMonth
+          const income = data.monthlyIncome ?? 0
+          let savings = data.monthlySavings ?? 0
+          if (!savings && income > 0) {
+            const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
+            savings = Math.max(0, income - oldBudget)
+          }
+          if (savings > income) savings = Math.round(income * 0.20)
+
+          history[loadMonth] = {
+            income,
+            savings,
+            expenses: data.expenses ?? [],
+            extraIncomes: data.extraIncomes ?? [],
+            pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
+          }
+          setCurrentMonth(loadMonth)
         }
+
+        setConceptMap(data.conceptMap ?? {})
+        setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+        setMonthlyHistory(history)
+        if (data.isPrivacyMode) setIsPrivacyMode(true)
+        if (hasOnboarded) setScreen('main')
       }
     } catch {
       // ignore malformed JSON
@@ -157,103 +159,67 @@ export default function Home() {
   // ── Persist to localStorage ────────────────────────────────────────────────
   useEffect(() => {
     if (!hydrated) return
+    const activeData = getActiveMonthData()
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        expenses,
-        extraIncomes,
-        pockets,
-        monthlyIncome,
-        monthlySavings,
+        // Datos del mes actual (para backward compatibility)
+        monthlyIncome: activeData.income,
+        monthlySavings: activeData.savings,
+        expenses: activeData.expenses,
+        extraIncomes: activeData.extraIncomes,
+        pockets: activeData.pockets,
+        // ÚNICA FUENTE DE VERDAD
+        monthlyHistory,
+        // Metadatos
         conceptMap,
         learnedCategoryMap,
         currentMonth,
-        monthlyHistory,
         countryCode,
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
-  // ── Save extraIncomes to monthlyHistory when changing months ────────────────
-  // Cuando el usuario navega entre meses, guardar los extraIncomes actuales en el histórico
-  const [prevActiveMonth, setPrevActiveMonth] = useState<string>(getCurrentMonth)
-  useEffect(() => {
-    if (!hydrated || !prevActiveMonth) return
-
-    // Si cambias DE un mes a otro, guarda los extraIncomes del mes anterior
-    if (prevActiveMonth !== activeMonth) {
-      setMonthlyHistory(prev => ({
-        ...prev,
-        [prevActiveMonth]: {
-          ...(prev[prevActiveMonth] || {}),
-          extraIncomes: extraIncomes, // Guardar los extraIncomes del mes que estabas viendo
-        },
-      }))
-    }
-
-    setPrevActiveMonth(activeMonth)
-  }, [hydrated, activeMonth, extraIncomes])
-
-  // ── Derived state ──────────────────────────────────────────────────────────
+  // ── Derived state ─────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
 
-  // When viewing a past month, pull data from history; otherwise use live state
-  const activeExpenses = useMemo(() =>
-    isViewingPast
-      ? (monthlyHistory[activeMonth]?.expenses ?? [])
-      : expenses,
-    [isViewingPast, activeMonth, monthlyHistory, expenses],
-  )
+  // ── Acceso a datos: SIEMPRE desde monthlyHistory[activeMonth] ──────────────
+  const monthData = useMemo(() => getActiveMonthData(), [getActiveMonthData])
 
-  const activeMonthIncome = isViewingPast
-    ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
-    : monthlyIncome
-
-  // activeMonthSavings: el ahorro del mes (editable, no calculado)
-  // Para meses pasados, no tenemos histórico de ahorro, así que usamos monthlySavings actual
-  const activeMonthSavings = monthlySavings
-
-  // activeMonthBudget es calculado = ingresos - ahorro
-  const activeMonthBudget = Math.max(0, activeMonthIncome - activeMonthSavings)
-
-  // IMPORTANTE: Cargar extraIncomes del mes actual o del histórico
-  const activeExtraIncomes = isViewingPast
-    ? ((monthlyHistory[activeMonth] as any)?.extraIncomes ?? [])
-    : extraIncomes
+  const income = monthData.income
+  const savings = monthData.savings
+  const expenses = monthData.expenses
+  const extraIncomes = monthData.extraIncomes
+  const pockets = monthData.pockets
 
   const spentByPocket = useMemo(() => {
     const acc: Record<string, number> = Object.fromEntries(pockets.map(p => [p.id, 0]))
-    for (const e of activeExpenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
+    for (const e of expenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
     return acc
-  }, [activeExpenses, pockets])
-
-  const totalSpent = useMemo(
-    () => activeExpenses.reduce((s, e) => s + e.amount, 0),
-    [activeExpenses],
-  )
+  }, [expenses, pockets])
 
   const extraIncomeTotal = useMemo(
-    () => activeExtraIncomes.reduce((s: number, e: ExtraIncome) => s + e.amount, 0),
-    [activeExtraIncomes],
+    () => extraIncomes.reduce((s: number, e: ExtraIncome) => s + e.amount, 0),
+    [extraIncomes],
   )
 
-  // CORRECCIÓN: SIEMPRE sumar extraIncomes (incluso en meses pasados)
-  const totalIncome = activeMonthIncome + extraIncomeTotal
+  // totalIncome = income (base) + extraIncomes (adicionales)
+  const totalIncome = income + extraIncomeTotal
 
   // ════════════════════════════════════════════════════════════════════════════
-  // FINANCIALENGINE: ÚNICA FUENTE DE VERDAD para todos los cálculos
+  // FINANCIALENGINE: Calcula snapshot a partir de monthlyHistory[activeMonth]
   // ════════════════════════════════════════════════════════════════════════════
   const snapshot = useMemo(
     () => calculateFinancialSnapshot({
-      expenses: activeExpenses,
-      extraIncomes: activeExtraIncomes,
+      expenses,
+      extraIncomes,
       pockets,
-      monthlyIncome: activeMonthIncome,
-      monthlySavings: activeMonthSavings,
+      monthlyIncome: income,
+      monthlySavings: savings,
       currentMonth: activeMonth,
     }),
-    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, activeMonthSavings, activeMonth],
+    [expenses, extraIncomes, pockets, income, savings, activeMonth],
   )
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
@@ -266,152 +232,169 @@ export default function Home() {
   const handleSaveExpense = useCallback((payload: ExpensePayload) => {
     const { id, ...rest } = payload
 
-    if (isViewingPast) {
-      // Save into the historical record for activeMonth
-      setMonthlyHistory(prev => {
-        const rec = prev[activeMonth] ?? {
-          expenses: [],
-          totalSpent: 0,
-          budget: activeMonthBudget,
-          income: activeMonthIncome,
-        }
-        const newExpenses = id
-          ? rec.expenses.map(e => e.id === id ? { ...e, ...rest } : e)
-          : [...rec.expenses, { id: Date.now().toString(), ...rest }]
-        return {
-          ...prev,
-          [activeMonth]: {
-            ...rec,
-            expenses: newExpenses,
-            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
-          },
-        }
-      })
-    } else {
-      if (id) {
-        setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...rest } : e))
-      } else {
-        setExpenses(prev => [...prev, { id: Date.now().toString(), ...rest }])
+    setMonthlyHistory(prev => {
+      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+      const newExpenses = id
+        ? monthData.expenses.map(e => e.id === id ? { ...e, ...rest } : e)
+        : [...monthData.expenses, { id: Date.now().toString(), ...rest }]
+
+      return {
+        ...prev,
+        [activeMonth]: {
+          ...monthData,
+          expenses: newExpenses,
+        },
       }
-    }
+    })
 
     const key = normalizeKey(rest.concept)
     if (key && key !== 'gasto') {
       setConceptMap(prev => ({ ...prev, [key]: rest.pocketId }))
     }
-  }, [isViewingPast, activeMonth, activeMonthBudget, activeMonthIncome])
+  }, [activeMonth])
 
   const handleDeleteExpense = useCallback((id: string) => {
-    if (isViewingPast) {
-      setMonthlyHistory(prev => {
-        const rec = prev[activeMonth]
-        if (!rec) return prev
-        const newExpenses = rec.expenses.filter(e => e.id !== id)
-        return {
-          ...prev,
-          [activeMonth]: {
-            ...rec,
-            expenses: newExpenses,
-            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
-          },
-        }
-      })
-    } else {
-      setExpenses(prev => prev.filter(e => e.id !== id))
-    }
-  }, [isViewingPast, activeMonth])
+    setMonthlyHistory(prev => {
+      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+      return {
+        ...prev,
+        [activeMonth]: {
+          ...monthData,
+          expenses: monthData.expenses.filter(e => e.id !== id),
+        },
+      }
+    })
+  }, [activeMonth])
 
   const handleSwitchExpenseToIncome = useCallback((expenseId: string, amount: number, note: string, date: string) => {
-    if (isViewingPast) {
-      setMonthlyHistory(prev => {
-        const rec = prev[activeMonth]
-        if (!rec) return prev
-        const newExpenses = rec.expenses.filter(e => e.id !== expenseId)
-        return {
-          ...prev,
-          [activeMonth]: {
-            ...rec,
-            expenses: newExpenses,
-            totalSpent: newExpenses.reduce((s, e) => s + e.amount, 0),
-          },
-        }
-      })
-    } else {
-      setExpenses(prev => prev.filter(e => e.id !== expenseId))
-    }
-    setExtraIncomes(prev => [...prev, {
-      id: Date.now().toString(),
-      amount,
-      concept: note,
-      date,
-      category: 'extra' as const,
-    }])
-  }, [isViewingPast, activeMonth])
+    setMonthlyHistory(prev => {
+      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+      return {
+        ...prev,
+        [activeMonth]: {
+          ...monthData,
+          expenses: monthData.expenses.filter(e => e.id !== expenseId),
+          extraIncomes: [...monthData.extraIncomes, {
+            id: Date.now().toString(),
+            amount,
+            concept: note,
+            date,
+            category: 'extra' as const,
+          }],
+        },
+      }
+    })
+  }, [activeMonth])
 
   const handleEditPocket = useCallback((id: string, name: string, budget: number, icon?: string) => {
-    // VALIDACIÓN: sum(pockets) <= monthlyBudget
-    const otherPockets = pockets.filter(p => p.id !== id)
+    const monthData = getActiveMonthData()
+    const budget_available = snapshot.budget
+
+    // VALIDACIÓN: sum(pockets) <= presupuesto
+    const otherPockets = monthData.pockets.filter(p => p.id !== id)
     const sumWithoutThis = otherPockets.reduce((s, p) => s + p.budget, 0)
     const totalIfEdited = sumWithoutThis + budget
 
-    if (totalIfEdited > monthlyBudget) {
-      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${monthlyBudget}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`)
+    if (totalIfEdited > budget_available) {
+      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`)
       return false
     }
 
-    setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget, icon } : p))
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        pockets: monthData.pockets.map(p => p.id === id ? { ...p, name, budget, icon } : p),
+      },
+    }))
     return true
-  }, [pockets, monthlyBudget])
+  }, [activeMonth, getActiveMonthData, snapshot.budget])
 
   const handleDeletePocket = useCallback((id: string) => {
-    setPockets(prev => prev.filter(p => p.id !== id))
-    setExpenses(prev => prev.filter(e => e.pocketId !== id))
-  }, [])
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        pockets: monthData.pockets.filter(p => p.id !== id),
+        expenses: monthData.expenses.filter(e => e.pocketId !== id),
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
 
   const handleAddPocket = useCallback((name: string, budget: number, icon?: string) => {
-    // VALIDACIÓN: sum(pockets) <= monthlyBudget
-    const currentTotal = pockets.reduce((s, p) => s + p.budget, 0)
+    const monthData = getActiveMonthData()
+    const budget_available = snapshot.budget
+
+    // VALIDACIÓN: sum(pockets) <= presupuesto
+    const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
     const totalIfAdded = currentTotal + budget
 
-    if (totalIfAdded > monthlyBudget) {
-      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${monthlyBudget}\nActualmente asignado: $${currentTotal}\nIntentando agregar: $${budget}\nTotal resultaría en: $${totalIfAdded}`)
+    if (totalIfAdded > budget_available) {
+      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nActualmente asignado: $${currentTotal}\nIntentando agregar: $${budget}\nTotal resultaría en: $${totalIfAdded}`)
       return false
     }
 
-    setPockets(prev => [...prev, { id: Date.now().toString(), name, budget, icon }])
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        pockets: [...monthData.pockets, { id: Date.now().toString(), name, budget, icon }],
+      },
+    }))
     return true
-  }, [pockets, monthlyBudget])
+  }, [activeMonth, getActiveMonthData, snapshot.budget])
 
   const handleAddExtraIncome = useCallback((amount: number, note: string) => {
-    setExtraIncomes(prev => [...prev, {
-      id: Date.now().toString(),
-      amount,
-      concept: note,
-      date: new Date().toISOString(),
-      category: 'extra' as const,
-    }])
-  }, [])
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        extraIncomes: [...monthData.extraIncomes, {
+          id: Date.now().toString(),
+          amount,
+          concept: note,
+          date: new Date().toISOString(),
+          category: 'extra' as const,
+        }],
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
 
   const handleDeleteExtraIncome = useCallback((id: string) => {
-    setExtraIncomes(prev => prev.filter(e => e.id !== id))
-  }, [])
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        extraIncomes: monthData.extraIncomes.filter(e => e.id !== id),
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
 
   const handleUpdateExtraIncome = useCallback((id: string, amount: number, note: string, date: string) => {
-    setExtraIncomes(prev => prev.map(e => e.id === id ? { ...e, amount, note, date } : e))
-  }, [])
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        extraIncomes: monthData.extraIncomes.map(e => e.id === id ? { ...e, amount, concept: note, date } : e),
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(ONBOARDING_FLAG)
-    setExpenses([])
-    setExtraIncomes([])
-    setPockets(DEFAULT_POCKETS)
-    setMonthlyIncome(0)
-    setMonthlySavings(0)
     setConceptMap({})
     setLearnedCategoryMap({})
-    setCurrentMonth(getCurrentMonth())
-    setMonthlyHistory({})
+    const thisMonth = getCurrentMonth()
+    setCurrentMonth(thisMonth)
+    setActiveMonth(thisMonth)
+    setMonthlyHistory({
+      [thisMonth]: getDefaultMonthRecord(),
+    })
     setScreen('onboarding')
   }, [])
 
@@ -419,25 +402,59 @@ export default function Home() {
     setCountryCode(code)
   }, [])
 
-  const handleSetIncome = useCallback((income: number) => {
-    setMonthlyIncome(income)
-  }, [])
+  const handleSetIncome = useCallback((newIncome: number) => {
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        income: newIncome,
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
+
+  const handleSetSavings = useCallback((newSavings: number) => {
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        savings: newSavings,
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
 
   const handleTogglePrivacy = useCallback(() => {
     setIsPrivacyMode(prev => !prev)
   }, [])
 
-  const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, income: number) => {
+  const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number) => {
     // Mark onboarding as complete
     localStorage.setItem(ONBOARDING_FLAG, 'true')
 
     setCountryCode(code)
-    if (income > 0) setMonthlyIncome(income)
-    // Convert budget from onboarding to savings: savings = income - budget
-    if (budget > 0 && income > 0) {
-      const savings = Math.max(0, income - budget)
-      setMonthlySavings(savings)
+
+    const thisMonth = getCurrentMonth()
+    setCurrentMonth(thisMonth)
+    setActiveMonth(thisMonth)
+
+    // Calcular savings desde budget: savings = income - budget
+    let savings = 0
+    if (incomeValue > 0 && budget > 0) {
+      savings = Math.max(0, incomeValue - budget)
     }
+
+    // Crear registro inicial para el mes
+    setMonthlyHistory({
+      [thisMonth]: {
+        income: incomeValue,
+        savings,
+        expenses: [],
+        extraIncomes: [],
+        pockets: DEFAULT_POCKETS,
+      },
+    })
+
     setScreen('main')
   }, [])
 
@@ -499,8 +516,8 @@ export default function Home() {
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
-            onSetIncome={setMonthlyIncome}
-            onSetSavings={setMonthlySavings}
+            onSetIncome={handleSetIncome}
+            onSetSavings={handleSetSavings}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
