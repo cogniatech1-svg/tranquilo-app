@@ -1,17 +1,13 @@
 import { useMemo, useState, useEffect } from 'react'
-import { StatCard } from '../components/StatCard'
 import { PocketCard } from '../components/PocketCard'
 import { TransactionItem } from '../components/TransactionItem'
 import { SectionHeader } from '../components/ui/SectionHeader'
-import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
 import { Card } from '../components/ui/Card'
-import { CALM_GRADS, DS, formatMoney, maskMoney } from '../lib/config'
+import { CALM_GRADS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { CalmState, Expense, ExtraIncome, Pocket } from '../lib/types'
+import type { CalmState, Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
-import { getCalmState, getDaysInMonth, getSpendingOveragePct } from '../lib/utils'
-import { MonthNavigator } from '../components/MonthNavigator'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -129,80 +125,12 @@ export function DashboardScreen({
     setMenuOpen(false)
   }
   const isViewingPast = activeMonth !== realCurrentMonth
-  const today    = useMemo(() => new Date(), [])
-  const todayStr = today.toISOString().slice(0, 10)
-  const weekAgo  = useMemo(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 7)
-    return d
-  }, [])
+  const today = useMemo(() => new Date(), [])
 
-  // CÁLCULOS ESPECÍFICOS de Dashboard (no están en snapshot)
-  const todaySpent = useMemo(
-    () => expenses.filter(e => e.date.startsWith(todayStr)).reduce((s, e) => s + e.amount, 0),
-    [expenses, todayStr],
-  )
-  const weekSpent = useMemo(
-    () => expenses.filter(e => new Date(e.date) >= weekAgo).reduce((s, e) => s + e.amount, 0),
-    [expenses, weekAgo],
-  )
 
   // Derivados de snapshot para cálculos secundarios
   const calendarRate = snapshot.day / snapshot.daysInMonth
-  const daysLeft     = snapshot.daysInMonth - snapshot.day
   const effectiveBudget = monthlyBudget > 0 ? monthlyBudget : totalIncome
-  const hasIncome = totalIncome > 0
-
-  const dailyAvg = snapshot.day > 0 ? totalSpent / snapshot.day : 0
-  const projectedSpent = dailyAvg * snapshot.daysInMonth
-  const projectedSaving = hasIncome ? totalIncome - projectedSpent : 0
-  const plannedSavings = hasIncome && monthlyBudget > 0 ? totalIncome - monthlyBudget : null
-  const savingsDisplay = plannedSavings !== null ? plannedSavings : projectedSaving
-  const savingsRate = hasIncome && totalIncome > 0 ? Math.round((savingsDisplay / totalIncome) * 100) : 0
-  const savingsLabel = plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proy.'
-
-  // ── Daily feedback pill ───────────────────────────────────────────────────
-  const dailyFeedback = useMemo(() => {
-    const ref = effectiveBudget > 0 ? effectiveBudget / daysInMonth : 0
-    if (ref <= 0) return null
-    const ratio = todaySpent / ref
-    if (ratio <= 1.10) return { emoji: '🟢', text: 'Hoy vas bien' }
-    if (ratio <= 1.25) return { emoji: '🟡', text: 'Hoy vas un poco por encima' }
-    return { emoji: '🔴', text: 'Hoy te pasaste bastante' }
-  }, [todaySpent, effectiveBudget, daysInMonth])
-
-  // ── Contextual overage message ────────────────────────────────────────────
-  const overagePct = getSpendingOveragePct(totalSpent, effectiveBudget, calendarRate)
-
-  // ── Prediction message ────────────────────────────────────────────────────
-  const predictionMsg = useMemo(() => {
-    if (day < 3 || daysLeft <= 0) return null
-    const fm = (n: number) => formatMoney(n, config)
-
-    // Budget controls spending — always check this first
-    if (monthlyBudget > 0) {
-      if (totalSpent > monthlyBudget) {
-        return {
-          positive: false,
-          label: 'Presupuesto',
-          text: `Llevas ${fm(totalSpent - monthlyBudget)} por encima del presupuesto.`,
-        }
-      }
-      const diff = monthlyBudget - projectedSpent
-      return diff >= 0
-        ? { positive: true,  label: 'Proyección del mes', text: `A este ritmo cerrarás con ${fm(diff)} disponibles del presupuesto.` }
-        : { positive: false, label: 'Proyección del mes', text: `A este ritmo podrías exceder el presupuesto en ${fm(-diff)}.` }
-    }
-
-    // Income-based savings projection — only when no budget is set
-    if (hasIncome) {
-      return projectedSaving > 0
-        ? { positive: true,  label: 'Proyección de ahorro', text: `Si continúas así, ahorrarás ${fm(projectedSaving)} este mes (${savingsRate}%).` }
-        : { positive: false, label: 'Proyección de ahorro', text: `Si continúas así, gastarás ${fm(-projectedSaving)} más de lo que recibes.` }
-    }
-
-    return null
-  }, [hasIncome, projectedSaving, savingsRate, monthlyBudget, projectedSpent, totalSpent, day, daysLeft, config])
 
   const activePockets  = pockets.filter(p => (spentByPocket[p.id] ?? 0) > 0 || p.budget > 0)
   const recentExpenses = useMemo(
@@ -323,55 +251,49 @@ export function DashboardScreen({
           </div>
         </div>
 
-        {/* Accionable header: qué hacer hoy */}
+        {/* ────────────────────────────────────────────────────────────────
+            Pantalla simplificada: 3 elementos clave en 3 segundos
+            ────────────────────────────────────────────────────────────────
+        */}
         {effectiveBudget > 0 && (() => {
-          const spendingPct = Math.round((totalSpent / effectiveBudget) * 100)
-          const dailySpend = daysLeft > 0 ? remaining / daysLeft : 0
-          const maxTodaySpend = Math.max(0, dailySpend)
+          const spendingPct = monthlyBudget > 0 ? Math.round((totalSpent / monthlyBudget) * 100) : 0
 
-          // Determinar estado con copy más directo
-          let statusText = ''
-          if (totalSpent > effectiveBudget) {
-            statusText = 'Te quedaste sin presupuesto'
-          } else if (spendingPct >= 95) {
-            statusText = 'Cuidado, estás al límite'
-          } else if (spendingPct >= 80) {
-            statusText = 'Vas muy justo'
-          } else {
-            statusText = 'Vas dentro del presupuesto'
+          // Status message del snapshot: green, yellow, red
+          const statusMessages: Record<string, string> = {
+            'green': 'Vas bien',
+            'yellow': 'Ojo, vas por encima',
+            'red': 'Te estás pasando',
           }
+          const statusText = statusMessages[calmState] || 'Vas bien'
 
           return (
             <>
-              {/* 1. Estado (texto corto pero directo) */}
-              <div className="mb-4 mt-4">
+              {/* 1. ESTADO (basado en snapshot.status) */}
+              <div className="mb-6 mt-4">
                 <p className="text-sm font-semibold text-white/85 leading-snug">
                   {statusText}
                 </p>
               </div>
 
-              {/* 2. Número principal: monto restante */}
-              <p className="text-[3rem] font-bold text-white tabular-nums leading-none mb-1">
-                {totalSpent > effectiveBudget
-                  ? `−${mm(-remaining)}`
-                  : mm(remaining)}
+              {/* 2. NÚMERO PRINCIPAL: dinero disponible */}
+              <p className="text-[3.5rem] font-bold text-white tabular-nums leading-none mb-3">
+                {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
               </p>
 
-              {/* 3. ACCIÓN PRINCIPAL: qué gastar hoy (la instrucción) */}
-              <p className="text-base font-bold text-white/95 tabular-nums mb-5 py-2 px-3 rounded-lg"
-                style={{ background: 'rgba(255,255,255,.10)' }}>
-                Hoy puedes gastar máximo {mm(maxTodaySpend)}
+              {/* 3. GASTO DIARIO PERMITIDO */}
+              <p className="text-sm text-white/80 mb-5 font-medium">
+                Hoy puedes gastar máximo {mm(snapshot.dailyAvailable)}
               </p>
 
-              {/* 4. Barra de progreso */}
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.15)' }}>
+              {/* 4. BARRA DE PROGRESO vs PRESUPUESTO */}
+              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.15)' }}>
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${Math.min(100, spendingPct)}%`,
-                    background: totalSpent > effectiveBudget
+                    background: calmState === 'red'
                       ? 'linear-gradient(90deg, #EF4444, #FCA5A5)'
-                      : spendingPct >= 80
+                      : calmState === 'yellow'
                         ? 'linear-gradient(90deg, #FBBF24, #FCD34D)'
                         : 'linear-gradient(90deg, #10B981, #6EE7B7)',
                   }}
@@ -383,135 +305,6 @@ export function DashboardScreen({
       </div>
       )}
 
-      {/* ── Financial summary (income mode) ─────────────────────────────── */}
-      {isLoading ? (
-        // Skeleton Financial Summary
-        <div className="px-4 mt-5 space-y-2">
-          <div
-            className="rounded-2xl bg-white overflow-hidden border border-slate-100"
-            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
-          >
-            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="px-4 py-3.5 space-y-2">
-                  <div className="h-3 w-16 bg-slate-200 rounded animate-pulse" />
-                  <div className="h-4 w-20 bg-slate-300 rounded animate-pulse" />
-                  <div className="h-2 w-24 bg-slate-100 rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : hasIncome ? (
-        <div className="px-4 mt-5 space-y-2">
-          {/* ── Summary grid ── */}
-          <div
-            className="rounded-2xl bg-white overflow-hidden border border-slate-100"
-            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
-          >
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              {/* Gastado */}
-              <div className="px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Gastado</p>
-                <p
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: (monthlyBudget > 0 ? totalSpent > monthlyBudget : totalSpent > totalIncome) ? '#EF4444' : '#0F172A' }}
-                >
-                  {mm(totalSpent)}
-                </p>
-                <p className="text-[9px] text-slate-400 tabular-nums">
-                  {monthlyBudget > 0
-                    ? `${Math.round((totalSpent / monthlyBudget) * 100)}% del presupuesto`
-                    : `${Math.round((totalSpent / totalIncome) * 100)}% del ingreso`}
-                </p>
-              </div>
-              {/* Disponible */}
-              <div className="px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">Disponible</p>
-                <p
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: remaining >= 0 ? DS.primary : '#EF4444' }}
-                >
-                  {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
-                </p>
-                <p className="text-[9px] text-slate-400 mt-0.5">
-                  {monthlyBudget > 0 ? 'del presupuesto' : 'del ingreso'}
-                </p>
-              </div>
-              {/* Ahorro planeado / proyectado */}
-              <div className="px-4 py-3.5">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">{savingsLabel}</p>
-                <p
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: savingsDisplay >= 0 ? '#16A34A' : '#EF4444' }}
-                >
-                  {plannedSavings !== null || day >= 3
-                    ? (savingsDisplay >= 0 ? mm(savingsDisplay) : `−${mm(-savingsDisplay)}`)
-                    : '—'}
-                </p>
-                {(plannedSavings !== null || day >= 3) && (
-                  <p className="text-[9px] text-slate-400">
-                    {savingsDisplay >= 0 ? `${savingsRate}% del ingreso` : 'Supera ingresos'}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-        </div>
-      ) : (
-        /* ── Stats row (budget-only or empty mode) ───────────────────────── */
-        <div className="px-4 mt-5 grid grid-cols-3 gap-3">
-          <StatCard label="Hoy" value={mm(todaySpent)} />
-          <StatCard label="Esta semana" value={mm(weekSpent)} />
-          <StatCard
-            label="Disponible"
-            value={monthlyBudget > 0 ? mm(Math.max(0, monthlyBudget - totalSpent)) : '—'}
-            accent={monthlyBudget > 0}
-          />
-        </div>
-      )}
-
-      {/* ── Hoy / Esta semana (when income mode is active) ─────────────── */}
-      {hasIncome && (
-        <div className="px-4 mt-3 grid grid-cols-2 gap-3">
-          <StatCard label="Hoy" value={mm(todaySpent)} />
-          <StatCard label="Esta semana" value={mm(weekSpent)} />
-        </div>
-      )}
-
-      {/* ── Daily feedback pill (solo si estado es positivo) ──────────────── */}
-      {dailyFeedback && (snapshot.status === 'green') && (
-        <div className="px-4 mt-3 flex justify-center">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-white border border-slate-100 text-slate-700 shadow-sm">
-            {dailyFeedback.emoji} {dailyFeedback.text}
-          </span>
-        </div>
-      )}
-
-      {/* ── Prediction banner ────────────────────────────────────────────── */}
-      {predictionMsg && (
-        <div className="px-4 mt-4">
-          <div
-            className={`rounded-2xl px-4 py-3.5 border-l-4 ${
-              predictionMsg.positive
-                ? 'bg-teal-50/80 border-teal-400'
-                : 'bg-red-50/80 border-red-400'
-            }`}
-          >
-            <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">
-              {predictionMsg.label}
-            </p>
-            <p
-              className={`text-sm font-semibold leading-relaxed ${
-                predictionMsg.positive ? 'text-teal-800' : 'text-red-700'
-              }`}
-            >
-              {predictionMsg.text}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── Pockets ──────────────────────────────────────────────────────── */}
       {activePockets.length > 0 && (
