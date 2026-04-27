@@ -27,7 +27,7 @@ interface Props {
   onChangeMonth: (m: string) => void
   isViewingPast: boolean
   onSetIncome: (v: number) => void
-  onSetSavings: (v: number) => void
+  onSetBudget: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
@@ -44,7 +44,7 @@ export function BudgetScreen({
   onChangeMonth,
   isViewingPast,
   onSetIncome,
-  onSetSavings,
+  onSetBudget,
   onEditPocket,
   onDeletePocket,
   onAddPocket,
@@ -61,9 +61,8 @@ export function BudgetScreen({
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editingIncome, setEditingIncome] = useState(false)
   const [incomeInput, setIncomeInput] = useState('')
-  const [editingSavings, setEditingSavings] = useState(false)
-  const [savingsInput, setSavingsInput] = useState('')
-  const [savingsPercentage, setSavingsPercentage] = useState('')
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [budgetInput, setBudgetInput] = useState('')
   const [addingPocket, setAddingPocket] = useState(false)
   const [newName, setNewName] = useState('')
   const [newBudget, setNewBudget] = useState('')
@@ -82,19 +81,16 @@ export function BudgetScreen({
     }
   }
 
-  const saveSavings = () => {
-    let newSavings = monthlySavings
-    if (savingsInput) {
-      newSavings = parseAmount(savingsInput)
-    } else if (savingsPercentage && totalIncome > 0) {
-      const pct = parseAmount(savingsPercentage)
-      newSavings = Math.round(totalIncome * (pct / 100))
+  const saveBudget = () => {
+    let newBudgetValue = monthlyBudget
+    if (budgetInput) {
+      newBudgetValue = parseAmount(budgetInput)
     }
-    if (newSavings >= 0) {
-      onSetSavings(newSavings)
-      setEditingSavings(false)
-      setSavingsInput('')
-      setSavingsPercentage('')
+    // Presupuesto no puede ser negativo ni exceder ingresos
+    if (newBudgetValue >= 0 && newBudgetValue <= totalIncome) {
+      onSetBudget(newBudgetValue)
+      setEditingBudget(false)
+      setBudgetInput('')
     }
   }
 
@@ -235,18 +231,17 @@ export function BudgetScreen({
           </div>
         )}
 
-        {/* ── 1.5. EDITABLE SAVINGS ────────────────────────────────────── */}
-        {totalIncome > 0 && !editingSavings && (
+        {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
+        {totalIncome > 0 && !editingBudget && (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-                Ahorro sugerido
+                Presupuesto a gastar
               </p>
               <button
                 onClick={() => {
-                  setEditingSavings(true)
-                  setSavingsInput(String(monthlySavings))
-                  setSavingsPercentage(String(savingsPercentageValue))
+                  setEditingBudget(true)
+                  setBudgetInput(String(monthlyBudget))
                 }}
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
@@ -255,74 +250,46 @@ export function BudgetScreen({
               </button>
             </div>
             <p className="text-lg font-bold text-slate-900 tabular-nums">
-              {mm(monthlySavings)}
-              <span className="text-sm font-normal text-slate-500 ml-2">
-                ({savingsPercentageValue}%)
-              </span>
+              {mm(monthlyBudget)}
+            </p>
+            <p className="text-[9px] text-slate-400 mt-2 tabular-nums">
+              Ahorro automático: {mm(monthlySavings)} ({savingsPercentageValue}%)
             </p>
           </Card>
         )}
 
-        {/* ── 1.5b. SAVINGS EDIT MODE ────────────────────────────────────── */}
-        {totalIncome > 0 && editingSavings && (
+        {/* ── 1.5b. BUDGET EDIT MODE ────────────────────────────────────── */}
+        {totalIncome > 0 && editingBudget && (
           <Card className="p-5 space-y-4">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
-              Editar ahorro
+              Editar presupuesto
             </p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
-                  Monto
-                </label>
-                <input
-                  autoFocus
-                  type="text"
-                  inputMode="numeric"
-                  placeholder={`ej. ${mm(monthlySavings)}`}
-                  value={savingsInput}
-                  onChange={e => {
-                    setSavingsInput(e.target.value)
-                    if (e.target.value) {
-                      const amt = parseAmount(e.target.value)
-                      const pct = totalIncome > 0 ? (amt / totalIncome) * 100 : 0
-                      setSavingsPercentage(String(Math.round(pct)))
-                    }
-                  }}
-                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
-                  className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
-                  Porcentaje
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="ej. 20"
-                  value={savingsPercentage}
-                  onChange={e => {
-                    setSavingsPercentage(e.target.value)
-                    if (e.target.value) {
-                      const pct = parseAmount(e.target.value)
-                      const amt = Math.round(totalIncome * (pct / 100))
-                      setSavingsInput(String(amt))
-                    }
-                  }}
-                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
-                  className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
-                />
-              </div>
+            <div>
+              <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
+                Monto a gastar
+              </label>
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                placeholder={`ej. ${mm(monthlyBudget)}`}
+                value={budgetInput}
+                onChange={e => setBudgetInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveBudget()}
+                className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
+              />
+              <p className="text-[9px] text-slate-400 mt-2">
+                Máximo: {mm(totalIncome)} | Ahorro resultante: {budgetInput ? mm(Math.max(0, totalIncome - parseAmount(budgetInput))) : mm(monthlySavings)}
+              </p>
             </div>
             <div className="flex gap-2.5">
-              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">
+              <PrimaryButton onClick={saveBudget} className="flex-1 py-3 text-sm">
                 Guardar
               </PrimaryButton>
               <button
                 onClick={() => {
-                  setEditingSavings(false)
-                  setSavingsInput('')
-                  setSavingsPercentage('')
+                  setEditingBudget(false)
+                  setBudgetInput('')
                 }}
                 className="px-4 py-3 text-slate-400 text-sm font-medium"
               >

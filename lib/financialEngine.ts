@@ -52,7 +52,7 @@ interface FinancialEngineInput {
   extraIncomes: ExtraIncome[]
   pockets: Pocket[]
   monthlyIncome: number
-  monthlySavings: number
+  monthlyBudget: number
   currentMonth: string
 }
 
@@ -68,7 +68,7 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     extraIncomes,
     pockets,
     monthlyIncome,
-    monthlySavings,
+    monthlyBudget,
     currentMonth,
   } = input
 
@@ -92,14 +92,14 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
 
   // ────────────────────────────────────────────────────────────────
-  // 3. SAVINGS: ahorro mensual definido por usuario
+  // 3. SAVINGS: ahorro automático = ingresos - presupuesto
   // ────────────────────────────────────────────────────────────────
-  const savings = Math.max(0, monthlySavings)
+  const savings = Math.max(0, monthlyIncome - monthlyBudget)
 
   // ────────────────────────────────────────────────────────────────
-  // 4. BUDGET: presupuesto a gastar = ingreso - ahorro
+  // 4. BUDGET: presupuesto editable por usuario
   // ────────────────────────────────────────────────────────────────
-  const budget = Math.max(0, totalIncome - savings)
+  const budget = Math.max(0, monthlyBudget)
 
   // ────────────────────────────────────────────────────────────────
   // 5. ASSIGNED: dinero asignado a pockets (presupuestos por categoría)

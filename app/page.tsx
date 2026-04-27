@@ -46,7 +46,7 @@ export default function Home() {
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
   const [monthlyIncome, setMonthlyIncome] = useState(0)
-  const [monthlySavings, setMonthlySavings] = useState(0)
+  const [monthlyBudget, setMonthlyBudget] = useState(0)
   const [pockets,       setPockets]       = useState<Pocket[]>(DEFAULT_POCKETS)
   const [expenses,      setExpenses]      = useState<Expense[]>([])
   const [extraIncomes,  setExtraIncomes]  = useState<ExtraIncome[]>([])
@@ -66,10 +66,10 @@ export default function Home() {
   const config: CountryConfig = COUNTRIES[countryCode]
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  // presupuesto = ingresos - ahorro (SIEMPRE)
-  const monthlyBudget = useMemo(
-    () => Math.max(0, monthlyIncome - monthlySavings),
-    [monthlyIncome, monthlySavings]
+  // ahorro = ingresos - presupuesto (SIEMPRE, AUTOMÁTICO)
+  const monthlySavings = useMemo(
+    () => Math.max(0, monthlyIncome - monthlyBudget),
+    [monthlyIncome, monthlyBudget]
   )
 
   // ── Load from localStorage ─────────────────────────────────────────────────
@@ -98,19 +98,17 @@ export default function Home() {
 
         setCountryCode(country)
 
-        // Handle data migration: support both old and new formats
-        // Old format: monthlySavings is editable, budget is calculated
-        // New format: monthlyBudget would be editable (if it exists)
-        let savings = data.monthlySavings ?? 0
-
-        // If there's inconsistent data from a partial migration, clean it up
-        if (!savings && income > 0) {
-          savings = Math.round(income * 0.20)
+        // Load monthlyBudget con soporte para ambos formatos
+        // Formato nuevo: monthlyBudget está guardado directamente
+        // Formato viejo: calcular desde income - monthlySavings
+        let budget = data.monthlyBudget ?? 0
+        if (!budget && income > 0) {
+          const oldSavings = data.monthlySavings ?? Math.round(income * 0.20)
+          budget = Math.max(0, income - oldSavings)
         }
-
-        // Ensure savings never exceeds income
-        if (savings > income) {
-          savings = Math.round(income * 0.20)
+        // Garantizar presupuesto válido
+        if (budget <= 0 && income > 0) {
+          budget = Math.round(income * 0.8)
         }
 
         if (data.currentMonth && data.currentMonth !== thisMonth) {
@@ -121,14 +119,14 @@ export default function Home() {
               expenses: data.expenses ?? [],
               extraIncomes: data.extraIncomes ?? [],
               totalSpent,
-              budget: Math.max(0, income - savings),  // Calculated budget for history
+              budget,  // Archive the budget value from previous month
               income,
             }
           }
           setCurrentMonth(thisMonth)
           setPockets(normalised)
           setMonthlyIncome(income)
-          setMonthlySavings(savings)
+          setMonthlyBudget(budget)
           setConceptMap(data.conceptMap ?? {})
           setLearnedCategoryMap(data.learnedCategoryMap ?? {})
           setExpenses([])
@@ -139,7 +137,7 @@ export default function Home() {
           setCurrentMonth(data.currentMonth ?? thisMonth)
           setPockets(normalised)
           setMonthlyIncome(income)
-          setMonthlySavings(savings)
+          setMonthlyBudget(budget)
           setExpenses(data.expenses ?? [])
           setExtraIncomes(data.extraIncomes ?? [])
           setConceptMap(data.conceptMap ?? {})
@@ -165,7 +163,7 @@ export default function Home() {
         extraIncomes,
         pockets,
         monthlyIncome,
-        monthlySavings,
+        monthlyBudget,
         conceptMap,
         learnedCategoryMap,
         currentMonth,
@@ -174,7 +172,7 @@ export default function Home() {
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlyBudget, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Save extraIncomes to monthlyHistory when changing months ────────────────
   // Cuando el usuario navega entre meses, guardar los extraIncomes actuales en el histórico
@@ -248,10 +246,10 @@ export default function Home() {
       extraIncomes: activeExtraIncomes,
       pockets,
       monthlyIncome: activeMonthIncome,
-      monthlySavings: monthlySavings,
+      monthlyBudget: activeMonthBudget,
       currentMonth: activeMonth,
     }),
-    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, monthlySavings, activeMonth],
+    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, activeMonthBudget, activeMonth],
   )
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
@@ -405,7 +403,7 @@ export default function Home() {
     setExtraIncomes([])
     setPockets(DEFAULT_POCKETS)
     setMonthlyIncome(0)
-    setMonthlySavings(0)
+    setMonthlyBudget(0)
     setConceptMap({})
     setLearnedCategoryMap({})
     setCurrentMonth(getCurrentMonth())
@@ -495,7 +493,7 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onSetIncome={setMonthlyIncome}
-            onSetSavings={setMonthlySavings}
+            onSetBudget={setMonthlyBudget}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
