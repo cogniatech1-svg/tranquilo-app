@@ -63,7 +63,7 @@ export function ProfileScreen({
         'ingreso',
         'Ingresos',
         String(i.amount),
-        i.note ?? '',
+        i.concept ?? '',
       ])
     }
 

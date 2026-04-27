@@ -4,7 +4,7 @@ import { TransactionItem } from '../components/TransactionItem'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { Icon } from '../components/ui/Icon'
 import { Card } from '../components/ui/Card'
-import { CALM_GRADS, maskMoney } from '../lib/config'
+import { maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
@@ -91,7 +91,7 @@ export function DashboardScreen({
         'ingreso',
         'Ingresos',
         String(i.amount),
-        i.note ?? '',
+        i.concept ?? '',
       ])
     }
 
@@ -175,7 +175,11 @@ export function DashboardScreen({
       <div
         className="rounded-b-[2.5rem] px-5 pt-12 pb-8 overflow-hidden relative transition-all duration-500"
         style={{
-          background: CALM_GRADS[calmState],
+          background: calmState === 'green'
+            ? 'linear-gradient(150deg, #0A1628 0%, #0D6259 48%, #0891B2 100%)'  // tranquilo
+            : calmState === 'yellow'
+              ? 'linear-gradient(150deg, #1C0F00 0%, #A05209 50%, #F0C040 100%)' // ajustado
+              : 'linear-gradient(150deg, #2D0A0A 0%, #B02020 50%, #F87171 100%)', // riesgo (red)
           boxShadow: '0 8px 40px rgba(4,47,46,.30)',
         }}
       >

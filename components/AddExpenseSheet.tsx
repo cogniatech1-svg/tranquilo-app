@@ -85,8 +85,8 @@ export function AddExpenseSheet({
       setDate(editingExpense.date.slice(0, 10))
       setTypeOverride('expense')
     } else if (editingIncome) {
-      const textVal = editingIncome.note
-        ? `${editingIncome.note} ${editingIncome.amount}`
+      const textVal = editingIncome.concept
+        ? `${editingIncome.concept} ${editingIncome.amount}`
         : String(editingIncome.amount)
       setText(textVal)
       setPocketId('')

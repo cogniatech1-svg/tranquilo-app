@@ -170,8 +170,8 @@ export function TransactionsScreen({
                           <p className="text-sm font-bold text-green-800 tabular-nums">
                             +{mm(inc.amount)}
                           </p>
-                          {inc.note ? (
-                            <p className="text-xs text-green-600 truncate capitalize">{inc.note}</p>
+                          {inc.concept ? (
+                            <p className="text-xs text-green-600 truncate capitalize">{inc.concept}</p>
                           ) : (
                             <p className="text-xs text-green-500">Ingreso</p>
                           )}

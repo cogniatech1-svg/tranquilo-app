@@ -15,7 +15,7 @@ import { OnboardingScreen }    from '../screens/OnboardingScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
-import type { Expense, ExtraIncome, ExpensePayload, Pocket, StoredData, TabId } from '../lib/types'
+import type { Expense, ExtraIncome, ExpensePayload, Pocket, StoredData, TabId, MonthRecord } from '../lib/types'
 import {
   getCurrentMonth,
   normalizePockets,
@@ -52,9 +52,7 @@ export default function Home() {
   const [extraIncomes,  setExtraIncomes]  = useState<ExtraIncome[]>([])
   const [conceptMap,    setConceptMap]    = useState<Record<string, string>>({})
   const [currentMonth,  setCurrentMonth]  = useState<string>(getCurrentMonth)
-  const [monthlyHistory, setMonthlyHistory] = useState<
-    Record<string, { expenses: Expense[]; totalSpent: number; budget: number; income?: number }>
-  >({})
+  const [monthlyHistory, setMonthlyHistory] = useState<Record<string, MonthRecord>>({})
 
   const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
   const [isPrivacyMode,        setIsPrivacyMode]         = useState(false)
@@ -88,7 +86,14 @@ export default function Home() {
         // New arch: presupuesto = ingresos - ahorro (calculated, not stored)
         const income     = data.monthlyIncome ?? 0
         const normalised = normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS)
-        const history    = data.monthlyHistory ?? {}
+        // Normalize history for backward compatibility: ensure all records have extraIncomes
+        const history: Record<string, MonthRecord> = {}
+        for (const [month, record] of Object.entries(data.monthlyHistory ?? {})) {
+          history[month] = {
+            ...record as MonthRecord,
+            extraIncomes: (record as any).extraIncomes ?? [],
+          }
+        }
         const country    = (data.countryCode as CountryCode) ?? 'CO'
 
         setCountryCode(country)
@@ -98,10 +103,11 @@ export default function Home() {
 
         if (data.currentMonth && data.currentMonth !== thisMonth) {
           // New month — archive previous, reset monthly data
-          if ((data.expenses?.length ?? 0) > 0) {
+          if ((data.expenses?.length ?? 0) > 0 || (data.extraIncomes?.length ?? 0) > 0) {
             const totalSpent = (data.expenses ?? []).reduce((s, e) => s + e.amount, 0)
             history[data.currentMonth] = {
               expenses: data.expenses ?? [],
+              extraIncomes: data.extraIncomes ?? [],
               totalSpent,
               budget: Math.max(0, income - savings),  // Calculated budget for history
               income,
@@ -199,7 +205,7 @@ export default function Home() {
 
   // IMPORTANTE: Cargar extraIncomes del mes actual o del histórico
   const activeExtraIncomes = isViewingPast
-    ? (monthlyHistory[activeMonth]?.extraIncomes ?? [])
+    ? ((monthlyHistory[activeMonth] as any)?.extraIncomes ?? [])
     : extraIncomes
 
   const spentByPocket = useMemo(() => {
@@ -214,7 +220,7 @@ export default function Home() {
   )
 
   const extraIncomeTotal = useMemo(
-    () => activeExtraIncomes.reduce((s, e) => s + e.amount, 0),
+    () => activeExtraIncomes.reduce((s: number, e: ExtraIncome) => s + e.amount, 0),
     [activeExtraIncomes],
   )
 
@@ -322,7 +328,7 @@ export default function Home() {
     setExtraIncomes(prev => [...prev, {
       id: Date.now().toString(),
       amount,
-      note,
+      concept: note,
       date,
       category: 'extra' as const,
     }])
@@ -366,7 +372,7 @@ export default function Home() {
     setExtraIncomes(prev => [...prev, {
       id: Date.now().toString(),
       amount,
-      note,
+      concept: note,
       date: new Date().toISOString(),
       category: 'extra' as const,
     }])
