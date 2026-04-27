@@ -50,12 +50,33 @@ export interface ExtraIncome {
   category?: IncomeCategory
 }
 
+/**
+ * MonthRecord: ÚNICA FUENTE DE VERDAD para cada mes
+ *
+ * EDITABLE (usuario puede cambiar):
+ *   - income: ingresos base del mes
+ *   - savings: ahorro definido por usuario
+ *   - pockets: presupuestos por categoría
+ *   - expenses: gastos registrados
+ *   - extraIncomes: ingresos adicionales
+ *
+ * CALCULADO (financialEngine calcula):
+ *   - budget = income - savings
+ *   - totalIncome = income + sum(extraIncomes)
+ *   - totalExpenses = sum(expenses)
+ *   - remaining = budget - totalExpenses
+ *   - etc.
+ *
+ * NO GUARDAR: totalSpent, budget, ni valores derivados
+ * Siempre recalcular via calculateFinancialSnapshot
+ */
 export interface MonthRecord {
+  // EDITABLE: datos de entrada
+  income: number
+  savings: number
   expenses: Expense[]
-  extraIncomes: ExtraIncome[]  // ingresos extras del mes (para historico)
-  totalSpent: number
-  budget: number
-  income?: number    // saved since v2 — optional for backward compat
+  extraIncomes: ExtraIncome[]
+  pockets: Pocket[]
 }
 
 export interface ParsedTransaction {

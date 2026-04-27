@@ -1,4 +1,4 @@
-import type { CalmState, Expense, ParsedTransaction, Pocket } from './types'
+import type { CalmState, Expense, ParsedTransaction, Pocket, MonthRecord } from './types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BUILT-IN KEYWORD → CATEGORY MAP
@@ -432,4 +432,20 @@ export function groupByDate(
       else label = d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })
       return { label, items }
     })
+}
+
+/**
+ * getDefaultMonthRecord: crea un registro vacío para un mes
+ *
+ * IMPORTANTE: NO incluye campos derivados (budget, totalSpent, etc.)
+ * El financialEngine calcula esos valores a partir de los datos aquí
+ */
+export function getDefaultMonthRecord(): MonthRecord {
+  return {
+    income: 0,
+    savings: 0,
+    expenses: [],
+    extraIncomes: [],
+    pockets: [],
+  }
 }
