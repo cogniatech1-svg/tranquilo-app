@@ -85,7 +85,6 @@ export default function Home() {
 
         // ── Reconstruir monthlyHistory desde localStorage ──
         const history: Record<string, MonthRecord> = {}
-        const thisMonth = getCurrentMonth()
 
         // SIEMPRE usar monthlyHistory como fuente si existe
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
