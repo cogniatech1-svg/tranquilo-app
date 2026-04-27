@@ -100,7 +100,17 @@ export function BudgetScreen({
 
   const addPocket = () => {
     if (!newName.trim()) return
-    onAddPocket(newName.trim(), parseAmount(newBudget), newIcon || undefined)
+
+    const budgetAmount = parseAmount(newBudget)
+    const totalPocketBudget = pockets.reduce((s, p) => s + p.budget, 0)
+
+    // VALIDACIÓN: No permitir que suma exceda presupuesto
+    if (totalPocketBudget + budgetAmount > monthlyBudget) {
+      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto disponible: $${monthlyBudget - totalPocketBudget}\nIntentando asignar: $${budgetAmount}`)
+      return
+    }
+
+    onAddPocket(newName.trim(), budgetAmount, newIcon || undefined)
     setNewName('')
     setNewBudget('')
     setNewIcon('')
@@ -384,17 +394,39 @@ export function BudgetScreen({
 
         {/* ── Pockets ────────────────────────────────────────────────────────── */}
         <div>
+          {/* ALERTA CRÍTICA: Si unassigned < 0, bolsillos exceden presupuesto */}
+          {unassigned < 0 && (
+            <div style={{
+              background: '#fee2e2',
+              border: '2px solid #ef4444',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '16px',
+              textAlign: 'center',
+            }}>
+              <p style={{ color: '#991b1b', fontWeight: 'bold', fontSize: '14px', margin: '0 0 4px 0' }}>
+                ⚠️ EXCESO CRÍTICO
+              </p>
+              <p style={{ color: '#991b1b', fontSize: '12px', margin: 0 }}>
+                Bolsillos asignados (${mm(totalPocketBudget)}) SUPERAN presupuesto (${mm(monthlyBudget)})
+              </p>
+            </div>
+          )}
+
           <SectionHeader
             action={
-              !addingPocket ? (
+              !addingPocket && unassigned > 0 ? (
                 <button onClick={() => setAddingPocket(true)}>+ Agregar</button>
+              ) : !addingPocket ? (
+                <button disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} title="No hay presupuesto disponible">+ Agregar</button>
               ) : undefined
             }
           >
             Bolsillos
             {totalPocketBudget > 0 && (
               <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
-                {mm(totalPocketBudget)} asignados
+                {mm(totalPocketBudget)} asignados de {mm(monthlyBudget)}
+                {unassigned >= 0 ? ` (${mm(unassigned)} libre)` : ` (${mm(-unassigned)} sobre límite)`}
               </span>
             )}
           </SectionHeader>

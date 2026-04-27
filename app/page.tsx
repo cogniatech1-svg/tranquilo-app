@@ -313,8 +313,19 @@ export default function Home() {
   }, [isViewingPast, activeMonth])
 
   const handleEditPocket = useCallback((id: string, name: string, budget: number, icon?: string) => {
+    // VALIDACIÓN: sum(pockets) <= monthlyBudget
+    const otherPockets = pockets.filter(p => p.id !== id)
+    const sumWithoutThis = otherPockets.reduce((s, p) => s + p.budget, 0)
+    const totalIfEdited = sumWithoutThis + budget
+
+    if (totalIfEdited > monthlyBudget) {
+      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${monthlyBudget}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`)
+      return false
+    }
+
     setPockets(prev => prev.map(p => p.id === id ? { ...p, name, budget, icon } : p))
-  }, [])
+    return true
+  }, [pockets, monthlyBudget])
 
   const handleDeletePocket = useCallback((id: string) => {
     setPockets(prev => prev.filter(p => p.id !== id))
@@ -322,8 +333,18 @@ export default function Home() {
   }, [])
 
   const handleAddPocket = useCallback((name: string, budget: number, icon?: string) => {
+    // VALIDACIÓN: sum(pockets) <= monthlyBudget
+    const currentTotal = pockets.reduce((s, p) => s + p.budget, 0)
+    const totalIfAdded = currentTotal + budget
+
+    if (totalIfAdded > monthlyBudget) {
+      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${monthlyBudget}\nActualmente asignado: $${currentTotal}\nIntentando agregar: $${budget}\nTotal resultaría en: $${totalIfAdded}`)
+      return false
+    }
+
     setPockets(prev => [...prev, { id: Date.now().toString(), name, budget, icon }])
-  }, [])
+    return true
+  }, [pockets, monthlyBudget])
 
   const handleAddExtraIncome = useCallback((amount: number, note: string) => {
     setExtraIncomes(prev => [...prev, {

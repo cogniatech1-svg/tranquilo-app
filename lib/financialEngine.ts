@@ -74,6 +74,14 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   // ────────────────────────────────────────────────────────────────
   const assigned = pockets.reduce((sum, pocket) => sum + pocket.budget, 0)
 
+  // VALIDACIÓN CRÍTICA: assigned NO DEBE superar budget
+  if (assigned > budget) {
+    console.error('[FINANCIAL ENGINE] 🚨 CRÍTICO: Bolsillos asignados SUPERAN presupuesto')
+    console.error(`  Budget: ${budget}`)
+    console.error(`  Assigned: ${assigned}`)
+    console.error(`  Exceso: ${assigned - budget}`)
+  }
+
   // ────────────────────────────────────────────────────────────────
   // 6. REMAINING: dinero disponible en el presupuesto
   //    = budget - totalExpenses
@@ -111,7 +119,10 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   // ────────────────────────────────────────────────────────────────
   let status: 'green' | 'yellow' | 'red'
 
-  if (totalExpenses > budget) {
+  // PRIORIDAD: Si bolsillos exceden presupuesto, siempre ROJO
+  if (assigned > budget) {
+    status = 'red'
+  } else if (totalExpenses > budget) {
     // Rojo: se pasó del presupuesto
     status = 'red'
   } else if (totalExpenses > expectedSpend) {
