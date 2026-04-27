@@ -210,13 +210,12 @@ export default function Home() {
     ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
     : monthlyIncome
 
-  // activeMonthBudget es calculado (para meses pasados lo sacamos del histórico)
-  const activeMonthBudget = isViewingPast
-    ? (monthlyHistory[activeMonth]?.budget ?? monthlyBudget)
-    : monthlyBudget
+  // activeMonthSavings: el ahorro del mes (editable, no calculado)
+  // Para meses pasados, no tenemos histórico de ahorro, así que usamos monthlySavings actual
+  const activeMonthSavings = monthlySavings
 
-  // activeMonthSavings se calcula desde ingresos - presupuesto (para pasar a engine)
-  const activeMonthSavings = Math.max(0, activeMonthIncome - activeMonthBudget)
+  // activeMonthBudget es calculado = ingresos - ahorro
+  const activeMonthBudget = Math.max(0, activeMonthIncome - activeMonthSavings)
 
   // IMPORTANTE: Cargar extraIncomes del mes actual o del histórico
   const activeExtraIncomes = isViewingPast

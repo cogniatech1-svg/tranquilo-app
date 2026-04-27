@@ -216,13 +216,8 @@ export function BudgetScreen({
               {/* Ahorro */}
               <div className="px-3 py-3.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ahorro</p>
-                <p
-                  className="text-sm font-bold tabular-nums leading-tight"
-                  style={{ color: totalIncome > monthlyBudget ? '#16A34A' : '#EF4444' }}
-                >
-                  {totalIncome > monthlyBudget
-                    ? mm(totalIncome - monthlyBudget)
-                    : `−${mm(monthlyBudget - totalIncome)}`}
+                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight" style={{ color: '#16A34A' }}>
+                  {mm(monthlySavings)}
                 </p>
               </div>
               {/* Disponible (presupuesto) */}
