@@ -10,18 +10,16 @@ import { Icon } from '../components/ui/Icon'
 import { DS, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
+import type { FinancialSnapshot } from '../lib/financialEngine'
 import { parseAmount } from '../lib/utils'
 import { MonthNavigator } from '../components/MonthNavigator'
 import { EmojiPicker } from '../components/EmojiPicker'
 import { guessIconFromName } from '../lib/config'
 
 interface Props {
-  monthlyBudget: number
-  monthlyIncome: number
-  monthlySavings: number
+  snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
   pockets: Pocket[]
   spentByPocket: Record<string, number>
-  totalSpent: number
   config: CountryConfig
   activeMonth: string
   realCurrentMonth: string
@@ -36,12 +34,9 @@ interface Props {
 }
 
 export function BudgetScreen({
-  monthlyBudget,
-  monthlyIncome,
-  monthlySavings,
+  snapshot,
   pockets,
   spentByPocket,
-  totalSpent,
   config,
   activeMonth,
   realCurrentMonth,
@@ -54,6 +49,14 @@ export function BudgetScreen({
   onAddPocket,
   isPrivacyMode = false,
 }: Props) {
+  // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
+  const {
+    totalIncome,
+    totalExpenses: totalSpent,
+    budget: monthlyBudget,
+    savings: monthlySavings,
+  } = snapshot
+
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editingIncome, setEditingIncome] = useState(false)
   const [incomeInput, setIncomeInput] = useState('')
@@ -82,9 +85,9 @@ export function BudgetScreen({
     let newSavings = monthlySavings
     if (savingsInput) {
       newSavings = parseAmount(savingsInput)
-    } else if (savingsPercentage && monthlyIncome > 0) {
+    } else if (savingsPercentage && totalIncome > 0) {
       const pct = parseAmount(savingsPercentage)
-      newSavings = Math.round(monthlyIncome * (pct / 100))
+      newSavings = Math.round(totalIncome * (pct / 100))
     }
     if (newSavings >= 0) {
       onSetSavings(newSavings)
@@ -94,8 +97,8 @@ export function BudgetScreen({
     }
   }
 
-  const savingsPercentageValue = monthlyIncome > 0
-    ? Math.round((monthlySavings / monthlyIncome) * 100)
+  const savingsPercentageValue = totalIncome > 0
+    ? Math.round((monthlySavings / totalIncome) * 100)
     : 0
 
   const addPocket = () => {
@@ -144,7 +147,7 @@ export function BudgetScreen({
       <div className="px-4 pt-5 space-y-6">
 
         {/* ── 0. INGRESOS MENSUALES ─────────────────────────────────────── */}
-        {editingIncome || monthlyIncome === 0 ? (
+        {editingIncome || totalIncome === 0 ? (
           <Card className="p-5 space-y-4">
             <SectionHeader>Ingresos mensuales</SectionHeader>
             <div className="flex gap-2.5">
@@ -161,7 +164,7 @@ export function BudgetScreen({
               <PrimaryButton onClick={saveIncome} className="px-5 py-3 text-sm shrink-0">
                 Guardar
               </PrimaryButton>
-              {monthlyIncome > 0 && (
+              {totalIncome > 0 && (
                 <button
                   onClick={() => { setEditingIncome(false); setIncomeInput('') }}
                   className="px-3 text-slate-400 hover:text-slate-600"
@@ -178,7 +181,7 @@ export function BudgetScreen({
                 Ingresos mensuales
               </p>
               <button
-                onClick={() => { setEditingIncome(true); setIncomeInput(String(monthlyIncome)) }}
+                onClick={() => { setEditingIncome(true); setIncomeInput(String(totalIncome)) }}
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
               >
@@ -186,13 +189,13 @@ export function BudgetScreen({
               </button>
             </div>
             <p className="text-2xl font-bold text-slate-900 tabular-nums">
-              {mm(monthlyIncome)}
+              {mm(totalIncome)}
             </p>
           </Card>
         )}
 
         {/* ── 1. ORIGEN DEL DINERO ──────────────────────────────────────── */}
-        {monthlyIncome > 0 && (
+        {totalIncome > 0 && (
           <div
             className="rounded-2xl overflow-hidden bg-white border border-slate-100"
             style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
@@ -205,7 +208,7 @@ export function BudgetScreen({
               <div className="px-3 py-3.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ingresos</p>
                 <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
-                  {mm(monthlyIncome)}
+                  {mm(totalIncome)}
                 </p>
               </div>
               {/* Ahorro */}
@@ -213,11 +216,11 @@ export function BudgetScreen({
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ahorro</p>
                 <p
                   className="text-sm font-bold tabular-nums leading-tight"
-                  style={{ color: monthlyIncome > monthlyBudget ? '#16A34A' : '#EF4444' }}
+                  style={{ color: totalIncome > monthlyBudget ? '#16A34A' : '#EF4444' }}
                 >
-                  {monthlyIncome > monthlyBudget
-                    ? mm(monthlyIncome - monthlyBudget)
-                    : `−${mm(monthlyBudget - monthlyIncome)}`}
+                  {totalIncome > monthlyBudget
+                    ? mm(totalIncome - monthlyBudget)
+                    : `−${mm(monthlyBudget - totalIncome)}`}
                 </p>
               </div>
               {/* Disponible (presupuesto) */}
@@ -232,7 +235,7 @@ export function BudgetScreen({
         )}
 
         {/* ── 1.5. EDITABLE SAVINGS ────────────────────────────────────── */}
-        {monthlyIncome > 0 && !editingSavings && (
+        {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
@@ -260,7 +263,7 @@ export function BudgetScreen({
         )}
 
         {/* ── 1.5b. SAVINGS EDIT MODE ────────────────────────────────────── */}
-        {monthlyIncome > 0 && editingSavings && (
+        {totalIncome > 0 && editingSavings && (
           <Card className="p-5 space-y-4">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
               Editar ahorro
@@ -280,7 +283,7 @@ export function BudgetScreen({
                     setSavingsInput(e.target.value)
                     if (e.target.value) {
                       const amt = parseAmount(e.target.value)
-                      const pct = monthlyIncome > 0 ? (amt / monthlyIncome) * 100 : 0
+                      const pct = totalIncome > 0 ? (amt / totalIncome) * 100 : 0
                       setSavingsPercentage(String(Math.round(pct)))
                     }
                   }}
@@ -301,7 +304,7 @@ export function BudgetScreen({
                     setSavingsPercentage(e.target.value)
                     if (e.target.value) {
                       const pct = parseAmount(e.target.value)
-                      const amt = Math.round(monthlyIncome * (pct / 100))
+                      const amt = Math.round(totalIncome * (pct / 100))
                       setSavingsInput(String(amt))
                     }
                   }}

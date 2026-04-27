@@ -475,12 +475,9 @@ export default function Home() {
         )}
         {activeTab === 'presupuesto' && (
           <BudgetScreen
-            monthlyBudget={activeMonthBudget}
-            monthlyIncome={monthlyIncome}
-            monthlySavings={monthlySavings}
+            snapshot={snapshot}
             pockets={pockets}
             spentByPocket={spentByPocket}
-            totalSpent={totalSpent}
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
