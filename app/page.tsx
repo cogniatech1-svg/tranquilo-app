@@ -84,6 +84,34 @@ export default function Home() {
     setScreen('onboarding')
   }, [])
 
+  // ── HELPER: Validación REAL de coherencia financiera ────────────────────
+  const validateFinancialCoherence = (record: any): { valid: boolean; reason?: string } => {
+    const income = record.income ?? 0
+    const savings = record.savings ?? 0
+    const expenses = record.expenses ?? []
+    const pockets = record.pockets ?? []
+
+    // Calcular valores derivados
+    const budget = income - savings
+    const assigned = pockets.reduce((sum: number, p: any) => sum + (p.budget ?? 0), 0)
+    const spent = expenses.reduce((sum: number, e: any) => sum + (e.amount ?? 0), 0)
+
+    // Validar reglas
+    if (income > 0 && savings > income) {
+      return { valid: false, reason: `savings (${savings}) > income (${income})` }
+    }
+    if (assigned > budget) {
+      return { valid: false, reason: `assigned (${assigned}) > budget (${budget})` }
+    }
+    if (spent > budget) {
+      return { valid: false, reason: `spent (${spent}) > budget (${budget})` }
+    }
+
+    // Log de validación exitosa
+    console.log('✓ VALIDACIÓN OK:', { income, savings, budget, assigned, spent })
+    return { valid: true }
+  }
+
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -94,16 +122,22 @@ export default function Home() {
         const data = JSON.parse(raw) as StoredData
         const country = (data.countryCode as CountryCode) ?? 'CO'
 
-        // ── VALIDACIÓN SIMPLE: Detectar datos corruptos ──
-        // Si hay datos de monthlyHistory, validar cada mes
+        // ── VALIDACIÓN COMPLETA: coherencia financiera real ──
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          for (const record of Object.values(data.monthlyHistory)) {
+          // Validar CADA mes
+          for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
-            const income = rec.income ?? 0
-            const savings = rec.savings ?? 0
-            // Si savings > income, los datos están corruptos
-            if (income > 0 && savings > income) {
-              console.warn('Data reset due to inconsistent financial state')
+            const validation = validateFinancialCoherence(rec)
+
+            if (!validation.valid) {
+              console.warn(`🚨 RESET POR INCONSISTENCIA EN ${month}:`, validation.reason)
+              console.warn('DETALLES:', {
+                income: rec.income ?? 0,
+                savings: rec.savings ?? 0,
+                budget: (rec.income ?? 0) - (rec.savings ?? 0),
+                assigned: (rec.pockets ?? []).reduce((s: number, p: any) => s + (p.budget ?? 0), 0),
+                spent: (rec.expenses ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0),
+              })
               localStorage.removeItem(STORAGE_KEY)
               localStorage.removeItem(ONBOARDING_FLAG)
               setHydrated(true)
