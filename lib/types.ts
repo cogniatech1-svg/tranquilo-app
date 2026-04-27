@@ -1,3 +1,23 @@
+/**
+ * ARQUITECTURA DE DATOS
+ * ════════════════════════════════════════════════════════════════════
+ *
+ * StoredData: datos CRUDOS almacenados en localStorage
+ * ↓
+ * financialEngine.ts: PROCESA y CALCULA todos los valores
+ * ↓
+ * FinancialSnapshot: ÚNICO ORIGEN DE VERDAD para UI
+ * ↓
+ * Todas las pantallas (Dashboard, BudgetScreen, InsightsScreen)
+ *
+ * IMPORTANTE:
+ * • StoredData y sus tipos (Expense, ExtraIncome, Pocket) son DATOS CRUDOS
+ * • Nunca calcules sobre ellos directamente
+ * • SIEMPRE usa snapshot para valores financieros
+ *
+ * Ver: lib/financialEngine.ts para la regla global
+ */
+
 import type { CountryCode } from './config'
 
 export type TabId = 'inicio' | 'movimientos' | 'presupuesto' | 'insights' | 'perfil'

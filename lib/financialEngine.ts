@@ -1,5 +1,37 @@
 import type { Expense, ExtraIncome, Pocket } from './types'
 
+/**
+ * ╔════════════════════════════════════════════════════════════════════════════╗
+ * ║                    🔒 SINGLE SOURCE OF TRUTH                              ║
+ * ╠════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                            ║
+ * ║  REGLA CRÍTICA: Ningún componente puede recalcular datos financieros.    ║
+ * ║                                                                            ║
+ * ║  ❌ PROHIBIDO:                                                            ║
+ * ║    • expenses.reduce((s, e) => s + e.amount, 0)  [totalSpent]            ║
+ * ║    • extraIncomes.reduce(...) [totalIncome]                              ║
+ * ║    • monthlyIncome - monthlySavings [presupuesto]                        ║
+ * ║    • Cualquier cálculo manual de métricas financieras                    ║
+ * ║                                                                            ║
+ * ║  ✅ OBLIGATORIO:                                                          ║
+ * ║    • Usar calculateFinancialSnapshot() en app/page.tsx                   ║
+ * ║    • Pasar snapshot a todas las pantallas                                ║
+ * ║    • Extraer valores directamente: snapshot.totalExpenses, etc.          ║
+ * ║                                                                            ║
+ * ║  ANÁLISIS ESPECÍFICOS (permitidos):                                       ║
+ * ║    • Patrones de gasto (fin de semana vs entre semana)                   ║
+ * ║    • Comparativas mensuales (este mes vs mes pasado)                     ║
+ * ║    • Segmentación por categoría (solo de datos ya procesados)            ║
+ * ║                                                                            ║
+ * ║  ¿POR QUÉ?                                                                ║
+ * ║    • Garantiza consistencia entre todas las pantallas                    ║
+ * ║    • Cambios en la lógica se aplican automáticamente                     ║
+ * ║    • Evita bugs por desincronización                                     ║
+ * ║    • Una sola fuente de verdad es más mantenible                         ║
+ * ║                                                                            ║
+ * ╚════════════════════════════════════════════════════════════════════════════╝
+ */
+
 export interface FinancialSnapshot {
   totalIncome: number
   totalExpenses: number
