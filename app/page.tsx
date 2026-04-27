@@ -46,7 +46,7 @@ export default function Home() {
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
   const [monthlyIncome, setMonthlyIncome] = useState(0)
-  const [monthlyBudget, setMonthlyBudget] = useState(0)
+  const [monthlySavings, setMonthlySavings] = useState(0)
   const [pockets,       setPockets]       = useState<Pocket[]>(DEFAULT_POCKETS)
   const [expenses,      setExpenses]      = useState<Expense[]>([])
   const [extraIncomes,  setExtraIncomes]  = useState<ExtraIncome[]>([])
@@ -66,10 +66,10 @@ export default function Home() {
   const config: CountryConfig = COUNTRIES[countryCode]
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  // ahorro = ingresos - presupuesto (SIEMPRE, AUTOMÁTICO)
-  const monthlySavings = useMemo(
-    () => Math.max(0, monthlyIncome - monthlyBudget),
-    [monthlyIncome, monthlyBudget]
+  // presupuesto = ingresos - ahorro (SIEMPRE, AUTOMÁTICO)
+  const monthlyBudget = useMemo(
+    () => Math.max(0, monthlyIncome - monthlySavings),
+    [monthlyIncome, monthlySavings]
   )
 
   // ── Load from localStorage ─────────────────────────────────────────────────
@@ -98,18 +98,19 @@ export default function Home() {
 
         setCountryCode(country)
 
-        // Load monthlyBudget con soporte para ambos formatos
-        // Formato nuevo: monthlyBudget está guardado directamente
-        // Formato viejo: calcular desde income - monthlySavings
-        let budget = data.monthlyBudget ?? 0
-        if (!budget && income > 0) {
-          const oldSavings = data.monthlySavings ?? Math.round(income * 0.20)
-          budget = Math.max(0, income - oldSavings)
+        // Load monthlySavings con soporte para ambos formatos
+        // Formato nuevo: monthlySavings está guardado directamente
+        // Formato viejo: monthlyBudget estaba guardado, calcular savings = income - budget
+        let savings = data.monthlySavings ?? 0
+        if (!savings && income > 0) {
+          const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
+          savings = Math.max(0, income - oldBudget)
         }
-        // Garantizar presupuesto válido
-        if (budget <= 0 && income > 0) {
-          budget = Math.round(income * 0.8)
+        // Garantizar ahorro válido (no puede ser negativo ni mayor al ingreso)
+        if (savings > income) {
+          savings = Math.round(income * 0.20)
         }
+        const budget = Math.max(0, income - savings)
 
         if (data.currentMonth && data.currentMonth !== thisMonth) {
           // New month — archive previous, reset monthly data
@@ -126,7 +127,7 @@ export default function Home() {
           setCurrentMonth(thisMonth)
           setPockets(normalised)
           setMonthlyIncome(income)
-          setMonthlyBudget(budget)
+          setMonthlySavings(budget)
           setConceptMap(data.conceptMap ?? {})
           setLearnedCategoryMap(data.learnedCategoryMap ?? {})
           setExpenses([])
@@ -137,7 +138,7 @@ export default function Home() {
           setCurrentMonth(data.currentMonth ?? thisMonth)
           setPockets(normalised)
           setMonthlyIncome(income)
-          setMonthlyBudget(budget)
+          setMonthlySavings(budget)
           setExpenses(data.expenses ?? [])
           setExtraIncomes(data.extraIncomes ?? [])
           setConceptMap(data.conceptMap ?? {})
@@ -163,7 +164,7 @@ export default function Home() {
         extraIncomes,
         pockets,
         monthlyIncome,
-        monthlyBudget,
+        monthlySavings,
         conceptMap,
         learnedCategoryMap,
         currentMonth,
@@ -172,7 +173,7 @@ export default function Home() {
         isPrivacyMode,
       }),
     )
-  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlyBudget, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
+  }, [hydrated, expenses, extraIncomes, pockets, monthlyIncome, monthlySavings, conceptMap, learnedCategoryMap, currentMonth, monthlyHistory, countryCode, isPrivacyMode])
 
   // ── Save extraIncomes to monthlyHistory when changing months ────────────────
   // Cuando el usuario navega entre meses, guardar los extraIncomes actuales en el histórico
@@ -205,13 +206,17 @@ export default function Home() {
     [isViewingPast, activeMonth, monthlyHistory, expenses],
   )
 
+  const activeMonthIncome = isViewingPast
+    ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
+    : monthlyIncome
+
+  // activeMonthBudget es calculado (para meses pasados lo sacamos del histórico)
   const activeMonthBudget = isViewingPast
     ? (monthlyHistory[activeMonth]?.budget ?? monthlyBudget)
     : monthlyBudget
 
-  const activeMonthIncome = isViewingPast
-    ? (monthlyHistory[activeMonth]?.income ?? monthlyIncome)
-    : monthlyIncome
+  // activeMonthSavings se calcula desde ingresos - presupuesto (para pasar a engine)
+  const activeMonthSavings = Math.max(0, activeMonthIncome - activeMonthBudget)
 
   // IMPORTANTE: Cargar extraIncomes del mes actual o del histórico
   const activeExtraIncomes = isViewingPast
@@ -246,10 +251,10 @@ export default function Home() {
       extraIncomes: activeExtraIncomes,
       pockets,
       monthlyIncome: activeMonthIncome,
-      monthlyBudget: activeMonthBudget,
+      monthlySavings: activeMonthSavings,
       currentMonth: activeMonth,
     }),
-    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, activeMonthBudget, activeMonth],
+    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, activeMonthSavings, activeMonth],
   )
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
@@ -403,7 +408,7 @@ export default function Home() {
     setExtraIncomes([])
     setPockets(DEFAULT_POCKETS)
     setMonthlyIncome(0)
-    setMonthlyBudget(0)
+    setMonthlySavings(0)
     setConceptMap({})
     setLearnedCategoryMap({})
     setCurrentMonth(getCurrentMonth())
@@ -429,7 +434,11 @@ export default function Home() {
 
     setCountryCode(code)
     if (income > 0) setMonthlyIncome(income)
-    if (budget > 0) setMonthlyBudget(budget)
+    // Convert budget from onboarding to savings: savings = income - budget
+    if (budget > 0 && income > 0) {
+      const savings = Math.max(0, income - budget)
+      setMonthlySavings(savings)
+    }
     setScreen('main')
   }, [])
 
@@ -492,7 +501,7 @@ export default function Home() {
             realCurrentMonth={currentMonth}
             onChangeMonth={setActiveMonth}
             onSetIncome={setMonthlyIncome}
-            onSetBudget={setMonthlyBudget}
+            onSetSavings={setMonthlySavings}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
