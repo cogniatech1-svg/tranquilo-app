@@ -60,7 +60,7 @@ export function PocketCard({
   }
   const saveEdit = () => {
     const n = draftName.trim()
-    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget), draftIcon || undefined)
+    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget))
     setEditing(false)
   }
 
