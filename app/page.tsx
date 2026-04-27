@@ -8,6 +8,7 @@ import { BottomNavigation } from '../components/BottomNavigation'
 import { DashboardScreen }     from '../screens/DashboardScreen'
 import { TransactionsScreen }  from '../screens/TransactionsScreen'
 import { BudgetScreen }        from '../screens/BudgetScreen'
+import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { InsightsScreen }      from '../screens/InsightsScreen'
 import { ProfileScreen }       from '../screens/ProfileScreen'
 import { OnboardingScreen }    from '../screens/OnboardingScreen'
@@ -220,6 +221,21 @@ export default function Home() {
   // CORRECCIÓN: SIEMPRE sumar extraIncomes (incluso en meses pasados)
   const totalIncome = activeMonthIncome + extraIncomeTotal
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // FINANCIALENGINE: ÚNICA FUENTE DE VERDAD para todos los cálculos
+  // ════════════════════════════════════════════════════════════════════════════
+  const snapshot = useMemo(
+    () => calculateFinancialSnapshot({
+      expenses: activeExpenses,
+      extraIncomes: activeExtraIncomes,
+      pockets,
+      monthlyIncome: activeMonthIncome,
+      monthlySavings: monthlySavings,
+      currentMonth: activeMonth,
+    }),
+    [activeExpenses, activeExtraIncomes, pockets, activeMonthIncome, monthlySavings, activeMonth],
+  )
+
   // ── Sheet handlers ─────────────────────────────────────────────────────────
   const openAddSheet        = useCallback(() => { setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
   const openEditSheet       = useCallback((e: Expense) => { setEditingExpense(e); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
@@ -421,12 +437,9 @@ export default function Home() {
       <div className="max-w-md mx-auto pb-24 min-h-screen">
         {activeTab === 'inicio' && (
           <DashboardScreen
+            snapshot={snapshot}
             expenses={activeExpenses}
             pockets={pockets}
-            monthlyBudget={activeMonthBudget}
-            monthlyIncome={activeMonthIncome}
-            extraIncomes={activeExtraIncomes}
-            currentMonth={activeMonth}
             spentByPocket={spentByPocket}
             config={config}
             activeMonth={activeMonth}

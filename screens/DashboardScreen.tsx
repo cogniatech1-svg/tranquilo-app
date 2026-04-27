@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card'
 import { CALM_GRADS, DS, formatMoney, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, ExtraIncome, Pocket } from '../lib/types'
+import type { FinancialSnapshot } from '../lib/financialEngine'
 import { getCalmState, getDaysInMonth, getSpendingOveragePct } from '../lib/utils'
 import { MonthNavigator } from '../components/MonthNavigator'
 
@@ -20,12 +21,9 @@ const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
 }
 
 interface Props {
+  snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
   expenses: Expense[]
   pockets: Pocket[]
-  monthlyBudget: number
-  monthlyIncome: number
-  extraIncomes: ExtraIncome[]
-  currentMonth: string
   spentByPocket: Record<string, number>
   config: CountryConfig
   activeMonth: string
@@ -37,12 +35,9 @@ interface Props {
 }
 
 export function DashboardScreen({
+  snapshot,
   expenses,
   pockets,
-  monthlyBudget,
-  monthlyIncome,
-  extraIncomes,
-  currentMonth,
   spentByPocket,
   config,
   activeMonth,
@@ -55,6 +50,17 @@ export function DashboardScreen({
   const [menuOpen, setMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
+
+  // USAR snapshot en lugar de cálculos locales
+  const {
+    totalIncome,
+    totalExpenses: totalSpent,
+    budget: monthlyBudget,
+    remaining,
+    status: calmState,
+    day,
+    daysInMonth,
+  } = snapshot
 
   // Skeleton loading effect
   useEffect(() => {
@@ -131,10 +137,7 @@ export function DashboardScreen({
     return d
   }, [])
 
-  const totalSpent = useMemo(
-    () => expenses.reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  )
+  // CÁLCULOS ESPECÍFICOS de Dashboard (no están en snapshot)
   const todaySpent = useMemo(
     () => expenses.filter(e => e.date.startsWith(todayStr)).reduce((s, e) => s + e.amount, 0),
     [expenses, todayStr],
@@ -144,34 +147,19 @@ export function DashboardScreen({
     [expenses, weekAgo],
   )
 
-  const day          = today.getDate()
-  const daysInMonth  = getDaysInMonth(currentMonth)
-  const calendarRate = day / daysInMonth
-  const daysLeft     = daysInMonth - day
+  // Derivados de snapshot para cálculos secundarios
+  const calendarRate = snapshot.day / snapshot.daysInMonth
+  const daysLeft     = snapshot.daysInMonth - snapshot.day
+  const effectiveBudget = monthlyBudget > 0 ? monthlyBudget : totalIncome
+  const hasIncome = totalIncome > 0
 
-  // Use income as budget fallback for the progress arc when no explicit budget is set
-  const effectiveBudget = monthlyBudget > 0 ? monthlyBudget : monthlyIncome
-  const calmState = getCalmState(totalSpent, effectiveBudget, calendarRate)
-
-  // ── Income-based calculations ─────────────────────────────────────────────
-  const extraIncomeTotal = useMemo(
-    () => extraIncomes.reduce((s, e) => s + e.amount, 0),
-    [extraIncomes],
-  )
-  const totalIncome = monthlyIncome + extraIncomeTotal
-  const hasIncome   = totalIncome > 0
-  // DISPONIBLE = presupuesto (monthlyBudget) - gasto_real (totalSpent)
-  const remaining   = monthlyBudget - totalSpent
-  const dailyAvg       = day > 0 ? totalSpent / day : 0
-  const projectedSpent = dailyAvg * daysInMonth
+  const dailyAvg = snapshot.day > 0 ? totalSpent / snapshot.day : 0
+  const projectedSpent = dailyAvg * snapshot.daysInMonth
   const projectedSaving = hasIncome ? totalIncome - projectedSpent : 0
-  // Planned savings = income - budget (if both set); otherwise use projected pace
-  const plannedSavings  = hasIncome && monthlyBudget > 0 ? totalIncome - monthlyBudget : null
-  const savingsDisplay  = plannedSavings !== null ? plannedSavings : projectedSaving
-  const savingsRate     = hasIncome && totalIncome > 0
-    ? Math.round((savingsDisplay / totalIncome) * 100)
-    : 0
-  const savingsLabel    = plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proy.'
+  const plannedSavings = hasIncome && monthlyBudget > 0 ? totalIncome - monthlyBudget : null
+  const savingsDisplay = plannedSavings !== null ? plannedSavings : projectedSaving
+  const savingsRate = hasIncome && totalIncome > 0 ? Math.round((savingsDisplay / totalIncome) * 100) : 0
+  const savingsLabel = plannedSavings !== null ? 'Ahorro planeado' : 'Ahorro proy.'
 
   // ── Daily feedback pill ───────────────────────────────────────────────────
   const dailyFeedback = useMemo(() => {
@@ -493,7 +481,7 @@ export function DashboardScreen({
       )}
 
       {/* ── Daily feedback pill (solo si estado es positivo) ──────────────── */}
-      {dailyFeedback && (calmState === 'tranquilo' || calmState === 'neutral') && (
+      {dailyFeedback && (snapshot.status === 'green') && (
         <div className="px-4 mt-3 flex justify-center">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-white border border-slate-100 text-slate-700 shadow-sm">
             {dailyFeedback.emoji} {dailyFeedback.text}
