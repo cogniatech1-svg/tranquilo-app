@@ -83,12 +83,13 @@ export default function Home() {
 
         setCountryCode(country)
 
-        // ── Reconstruir monthlyHistory desde formato viejo (backward compatibility) ──
+        // ── Reconstruir monthlyHistory desde localStorage ──
         const history: Record<string, MonthRecord> = {}
+        const thisMonth = getCurrentMonth()
 
-        // Si existe monthlyHistory en los datos NUEVOS, migrar a nuevo formato
-        // (monthlyHistory solo existe si fue guardado con arquitectura nueva)
+        // SIEMPRE usar monthlyHistory como fuente si existe
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
+          // Nueva arquitectura: datos están en monthlyHistory
           for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
             history[month] = {
@@ -99,49 +100,34 @@ export default function Home() {
               pockets: rec.pockets ?? DEFAULT_POCKETS,
             }
           }
-        } else {
-          // DATOS VIEJOS: monthlyHistory vacío o no existe
-          // Confiar SOLO en monthlySavings (nuevo formato) o income/monthlySavings si existen
-          const thisMonth = getCurrentMonth()
+        } else if (data.monthlyIncome !== undefined || data.monthlySavings !== undefined || data.expenses?.length) {
+          // Vieja arquitectura: convertir a nueva
           const income = data.monthlyIncome ?? 0
+          const savings = data.monthlySavings ?? Math.round(income * 0.20)
+          const pockets = normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS)
+          const expenses = data.expenses ?? []
+          const extraIncomes = data.extraIncomes ?? []
 
-          // CRITICAL: monthlySavings es la fuente definitiva en datos viejos
-          // Si monthlySavings existe, usarlo directamente
-          // Si no, asumir 20% (mejor que tratar de calcular desde budget corrupto)
-          let savings = 0
-          if (typeof data.monthlySavings === 'number' && data.monthlySavings > 0) {
-            // Datos de transición: monthlySavings fue guardado en formato nuevo
-            savings = Math.min(data.monthlySavings, income) // cap at income
-          } else {
-            // Datos muy viejos: asumir ahorro por defecto 20%
-            savings = income > 0 ? Math.round(income * 0.20) : 0
+          // Guardar en el mes actual o el del histórico
+          const activeMonth = data.currentMonth ?? thisMonth
+          history[activeMonth] = {
+            income: Math.max(0, income),
+            savings: Math.min(Math.max(0, savings), income), // cap savings at income
+            expenses,
+            extraIncomes,
+            pockets,
           }
 
-          // Si estamos en un mes nuevo, archivar el anterior
-          if (data.currentMonth && data.currentMonth !== thisMonth) {
-            if ((data.expenses?.length ?? 0) > 0 || (data.extraIncomes?.length ?? 0) > 0) {
-              history[data.currentMonth] = {
-                income,
-                savings,
-                expenses: data.expenses ?? [],
-                extraIncomes: data.extraIncomes ?? [],
-                pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
-              }
-            }
-            setCurrentMonth(thisMonth)
-            history[thisMonth] ??= getDefaultMonthRecord()
-          } else {
-            // Mismo mes
-            const loadMonth = data.currentMonth ?? thisMonth
-            history[loadMonth] = {
-              income,
-              savings,
-              expenses: data.expenses ?? [],
-              extraIncomes: data.extraIncomes ?? [],
-              pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
-            }
-            setCurrentMonth(loadMonth)
+          // Si es un mes diferente, crear registro vacío para el mes actual
+          if (activeMonth !== thisMonth) {
+            history[thisMonth] = getDefaultMonthRecord()
           }
+
+          setCurrentMonth(activeMonth)
+        } else {
+          // Sin datos: crear registro vacío
+          history[thisMonth] = getDefaultMonthRecord()
+          setCurrentMonth(thisMonth)
         }
 
         setConceptMap(data.conceptMap ?? {})
