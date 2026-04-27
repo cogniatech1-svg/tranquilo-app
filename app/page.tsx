@@ -70,6 +70,20 @@ export default function Home() {
     return monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
   }, [monthlyHistory, activeMonth])
 
+  // ── RESET: Limpiar datos corruptos y forzar onboarding ────────────────────
+  const resetData = useCallback(() => {
+    console.warn('Data reset due to inconsistent financial state')
+    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(ONBOARDING_FLAG)
+    setMonthlyHistory({})
+    setConceptMap({})
+    setLearnedCategoryMap({})
+    setCountryCode('CO')
+    setActiveMonth(getCurrentMonth())
+    setCurrentMonth(getCurrentMonth())
+    setScreen('onboarding')
+  }, [])
+
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -78,29 +92,27 @@ export default function Home() {
 
       if (raw) {
         const data = JSON.parse(raw) as StoredData
-        const thisMonth = getCurrentMonth()
         const country = (data.countryCode as CountryCode) ?? 'CO'
 
-        setCountryCode(country)
-
-        // ── VALIDACIÓN: Detectar datos corruptos y limpiarlos automáticamente ──
-        const income = data.monthlyIncome ?? 0
-        const savings = data.monthlySavings ?? 0
-        // Si savings > income, los datos están corruptos (imposible ahorrar más que ingresos)
-        if (income > 0 && savings > income) {
-          console.warn('[DATA VALIDATION] Datos corruptos detectados: savings > income. Limpiando...')
-          localStorage.removeItem(STORAGE_KEY)
-          localStorage.removeItem(ONBOARDING_FLAG)
-          setHydrated(true)
-          return
-        }
-
-        // ── Reconstruir monthlyHistory desde localStorage ──
-        const history: Record<string, MonthRecord> = {}
-
-        // SIEMPRE usar monthlyHistory como fuente si existe
+        // ── VALIDACIÓN SIMPLE: Detectar datos corruptos ──
+        // Si hay datos de monthlyHistory, validar cada mes
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          // Nueva arquitectura: datos están en monthlyHistory
+          for (const record of Object.values(data.monthlyHistory)) {
+            const rec = record as any
+            const income = rec.income ?? 0
+            const savings = rec.savings ?? 0
+            // Si savings > income, los datos están corruptos
+            if (income > 0 && savings > income) {
+              console.warn('Data reset due to inconsistent financial state')
+              localStorage.removeItem(STORAGE_KEY)
+              localStorage.removeItem(ONBOARDING_FLAG)
+              setHydrated(true)
+              return
+            }
+          }
+
+          // Datos válidos: cargar monthlyHistory
+          const history: Record<string, MonthRecord> = {}
           for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
             history[month] = {
@@ -111,41 +123,24 @@ export default function Home() {
               pockets: rec.pockets ?? DEFAULT_POCKETS,
             }
           }
-        } else if (data.monthlyIncome !== undefined || data.monthlySavings !== undefined || data.expenses?.length) {
-          // Vieja arquitectura: convertir a nueva
-          const income = data.monthlyIncome ?? 0
-          const savings = data.monthlySavings ?? Math.round(income * 0.20)
-          const pockets = normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS)
-          const expenses = data.expenses ?? []
-          const extraIncomes = data.extraIncomes ?? []
 
-          // Guardar en el mes actual o el del histórico
-          const activeMonth = data.currentMonth ?? thisMonth
-          history[activeMonth] = {
-            income: Math.max(0, income),
-            savings: Math.min(Math.max(0, savings), income), // cap savings at income
-            expenses,
-            extraIncomes,
-            pockets,
-          }
-
-          // Si es un mes diferente, crear registro vacío para el mes actual
-          if (activeMonth !== thisMonth) {
-            history[thisMonth] = getDefaultMonthRecord()
-          }
-
-          setCurrentMonth(activeMonth)
+          setCountryCode(country)
+          setConceptMap(data.conceptMap ?? {})
+          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+          setMonthlyHistory(history)
+          if (data.isPrivacyMode) setIsPrivacyMode(true)
+          if (hasOnboarded) setScreen('main')
         } else {
-          // Sin datos: crear registro vacío
-          history[thisMonth] = getDefaultMonthRecord()
+          // Sin monthlyHistory: datos vacíos, comenzar desde cero
+          const thisMonth = getCurrentMonth()
+          setCountryCode(country)
+          setMonthlyHistory({ [thisMonth]: getDefaultMonthRecord() })
           setCurrentMonth(thisMonth)
+          setConceptMap(data.conceptMap ?? {})
+          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+          if (data.isPrivacyMode) setIsPrivacyMode(true)
+          if (hasOnboarded) setScreen('main')
         }
-
-        setConceptMap(data.conceptMap ?? {})
-        setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-        setMonthlyHistory(history)
-        if (data.isPrivacyMode) setIsPrivacyMode(true)
-        if (hasOnboarded) setScreen('main')
       }
     } catch {
       // ignore malformed JSON
