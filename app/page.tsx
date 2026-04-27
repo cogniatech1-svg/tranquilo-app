@@ -478,7 +478,7 @@ export default function Home() {
         {activeTab === 'inicio' && (
           <DashboardScreen
             snapshot={snapshot}
-            expenses={activeExpenses}
+            expenses={expenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
             config={config}
@@ -492,8 +492,8 @@ export default function Home() {
         )}
         {activeTab === 'movimientos' && (
           <TransactionsScreen
-            expenses={activeExpenses}
-            extraIncomes={activeExtraIncomes}
+            expenses={expenses}
+            extraIncomes={extraIncomes}
             pockets={pockets}
             config={config}
             activeMonth={activeMonth}
@@ -528,7 +528,7 @@ export default function Home() {
         {activeTab === 'insights' && (
           <InsightsScreen
             snapshot={snapshot}
-            expenses={activeExpenses}
+            expenses={expenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
             monthlyHistory={monthlyHistory}

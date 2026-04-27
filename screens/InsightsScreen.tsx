@@ -72,7 +72,7 @@ function generateInsights(
 
   const lastMonthKey   = Object.keys(monthlyHistory).sort().reverse()[0] ?? null
   const lastMonth      = lastMonthKey ? monthlyHistory[lastMonthKey] : null
-  const lastMonthTotal = lastMonth?.totalSpent ?? 0
+  const lastMonthTotal = lastMonth ? (lastMonth.expenses?.reduce((s, e) => s + e.amount, 0) ?? 0) : 0
 
   // ── 0. Savings rate (priority when income is set) ─────────────────────────
   if (monthlyIncome > 0 && daysPassed >= 3) {
@@ -444,8 +444,11 @@ function buildHistorial(
     const name = new Date(`${y}-${m}-15`).toLocaleDateString(config.locale, {
       month: 'long', year: '2-digit',
     })
-    const income   = rec.income ?? 0
-    const savings  = income > 0 ? income - rec.totalSpent : 0
+    const income = rec.income ?? 0
+    const recSavings = rec.savings ?? 0
+    const budget = Math.max(0, income - recSavings)
+    const totalSpent = (rec.expenses ?? []).reduce((s, e) => s + e.amount, 0)
+    const savings = income > 0 ? income - recSavings - totalSpent : 0
     const savingsRate = income > 0 ? Math.round((savings / income) * 100) : null
 
     // derive top category from stored expenses
@@ -454,7 +457,7 @@ function buildHistorial(
     const topId  = Object.entries(catAcc).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
     const topCat = topId ? (pockets.find(p => p.id === topId)?.name ?? null) : null
 
-    return { key, name, totalSpent: rec.totalSpent, budget: rec.budget, income, savings, savingsRate, topCategory: topCat, vsLast: null as number | null, isBest: false }
+    return { key, name, totalSpent, budget, income, savings, savingsRate, topCategory: topCat, vsLast: null as number | null, isBest: false }
   })
 
   // compute vs previous
