@@ -86,8 +86,9 @@ export default function Home() {
         // ── Reconstruir monthlyHistory desde formato viejo (backward compatibility) ──
         const history: Record<string, MonthRecord> = {}
 
-        // Si existe monthlyHistory en los datos, migrar a nuevo formato
-        if (data.monthlyHistory) {
+        // Si existe monthlyHistory en los datos NUEVOS, migrar a nuevo formato
+        // (monthlyHistory solo existe si fue guardado con arquitectura nueva)
+        if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
           for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
             history[month] = {
@@ -98,50 +99,49 @@ export default function Home() {
               pockets: rec.pockets ?? DEFAULT_POCKETS,
             }
           }
-        }
+        } else {
+          // DATOS VIEJOS: monthlyHistory vacío o no existe
+          // Confiar SOLO en monthlySavings (nuevo formato) o income/monthlySavings si existen
+          const thisMonth = getCurrentMonth()
+          const income = data.monthlyIncome ?? 0
 
-        // Si estamos en un mes nuevo, archivar el anterior y crear registro limpio
-        if (data.currentMonth && data.currentMonth !== thisMonth) {
-          // Archivar mes anterior si tiene datos
-          if ((data.expenses?.length ?? 0) > 0 || (data.extraIncomes?.length ?? 0) > 0) {
-            const income = data.monthlyIncome ?? 0
-            let savings = data.monthlySavings ?? 0
-            if (!savings && income > 0) {
-              const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
-              savings = Math.max(0, income - oldBudget)
+          // CRITICAL: monthlySavings es la fuente definitiva en datos viejos
+          // Si monthlySavings existe, usarlo directamente
+          // Si no, asumir 20% (mejor que tratar de calcular desde budget corrupto)
+          let savings = 0
+          if (typeof data.monthlySavings === 'number' && data.monthlySavings > 0) {
+            // Datos de transición: monthlySavings fue guardado en formato nuevo
+            savings = Math.min(data.monthlySavings, income) // cap at income
+          } else {
+            // Datos muy viejos: asumir ahorro por defecto 20%
+            savings = income > 0 ? Math.round(income * 0.20) : 0
+          }
+
+          // Si estamos en un mes nuevo, archivar el anterior
+          if (data.currentMonth && data.currentMonth !== thisMonth) {
+            if ((data.expenses?.length ?? 0) > 0 || (data.extraIncomes?.length ?? 0) > 0) {
+              history[data.currentMonth] = {
+                income,
+                savings,
+                expenses: data.expenses ?? [],
+                extraIncomes: data.extraIncomes ?? [],
+                pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
+              }
             }
-            if (savings > income) savings = Math.round(income * 0.20)
-
-            history[data.currentMonth] = {
+            setCurrentMonth(thisMonth)
+            history[thisMonth] ??= getDefaultMonthRecord()
+          } else {
+            // Mismo mes
+            const loadMonth = data.currentMonth ?? thisMonth
+            history[loadMonth] = {
               income,
               savings,
               expenses: data.expenses ?? [],
               extraIncomes: data.extraIncomes ?? [],
               pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
             }
+            setCurrentMonth(loadMonth)
           }
-          setCurrentMonth(thisMonth)
-          // Crear registro vacío para el mes nuevo
-          history[thisMonth] ??= getDefaultMonthRecord()
-        } else {
-          // Mismo mes: cargar datos actuales en monthlyHistory
-          const loadMonth = data.currentMonth ?? thisMonth
-          const income = data.monthlyIncome ?? 0
-          let savings = data.monthlySavings ?? 0
-          if (!savings && income > 0) {
-            const oldBudget = data.monthlyBudget ?? Math.round(income * 0.8)
-            savings = Math.max(0, income - oldBudget)
-          }
-          if (savings > income) savings = Math.round(income * 0.20)
-
-          history[loadMonth] = {
-            income,
-            savings,
-            expenses: data.expenses ?? [],
-            extraIncomes: data.extraIncomes ?? [],
-            pockets: normalizePockets(data.pockets?.length ? data.pockets : DEFAULT_POCKETS),
-          }
-          setCurrentMonth(loadMonth)
         }
 
         setConceptMap(data.conceptMap ?? {})
