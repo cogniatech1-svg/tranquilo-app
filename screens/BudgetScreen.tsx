@@ -245,8 +245,9 @@ export function BudgetScreen({
               </p>
               <button
                 onClick={() => {
-                  setEditingBudget(true)
-                  setSavingsInput(String(monthlyBudget))
+                  setEditingSavings(true)
+                  setSavingsInput(String(monthlySavings))
+                  setSavingsPercentage(String(savingsPercentageValue))
                 }}
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
@@ -288,13 +289,14 @@ export function BudgetScreen({
               </p>
             </div>
             <div className="flex gap-2.5">
-              <PrimaryButton onClick={saveBudget} className="flex-1 py-3 text-sm">
+              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">
                 Guardar
               </PrimaryButton>
               <button
                 onClick={() => {
-                  setEditingBudget(false)
+                  setEditingSavings(false)
                   setSavingsInput('')
+                  setSavingsPercentage('')
                 }}
                 className="px-4 py-3 text-slate-400 text-sm font-medium"
               >
