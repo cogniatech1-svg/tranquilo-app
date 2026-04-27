@@ -98,8 +98,20 @@ export default function Home() {
 
         setCountryCode(country)
 
-        // Calculate suggested savings if not set
-        const savings = data.monthlySavings ?? (income > 0 ? Math.round(income * 0.20) : 0)
+        // Handle data migration: support both old and new formats
+        // Old format: monthlySavings is editable, budget is calculated
+        // New format: monthlyBudget would be editable (if it exists)
+        let savings = data.monthlySavings ?? 0
+
+        // If there's inconsistent data from a partial migration, clean it up
+        if (!savings && income > 0) {
+          savings = Math.round(income * 0.20)
+        }
+
+        // Ensure savings never exceeds income
+        if (savings > income) {
+          savings = Math.round(income * 0.20)
+        }
 
         if (data.currentMonth && data.currentMonth !== thisMonth) {
           // New month — archive previous, reset monthly data
