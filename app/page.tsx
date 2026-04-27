@@ -428,9 +428,8 @@ export default function Home() {
     localStorage.setItem(ONBOARDING_FLAG, 'true')
 
     setCountryCode(code)
-    // Note: budget is no longer stored separately
-    // presupuesto = ingresos - ahorro (calculated dynamically)
     if (income > 0) setMonthlyIncome(income)
+    if (budget > 0) setMonthlyBudget(budget)
     setScreen('main')
   }, [])
 
