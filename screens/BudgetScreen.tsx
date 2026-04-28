@@ -196,45 +196,11 @@ export function BudgetScreen({
           </Card>
         )}
 
-        {/* ── 1. ORIGEN DEL DINERO ──────────────────────────────────────── */}
-        {totalIncome > 0 && (
-          <div
-            className="rounded-2xl overflow-hidden bg-white border border-slate-100"
-            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
-          >
-            <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">origen del dinero</p>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              {/* Ingresos */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ingresos</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
-                  {mm(totalIncome)}
-                </p>
-              </div>
-              {/* Ahorro */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Ahorro</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight" style={{ color: '#16A34A' }}>
-                  {mm(monthlySavings)}
-                </p>
-              </div>
-              {/* Disponible (presupuesto) */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">A gastar</p>
-                <p className="text-sm font-bold text-slate-900 tabular-nums leading-tight">
-                  {mm(monthlyBudget)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
         {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
-            <div className="flex items-start justify-between mb-3">
+            <div className="flex items-start justify-between mb-5">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
                 Presupuesto a gastar
               </p>
@@ -250,11 +216,40 @@ export function BudgetScreen({
                 Editar
               </button>
             </div>
-            <p className="text-lg font-bold text-slate-900 tabular-nums">
-              {mm(monthlyBudget)}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Presupuesto */}
+              <div className="text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
+                  Presupuesto
+                </p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">
+                  {mm(monthlyBudget)}
+                </p>
+              </div>
+              {/* Gastado */}
+              <div className="text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
+                  Gastado
+                </p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: totalSpent > monthlyBudget ? '#EF4444' : '#0F172A' }}>
+                  {mm(totalSpent)}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* ── 1.6. AHORRO AUTOMÁTICO (Read-only) ────────────────────────────────────── */}
+        {totalIncome > 0 && !editingSavings && (
+          <Card className="p-5">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400 mb-4">
+              Ahorro automático
             </p>
-            <p className="text-[9px] text-slate-400 mt-2 tabular-nums">
-              Ahorro automático: {mm(monthlySavings)} ({savingsPercentageValue}%)
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">
+              {mm(monthlySavings)}
+            </p>
+            <p className="text-sm text-slate-400 mt-2 tabular-nums">
+              {savingsPercentageValue}% de tus ingresos
             </p>
           </Card>
         )}
@@ -299,54 +294,6 @@ export function BudgetScreen({
               </button>
             </div>
           </Card>
-        )}
-
-        {/* ── 2. DISTRIBUCIÓN ────────────────────────────────────────────── */}
-        {hasBudget && (
-          <div
-            className="rounded-2xl overflow-hidden bg-white border border-slate-100"
-            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
-          >
-            <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">distribución</p>
-            </div>
-            <div className="grid grid-cols-2 divide-x divide-slate-100">
-              {/* Asignado a bolsillos */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Asignado</p>
-                <p className="text-sm font-bold tabular-nums leading-tight" style={{ color: DS.primary }}>
-                  {mm(totalPocketBudget)}
-                </p>
-                {assignedPct > 0 && (
-                  <p className="text-[9px] text-slate-400 mt-0.5">{assignedPct}%</p>
-                )}
-              </div>
-              {/* Sin asignar */}
-              <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Sin asignar</p>
-                <p
-                  className="text-sm font-bold tabular-nums leading-tight"
-                  style={{ color: unassigned >= 0 ? '#16A34A' : '#EF4444' }}
-                >
-                  {unassigned >= 0
-                    ? mm(unassigned)
-                    : `−${mm(-unassigned)}`}
-                </p>
-              </div>
-            </div>
-            {/* Allocation bar */}
-            <div className="h-1 bg-slate-100 mx-4 mb-3 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, assignedPct)}%`,
-                  background: assignedPct > 100
-                    ? '#EF4444'
-                    : 'linear-gradient(90deg, #0f766e, #14b8a6)',
-                }}
-              />
-            </div>
-          </div>
         )}
 
         {/* ── Month navigator ───────────────────────────────────────────────── */}
