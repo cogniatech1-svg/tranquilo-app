@@ -92,19 +92,24 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
 
   // ────────────────────────────────────────────────────────────────
-  // 3. SAVINGS: ahorro definido por usuario
-  // ────────────────────────────────────────────────────────────────
-  const savings = Math.max(0, monthlySavings)
-
-  // ────────────────────────────────────────────────────────────────
-  // 4. BUDGET: presupuesto calculado = ingresos - ahorro
-  // ────────────────────────────────────────────────────────────────
-  const budget = Math.max(0, monthlyIncome - savings)
-
-  // ────────────────────────────────────────────────────────────────
-  // 5. ASSIGNED: dinero asignado a pockets (presupuestos por categoría)
+  // 3. ASSIGNED: dinero asignado a pockets (presupuestos por categoría)
+  //    Este es el PRESUPUESTO A GASTAR
   // ────────────────────────────────────────────────────────────────
   const assigned = pockets.reduce((sum, pocket) => sum + pocket.budget, 0)
+
+  // ────────────────────────────────────────────────────────────────
+  // 4. SAVINGS: dinero no asignado a bolsillos (es automático)
+  //    = Total Income - lo asignado a pockets
+  //    Si se gasta más del presupuesto, se reduce el ahorro
+  // ────────────────────────────────────────────────────────────────
+  const overspent = Math.max(0, totalExpenses - assigned)
+  const savings = Math.max(0, totalIncome - assigned - overspent)
+
+  // ────────────────────────────────────────────────────────────────
+  // 5. BUDGET: presupuesto a gastar = dinero asignado a pockets
+  //    NO es todos los ingresos, solo lo que se planea gastar
+  // ────────────────────────────────────────────────────────────────
+  const budget = assigned
 
   // VALIDACIÓN CRÍTICA: assigned NO DEBE superar budget
   if (assigned > budget) {
