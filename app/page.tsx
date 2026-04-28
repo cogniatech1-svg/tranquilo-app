@@ -347,14 +347,14 @@ export default function Home() {
           { id: "ei2", amount: 2649463, concept: "Ingreso adicional", date: "2026-04-14", category: "extra" as const }
         ],
         pockets: [
-          { id: 'capacitaciones', name: 'Capacitaciones', budget: 2366316 },
-          { id: 'extras', name: 'Extras', budget: 5491029 },
-          { id: 'recreacion', name: 'Recreación', budget: 979253 },
-          { id: 'hogar', name: 'Hogar', budget: 733219 },
-          { id: 'donaciones', name: 'Donaciones', budget: 772000 },
-          { id: 'servicios', name: 'Servicios', budget: 229445 },
-          { id: 'transporte', name: 'Transporte', budget: 240000 },
-          { id: 'cuota_apartamento', name: 'Cuota apartamento', budget: 651777 }
+          { id: 'capacitaciones', name: 'Capacitaciones', budget: 2649463 },
+          { id: 'extras', name: 'Extras', budget: 5393000 },
+          { id: 'recreacion', name: 'Recreación', budget: 800000 },
+          { id: 'hogar', name: 'Hogar', budget: 600000 },
+          { id: 'donaciones', name: 'Donaciones', budget: 800000 },
+          { id: 'servicios', name: 'Servicios', budget: 600000 },
+          { id: 'transporte', name: 'Transporte', budget: 300000 },
+          { id: 'cuota_apartamento', name: 'Cuota apartamento', budget: 707000 }
         ]
       }
     }
@@ -364,6 +364,11 @@ export default function Home() {
       ...prev,
       ...restoredData
     }))
+
+    // TRANSICIÓN A PANTALLA PRINCIPAL
+    setScreen('main')
+    setActiveMonth('2026-04')
+    setCurrentMonth('2026-04')
 
     // VERIFICAR EN CONSOLA
     const totalIncome = 8752707 + 4700000 + 2649463
