@@ -130,11 +130,12 @@ function generateInsights(
 
     if (remaining < 0) {
       const dailyCut = daysLeft > 0 ? (-remaining) / daysLeft : 0
+      const excessPct = Math.round(((-remaining) / monthlyBudget) * 100)
       warnings.push({
         kind: 'warning',
         icon: '🚨',
         title: `Presupuesto superado en ${fm(-remaining)}`,
-        body: `Gastaste ${fm(totalSpent)} con un límite de ${fm(monthlyBudget)} — ${Math.round(spentPct * 100)}% del presupuesto.`,
+        body: `Gastaste ${fm(totalSpent)} con un límite de ${fm(monthlyBudget)} — excediste tu presupuesto en ${excessPct}%.`,
         action: `Para no alejarte más, evita gastos no esenciales (ahorra ${fm(dailyCut)}/día).`,
       })
     } else if (overagePct > 10) {
