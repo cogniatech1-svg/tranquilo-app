@@ -141,16 +141,6 @@ export function PocketCard({
             {pocket.budget > 0 ? ` / ${mm(pocket.budget)}` : ''}
           </span>
         </div>
-        {pocket.budget > 0 && (
-          <>
-            <ProgressBar ratio={ratio} thick color={isOver ? undefined : pal.bar} />
-            {isOver && (
-              <p className="text-[10px] font-bold text-red-600 mt-1 tabular-nums">
-                Exceso: {mm(excess)}
-              </p>
-            )}
-          </>
-        )}
       </div>
     )
   }
@@ -198,35 +188,17 @@ export function PocketCard({
       </div>
 
       {pocket.budget > 0 ? (
-        <>
-          <div className="flex items-baseline gap-1 mb-2">
-            <span
-              className="text-base font-bold tabular-nums"
-              style={{ color: isOver ? '#EF4444' : '#0F172A' }}
-            >
-              {mm(spent)}
-            </span>
-            <span className="text-xs text-slate-400 tabular-nums">
-              / {mm(pocket.budget)}
-            </span>
-          </div>
-          <ProgressBar ratio={ratio} thick color={isOver ? undefined : pal.bar} />
-          {isOver ? (
-            <div className="flex items-center justify-between mt-1.5">
-              <p className="text-[10px] font-bold text-red-600 tabular-nums">
-                Exceso: {mm(excess)}
-              </p>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">
-                +{Math.round((excess / pocket.budget) * 100)}%
-              </span>
-            </div>
-          ) : (
-            <p className="text-[10px] mt-1.5 tabular-nums font-semibold" style={{ color: pal.text }}>
-              {Math.round(ratio * 100)}% del presupuesto
-              {leftover > 0 && ` · ${mm(leftover)} Disponible`}
-            </p>
-          )}
-        </>
+        <div className="flex items-baseline gap-1">
+          <span
+            className="text-base font-bold tabular-nums"
+            style={{ color: isOver ? '#EF4444' : '#0F172A' }}
+          >
+            {mm(spent)}
+          </span>
+          <span className="text-xs text-slate-400 tabular-nums">
+            / {mm(pocket.budget)}
+          </span>
+        </div>
       ) : (
         <>
           <p className="text-base font-bold text-slate-900 tabular-nums mb-2">
