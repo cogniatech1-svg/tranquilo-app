@@ -273,7 +273,7 @@ export function DashboardScreen({
           return (
             <>
               {/* 1. ESTADO (basado en snapshot.status) */}
-              <div className="mb-6 mt-4">
+              <div className="mb-4">
                 <p className="text-sm font-semibold text-white/85 leading-snug">
                   {statusText}
                 </p>
@@ -284,9 +284,12 @@ export function DashboardScreen({
                 {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
               </p>
 
-              {/* 3. GASTO DIARIO PERMITIDO */}
+              {/* 3. LABEL: Disponible o Exceso según remaining */}
               <p className="text-sm text-white/80 mb-5 font-medium">
-                Hoy puedes gastar máximo {mm(snapshot.dailyAvailable)}
+                {remaining >= 0
+                  ? 'Disponible para gastar de tu presupuesto'
+                  : 'Has excedido tu presupuesto'
+                }
               </p>
 
               {/* 4. BARRA DE PROGRESO vs PRESUPUESTO */}
@@ -327,30 +330,6 @@ export function DashboardScreen({
                 />
               </div>
             ))}
-          </Card>
-        </div>
-      )}
-
-      {/* ── Recent transactions ──────────────────────────────────────────── */}
-      {recentExpenses.length > 0 && (
-        <div className="px-4 mt-6">
-          <SectionHeader>Recientes</SectionHeader>
-          <Card className="overflow-hidden">
-            {recentExpenses.map((e, i) => {
-              const pocket = pockets.find(p => p.id === e.pocketId)
-              const pi     = pockets.findIndex(p => p.id === e.pocketId)
-              return (
-                <TransactionItem
-                  key={e.id}
-                  expense={e}
-                  pocket={pocket}
-                  pocketIndex={pi}
-                  config={config}
-                  showDivider={i < recentExpenses.length - 1}
-                  isPrivacyMode={isPrivacyMode}
-                />
-              )
-            })}
           </Card>
         </div>
       )}
