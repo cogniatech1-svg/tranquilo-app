@@ -449,3 +449,162 @@ export function getDefaultMonthRecord(): MonthRecord {
     pockets: [],
   }
 }
+
+/**
+ * RESTAURACIÓN SEGURA DE DATOS FINANCIEROS
+ *
+ * Valida coherencia financiera y ajusta sin perder datos:
+ * - income >= savings
+ * - assigned <= budget (donde budget = income - savings)
+ * - spent <= budget
+ *
+ * Si hay inconsistencias, ajusta valores mostrando advertencias.
+ */
+export interface RestoreValidationReport {
+  valid: boolean
+  warnings: string[]
+  adjustments: {
+    incomeAdjusted?: boolean
+    savingsAdjusted?: boolean
+    pocketsAdjusted?: boolean
+    expensesReduced?: boolean
+  }
+  normalized: MonthRecord
+}
+
+export function validateAndNormalizeMonth(
+  income: number,
+  savings: number,
+  expenses: Expense[],
+  extraIncomes: any[],
+  pockets: Pocket[],
+): RestoreValidationReport {
+  const warnings: string[] = []
+  const adjustments = {
+    incomeAdjusted: false,
+    savingsAdjusted: false,
+    pocketsAdjusted: false,
+    expensesReduced: false,
+  }
+
+  // Paso 1: Validar income >= 0
+  let normIncome = Math.max(0, income)
+  if (normIncome !== income) {
+    warnings.push(`⚠️  Income fue negativo (${income}), ajustado a ${normIncome}`)
+    adjustments.incomeAdjusted = true
+  }
+
+  // Paso 2: Validar savings >= 0 y savings <= income
+  let normSavings = Math.max(0, savings)
+  if (normSavings > normIncome) {
+    const oldSavings = normSavings
+    normSavings = Math.round(normIncome * 0.20) // Default 20% del ingreso
+    warnings.push(`⚠️  Savings (${oldSavings}) > Income (${normIncome}). Ajustado a ${normSavings} (20% del ingreso)`)
+    adjustments.savingsAdjusted = true
+  } else if (normSavings !== savings && savings > 0) {
+    warnings.push(`⚠️  Savings ajustado de ${savings} a ${normSavings}`)
+    adjustments.savingsAdjusted = true
+  }
+
+  const budget = normIncome - normSavings
+
+  // Paso 3: Validar pockets
+  const assignedTotal = pockets.reduce((sum, p) => sum + (p.budget ?? 0), 0)
+  let normPockets = pockets
+
+  if (assignedTotal > budget) {
+    // Reducir presupuestos proporcionalmente
+    const ratio = budget / assignedTotal
+    normPockets = pockets.map(p => ({
+      ...p,
+      budget: Math.round(p.budget * ratio),
+    }))
+    const newAssigned = normPockets.reduce((sum, p) => sum + p.budget, 0)
+    warnings.push(`⚠️  Presupuestos asignados (${assignedTotal}) excedían budget (${budget}). Reducidos proporcionalmente a ${newAssigned}`)
+    adjustments.pocketsAdjusted = true
+  }
+
+  // Paso 4: Validar expenses
+  const spentTotal = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0)
+  let normExpenses = expenses
+
+  if (spentTotal > budget) {
+    // No eliminar gastos, pero advertencia clara
+    warnings.push(`⚠️  Gastos totales (${spentTotal}) exceden budget (${budget}). Diferencia: ${spentTotal - budget}`)
+    warnings.push(`    → Los datos se cargarán como están, pero la validación los detectará en carga posterior`)
+    // No reducimos gastos automáticamente, el usuario debe decidir
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+    adjustments,
+    normalized: {
+      income: normIncome,
+      savings: normSavings,
+      expenses: normExpenses,
+      extraIncomes: extraIncomes ?? [],
+      pockets: normPockets,
+    },
+  }
+}
+
+/**
+ * Genera código React para restaurar datos desde backup
+ *
+ * Uso en app.tsx:
+ * const restoration = restoreFromBackup(income, savings, expenses, extraIncomes, pockets, month)
+ * console.log(restoration.code)  // Copiar y ejecutar en DevTools
+ */
+export function restoreFromBackup(
+  income: number,
+  savings: number,
+  expenses: Expense[],
+  extraIncomes: any[],
+  pockets: Pocket[],
+  month: string = getCurrentMonth(),
+): {
+  report: RestoreValidationReport
+  code: string
+  summary: string
+} {
+  const report = validateAndNormalizeMonth(income, savings, expenses, extraIncomes, pockets)
+
+  const dataStr = JSON.stringify({
+    [month]: report.normalized,
+  }, null, 2)
+
+  const code = `
+// ═══════════════════════════════════════════════════════════════
+// RESTAURACIÓN DE DATOS - Copiar este código en DevTools
+// ═══════════════════════════════════════════════════════════════
+setMonthlyHistory(prev => ({
+  ...prev,
+  ${dataStr.slice(2, -2)}
+}))
+
+console.log('✅ Datos restaurados para ${month}')
+console.log('Detalles:', ${JSON.stringify(report.normalized, null, 2)})
+`.trim()
+
+  const summary = `
+RESTAURACIÓN DE DATOS - ${month}
+
+Estado: ${report.valid ? '✅ VÁLIDO' : '⚠️  CON AJUSTES'}
+
+Valores finales:
+  Ingresos: $${report.normalized.income.toLocaleString()}
+  Ahorro: $${report.normalized.savings.toLocaleString()}
+  Presupuesto: $${(report.normalized.income - report.normalized.savings).toLocaleString()}
+  Presupuestos asignados: $${report.normalized.pockets.reduce((s, p) => s + p.budget, 0).toLocaleString()}
+  Gastos registrados: $${report.normalized.expenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}
+
+${report.warnings.length > 0 ? `Advertencias:\n${report.warnings.map(w => `  ${w}`).join('\n')}` : 'Sin advertencias'}
+
+${report.adjustments.incomeAdjusted || report.adjustments.savingsAdjusted || report.adjustments.pocketsAdjusted ? `
+Ajustes realizados:
+${report.adjustments.incomeAdjusted ? '  ✓ Income normalizado\n' : ''}${report.adjustments.savingsAdjusted ? '  ✓ Savings normalizado\n' : ''}${report.adjustments.pocketsAdjusted ? '  ✓ Presupuestos rebalanceados\n' : ''}${report.adjustments.expensesReduced ? '  ✓ Gastos ajustados\n' : ''}` : ''}
+`.trim()
+
+  return { report, code, summary }
+}
