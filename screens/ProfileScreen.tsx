@@ -9,13 +9,14 @@ import type { ExtraIncome } from '../lib/types'
 
 // ── Componente de diagnóstico temporal ───────────────────────────────────────
 function DiagnosticInfo() {
-  const [info, setInfo] = useState<string[]>([])
+  const [info, setInfo]       = useState<string[]>([])
+  const [restored, setRestored] = useState(false)
 
-  useEffect(() => {
+  const readState = () => {
     try {
-      const raw             = localStorage.getItem('tranquilo_v1')
-      const aprilRestored   = localStorage.getItem('april2026_v1_restored')
-      const hasOnboarded    = localStorage.getItem('hasOnboarded')
+      const raw           = localStorage.getItem('tranquilo_v1')
+      const aprilRestored = localStorage.getItem('april2026_v1_restored')
+      const hasOnboarded  = localStorage.getItem('hasOnboarded')
 
       const lines: string[] = []
       lines.push(`hasOnboarded: ${hasOnboarded}`)
@@ -25,12 +26,12 @@ function DiagnosticInfo() {
         const data = JSON.parse(raw)
         const mh   = data.monthlyHistory ?? {}
         const keys = Object.keys(mh)
-        lines.push(`meses guardados: ${keys.join(', ') || 'ninguno'}`)
+        lines.push(`meses: ${keys.join(', ') || 'ninguno'}`)
         if (mh['2026-04']) {
           lines.push(`gastos abr-26: ${mh['2026-04'].expenses?.length ?? 0}`)
           lines.push(`income abr-26: ${mh['2026-04'].income ?? 0}`)
         } else {
-          lines.push('2026-04: NO EXISTE')
+          lines.push('abril 2026: NO EXISTE')
         }
       } else {
         lines.push('tranquilo_v1: VACÍO')
@@ -40,11 +41,45 @@ function DiagnosticInfo() {
     } catch (e) {
       setInfo([`Error: ${e}`])
     }
-  }, [])
+  }
+
+  useEffect(() => { readState() }, [])
+
+  const handleForceRestore = () => {
+    try {
+      // Borrar bandera para forzar restauración al recargar
+      localStorage.removeItem('april2026_v1_restored')
+      // Borrar datos para partir de cero en la restauración
+      localStorage.removeItem('tranquilo_v1')
+      // Mantener hasOnboarded para que no vaya a onboarding
+      // NO tocar hasOnboarded
+      setRestored(true)
+      readState()
+      // Recargar la página completa
+      setTimeout(() => window.location.reload(), 800)
+    } catch (e) {
+      setInfo([`Error al restaurar: ${e}`])
+    }
+  }
 
   return (
-    <div className="space-y-0.5">
-      {info.map((line, i) => <p key={i}>{line}</p>)}
+    <div className="space-y-2">
+      <div className="space-y-0.5">
+        {info.map((line, i) => <p key={i}>{line}</p>)}
+      </div>
+      {!restored ? (
+        <button
+          onClick={handleForceRestore}
+          className="mt-2 w-full text-xs py-2 px-3 rounded-lg font-semibold"
+          style={{ background: '#EF4444', color: '#fff' }}
+        >
+          🔄 Forzar restauración de datos
+        </button>
+      ) : (
+        <p className="text-xs font-bold" style={{ color: '#10B981' }}>
+          ✅ Restaurando... recargando app
+        </p>
+      )}
     </div>
   )
 }

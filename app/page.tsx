@@ -234,71 +234,75 @@ export default function Home() {
   }, [])
 
   // ── Load from localStorage ─────────────────────────────────────────────────
+  // IMPORTANTE: la restauración de abril 2026 ocurre AQUÍ, de forma síncrona,
+  // escribiendo directo a localStorage ANTES de actualizar el estado React.
+  // Así no hay condiciones de carrera entre useEffects separados.
   useEffect(() => {
     try {
-      const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
-      const raw          = localStorage.getItem(STORAGE_KEY)
+      const raw           = localStorage.getItem(STORAGE_KEY)
+      const aprilRestored = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
 
+      // Parsear datos existentes (o partir de objeto vacío)
+      let data: StoredData = {}
       if (raw) {
-        const data    = JSON.parse(raw) as StoredData
-        const country = (data.countryCode as CountryCode) ?? 'CO'
+        try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
+      }
 
-        if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(data.monthlyHistory)) {
-            const rec = record as any
-            history[month] = {
-              income:       rec.income       ?? 0,
-              savings:      rec.savings      ?? 0,
-              expenses:     rec.expenses     ?? [],
-              extraIncomes: rec.extraIncomes ?? [],
-              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-              manualBudget: rec.manualBudget,
-            }
-          }
-          setCountryCode(country)
-          setConceptMap(data.conceptMap ?? {})
-          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-          setMonthlyHistory(history)
-          if (data.isPrivacyMode) setIsPrivacyMode(true)
-          if (hasOnboarded) setScreen('main')
-        } else {
-          setCountryCode(country)
-          setConceptMap(data.conceptMap ?? {})
-          setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-          if (data.isPrivacyMode) setIsPrivacyMode(true)
-          if (hasOnboarded) setScreen('main')
+      // ── RESTAURACIÓN INMEDIATA DE ABRIL 2026 ──────────────────────────────
+      // Se ejecuta en la misma pasada del efecto, antes de cargar el estado.
+      // Así garantizamos que el histórico siempre tiene los 122 gastos.
+      if (!aprilRestored) {
+        const aprilExpenses = data.monthlyHistory?.['2026-04']?.expenses?.length ?? 0
+        if (aprilExpenses === 0) {
+          if (!data.monthlyHistory) data.monthlyHistory = {}
+          data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
+          // Escribir a localStorage de inmediato (sin esperar a React state)
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+          localStorage.setItem(ONBOARDING_FLAG, 'true')
         }
+        localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
+      }
+
+      // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
+      // Re-leer la bandera DESPUÉS de posible restauración
+      const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+      const country      = (data.countryCode as CountryCode) ?? 'CO'
+
+      setCountryCode(country)
+      setConceptMap(data.conceptMap ?? {})
+      setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+      if (data.isPrivacyMode) setIsPrivacyMode(true)
+
+      if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
+        const history: Record<string, MonthRecord> = {}
+        for (const [month, record] of Object.entries(data.monthlyHistory)) {
+          const rec = record as any
+          history[month] = {
+            income:       rec.income       ?? 0,
+            savings:      rec.savings      ?? 0,
+            expenses:     rec.expenses     ?? [],
+            extraIncomes: rec.extraIncomes ?? [],
+            pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+            manualBudget: rec.manualBudget,
+          }
+        }
+        setMonthlyHistory(history)
+
+        // Si acabamos de restaurar abril → ir directo a ese mes
+        if (!aprilRestored && history['2026-04']) {
+          setActiveMonth('2026-04')
+          setCurrentMonth('2026-04')
+        }
+
+        if (hasOnboarded) setScreen('main')
+      } else {
+        if (hasOnboarded) setScreen('main')
       }
     } catch {
-      // ignore malformed JSON
+      // ignorar JSON malformado
     }
     setHydrated(true)
   }, [])
-
-  // ── Restauración de abril 2026 (safety net — corre después de hydration) ────
-  // Estructura idéntica a la que funcionaba: useEffect separado con [hydrated].
-  // La bandera APRIL_RESTORED_FLAG evita sobreescribir gastos nuevos del usuario.
-  useEffect(() => {
-    if (!hydrated) return
-
-    // Si ya restauramos antes, no volver a tocar nada
-    if (localStorage.getItem(APRIL_RESTORED_FLAG) === 'true') return
-
-    // Si abril 2026 ya tiene gastos reales, solo marcar la bandera y salir
-    if ((monthlyHistory['2026-04']?.expenses?.length ?? 0) > 0) {
-      localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
-      return
-    }
-
-    // Sin datos reales → restaurar los 122 gastos históricos
-    setMonthlyHistory(prev => ({ ...prev, '2026-04': APRIL_2026_RECORD }))
-    setScreen('main')
-    setActiveMonth('2026-04')
-    setCurrentMonth('2026-04')
-    localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
-    localStorage.setItem(ONBOARDING_FLAG, 'true')
-  }, [hydrated, monthlyHistory])
 
   // ── Persist to localStorage ────────────────────────────────────────────────
   useEffect(() => {
