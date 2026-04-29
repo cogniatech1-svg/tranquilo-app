@@ -17,13 +17,47 @@ export function ProfileScreen({
   isPrivacyMode = false,
   onTogglePrivacy,
 }: Props) {
+  // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+
+  // Editable profile fields
+  const [profileData, setProfileData] = useState(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('tranquilo_profile') : null
+    return saved ? JSON.parse(saved) : {
+      nombre: 'Juan Pérez',
+      email: 'juan@example.com',
+      telefono: '+57 300 123 4567',
+      pais: 'Colombia',
+      avatarUrl: '/logo-ui.png',
+    }
+  })
+
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [editData, setEditData] = useState(profileData)
+
+  // Security
   const [pinEnabled, setPinEnabled] = useState(false)
   const [showPinInput, setShowPinInput] = useState(false)
   const [pin, setPin] = useState('')
+
+  // Preferences
   const [darkMode, setDarkMode] = useState(false)
+
+  // Data management
   const [confirmClear, setConfirmClear] = useState(false)
   const [importMessage, setImportMessage] = useState('')
+
+  // Save profile to localStorage
+  const saveProfileData = () => {
+    localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
+    setProfileData(editData)
+    setEditingProfile(false)
+  }
+
+  const cancelProfileEdit = () => {
+    setEditData(profileData)
+    setEditingProfile(false)
+  }
 
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
@@ -161,10 +195,10 @@ export function ProfileScreen({
       title: 'Mi Perfil',
       icon: '👤',
       content: [
-        { label: 'Nombre', value: 'Juan Pérez', editable: false },
-        { label: 'Email', value: 'juan@example.com', editable: false },
-        { label: 'Teléfono', value: '+57 300 123 4567', editable: false },
-        { label: 'País', value: 'Colombia', editable: false },
+        { label: 'Nombre', value: profileData.nombre, editable: true, field: 'nombre' },
+        { label: 'Email', value: profileData.email, editable: true, field: 'email' },
+        { label: 'Teléfono', value: profileData.telefono, editable: true, field: 'telefono' },
+        { label: 'País', value: profileData.pais, editable: true, field: 'pais' },
       ]
     },
     foto: {
@@ -251,7 +285,7 @@ export function ProfileScreen({
             fontWeight: 700,
             letterSpacing: '-0.5px',
           }}>
-            Juan Pérez
+            {profileData.nombre}
           </h1>
           <p style={{
             margin: 0,
@@ -259,7 +293,7 @@ export function ProfileScreen({
             opacity: 0.85,
             fontWeight: 500,
           }}>
-            juan@example.com
+            {profileData.email}
           </p>
 
           {/* Divider sutil */}
@@ -380,6 +414,31 @@ export function ProfileScreen({
                   padding: '20px',
                   animation: 'fadeIn 0.2s ease',
                 }}>
+                  {/* Edit buttons for Mi Perfil section */}
+                  {section.key === 'perfil' && !editingProfile && (
+                    <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setEditData(profileData)
+                          setEditingProfile(true)
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: '#0d6259',
+                          color: 'white',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✏️ Editar
+                      </button>
+                    </div>
+                  )}
+
                   {section.content.map((item: any, i: number) => (
                     <div key={i} style={{
                       marginBottom: i < section.content.length - 1 ? '16px' : 0,
@@ -398,7 +457,22 @@ export function ProfileScreen({
                         {item.label}
                       </label>
 
-                      {item.type === 'image' ? (
+                      {/* Edit mode for Mi Perfil */}
+                      {section.key === 'perfil' && editingProfile && item.field ? (
+                        <input
+                          type={item.field === 'email' ? 'email' : 'text'}
+                          value={editData[item.field] || ''}
+                          onChange={(e) => setEditData({ ...editData, [item.field]: e.target.value })}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '13px',
+                            fontFamily: 'inherit',
+                          }}
+                        />
+                      ) : item.type === 'image' ? (
                         <div style={{
                           width: '70px',
                           height: '70px',
@@ -474,6 +548,44 @@ export function ProfileScreen({
                       )}
                     </div>
                   ))}
+
+                  {/* Save/Cancel buttons for Mi Perfil edit mode */}
+                  {section.key === 'perfil' && editingProfile && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={cancelProfileEdit}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          background: 'white',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          color: '#6b7280',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={saveProfileData}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: '#10B981',
+                          color: 'white',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Guardar Cambios
+                      </button>
+                    </div>
+                  )}
 
                   {/* Special handling for Seguridad section PIN input */}
                   {section.key === 'seguridad' && pinEnabled && showPinInput && (
