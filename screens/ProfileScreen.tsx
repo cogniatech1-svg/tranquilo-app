@@ -495,6 +495,14 @@ export function ProfileScreen({
           </Card>
         </div>
 
+        {/* 6. DIAGNÓSTICO (solo si algo está mal) */}
+        <div>
+          <SectionHeader>Diagnóstico</SectionHeader>
+          <Card className="p-4 text-xs font-mono bg-slate-50">
+            <DiagnosticInfo />
+          </Card>
+        </div>
+
         {/* Versión */}
         <div className="text-center pt-4 pb-8">
           <p className="text-xs text-slate-400">Tranquilo v1.0.0</p>
