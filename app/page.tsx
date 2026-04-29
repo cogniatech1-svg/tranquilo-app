@@ -122,30 +122,8 @@ export default function Home() {
         const data = JSON.parse(raw) as StoredData
         const country = (data.countryCode as CountryCode) ?? 'CO'
 
-        // ── VALIDACIÓN COMPLETA: coherencia financiera real ──
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          // Validar CADA mes
-          for (const [month, record] of Object.entries(data.monthlyHistory)) {
-            const rec = record as any
-            const validation = validateFinancialCoherence(rec)
-
-            if (!validation.valid) {
-              console.warn(`🚨 RESET POR INCONSISTENCIA EN ${month}:`, validation.reason)
-              console.warn('DETALLES:', {
-                income: rec.income ?? 0,
-                savings: rec.savings ?? 0,
-                budget: (rec.income ?? 0) - (rec.savings ?? 0),
-                assigned: (rec.pockets ?? []).reduce((s: number, p: any) => s + (p.budget ?? 0), 0),
-                spent: (rec.expenses ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0),
-              })
-              localStorage.removeItem(STORAGE_KEY)
-              localStorage.removeItem(ONBOARDING_FLAG)
-              setHydrated(true)
-              return
-            }
-          }
-
-          // Datos válidos: cargar monthlyHistory
+          // Cargar monthlyHistory directamente sin validación que borre datos
           const history: Record<string, MonthRecord> = {}
           for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
