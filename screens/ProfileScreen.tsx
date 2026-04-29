@@ -573,12 +573,6 @@ export function ProfileScreen({
           </div>
         </>
       )}
-
-      {/* Diagnóstico temporal */}
-      <div className="mx-4 mb-4 p-3 bg-slate-100 rounded-xl text-xs text-slate-600 space-y-1">
-        <p className="font-semibold">Diagnóstico v28-abr-2026-C</p>
-        <DiagnosticInfo />
-      </div>
     </div>
   )
 }
