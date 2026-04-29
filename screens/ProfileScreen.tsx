@@ -1,11 +1,53 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { Icon } from '../components/ui/Icon'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome } from '../lib/types'
+
+// ── Componente de diagnóstico temporal ───────────────────────────────────────
+function DiagnosticInfo() {
+  const [info, setInfo] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const raw             = localStorage.getItem('tranquilo_v1')
+      const aprilRestored   = localStorage.getItem('april2026_v1_restored')
+      const hasOnboarded    = localStorage.getItem('hasOnboarded')
+
+      const lines: string[] = []
+      lines.push(`hasOnboarded: ${hasOnboarded}`)
+      lines.push(`aprilRestored: ${aprilRestored}`)
+
+      if (raw) {
+        const data = JSON.parse(raw)
+        const mh   = data.monthlyHistory ?? {}
+        const keys = Object.keys(mh)
+        lines.push(`meses guardados: ${keys.join(', ') || 'ninguno'}`)
+        if (mh['2026-04']) {
+          lines.push(`gastos abr-26: ${mh['2026-04'].expenses?.length ?? 0}`)
+          lines.push(`income abr-26: ${mh['2026-04'].income ?? 0}`)
+        } else {
+          lines.push('2026-04: NO EXISTE')
+        }
+      } else {
+        lines.push('tranquilo_v1: VACÍO')
+      }
+
+      setInfo(lines)
+    } catch (e) {
+      setInfo([`Error: ${e}`])
+    }
+  }, [])
+
+  return (
+    <div className="space-y-0.5">
+      {info.map((line, i) => <p key={i}>{line}</p>)}
+    </div>
+  )
+}
 
 interface Props {
   config: CountryConfig
@@ -489,9 +531,10 @@ export function ProfileScreen({
         </>
       )}
 
-      {/* Versión — diagnóstico temporal */}
-      <div className="text-center py-4">
-        <p className="text-xs text-slate-400">v28-abr-2026-B</p>
+      {/* Diagnóstico temporal */}
+      <div className="mx-4 mb-4 p-3 bg-slate-100 rounded-xl text-xs text-slate-600 space-y-1">
+        <p className="font-semibold">Diagnóstico v28-abr-2026-C</p>
+        <DiagnosticInfo />
       </div>
     </div>
   )
