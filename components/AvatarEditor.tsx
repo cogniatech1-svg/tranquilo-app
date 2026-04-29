@@ -193,9 +193,9 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
           </label>
           <input
             type="range"
-            min={Math.max(0.3, fitZoom * 0.5)}
+            min={fitZoom * 0.3}
             max={fitZoom * 3}
-            step="0.1"
+            step="0.05"
             value={zoom}
             onChange={handleZoom}
             style={{
