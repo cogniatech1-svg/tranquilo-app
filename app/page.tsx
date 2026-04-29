@@ -681,6 +681,7 @@ export default function Home() {
             onSetIncome={handleSetIncome}
             onSetSavings={handleSetSavings}
             onSetManualBudget={handleSetManualBudget}
+            manualBudget={manualBudget}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}

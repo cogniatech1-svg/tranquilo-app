@@ -33,6 +33,7 @@ interface Props {
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
   isPrivacyMode?: boolean
+  manualBudget?: number  // Para saber si hay presupuesto manual activo
 }
 
 export function BudgetScreen({
@@ -47,6 +48,7 @@ export function BudgetScreen({
   onSetIncome,
   onSetSavings,
   onSetManualBudget,
+  manualBudget,
   onEditPocket,
   onDeletePocket,
   onAddPocket,
@@ -236,11 +238,19 @@ export function BudgetScreen({
               {/* Presupuesto */}
               <div className="text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
-                  Presupuesto
+                  Presupuesto {manualBudget && manualBudget > 0 && <span className="text-red-500">(manual)</span>}
                 </p>
                 <p className="text-lg font-bold text-slate-900 tabular-nums">
                   {mm(monthlyBudget)}
                 </p>
+                {manualBudget && manualBudget > 0 && (
+                  <button
+                    onClick={() => onSetManualBudget(0)}
+                    className="mt-2 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-50 rounded transition-colors"
+                  >
+                    ✕ Desactivar
+                  </button>
+                )}
               </div>
               {/* Gastado */}
               <div className="text-center">
