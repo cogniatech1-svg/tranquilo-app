@@ -236,72 +236,53 @@ export default function Home() {
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
-      const hasOnboarded    = localStorage.getItem(ONBOARDING_FLAG)    === 'true'
-      const aprilRestored   = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
-      const raw             = localStorage.getItem(STORAGE_KEY)
+      const hasOnboarded  = localStorage.getItem(ONBOARDING_FLAG)     === 'true'
+      const aprilRestored = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
+      const raw           = localStorage.getItem(STORAGE_KEY)
 
-      // ── Helper interno: restaurar abril 2026 y marcar bandera ──────────────
-      const doRestoreApril = () => {
+      // Construir el history a partir de localStorage (puede quedar vacío)
+      const history: Record<string, MonthRecord> = {}
+      let country: CountryCode = 'CO'
+
+      if (raw) {
+        const data = JSON.parse(raw) as StoredData
+        country = (data.countryCode as CountryCode) ?? 'CO'
+        setConceptMap(data.conceptMap ?? {})
+        setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+        if (data.isPrivacyMode) setIsPrivacyMode(true)
+
+        for (const [month, record] of Object.entries(data.monthlyHistory ?? {})) {
+          const rec = record as any
+          history[month] = {
+            income:       rec.income       ?? 0,
+            savings:      rec.savings      ?? 0,
+            expenses:     rec.expenses     ?? [],
+            extraIncomes: rec.extraIncomes ?? [],
+            pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+            manualBudget: rec.manualBudget,
+          }
+        }
+      }
+
+      setCountryCode(country)
+
+      // ── Decisión de restauración ──────────────────────────────────────────
+      // Restaurar si: bandera no puesta Y abril 2026 no tiene gastos reales
+      const aprilHasData = (history['2026-04']?.expenses?.length ?? 0) > 0
+
+      if (!aprilRestored && !aprilHasData) {
+        // Primera vez (o localStorage vacío/borrado): cargar los 122 gastos
+        history['2026-04'] = APRIL_2026_RECORD
         localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
         localStorage.setItem(ONBOARDING_FLAG, 'true')
         setScreen('main')
         setActiveMonth('2026-04')
         setCurrentMonth('2026-04')
-        return { '2026-04': APRIL_2026_RECORD }
+      } else if (hasOnboarded) {
+        setScreen('main')
       }
 
-      if (raw) {
-        const data    = JSON.parse(raw) as StoredData
-        const country = (data.countryCode as CountryCode) ?? 'CO'
-
-        setCountryCode(country)
-        setConceptMap(data.conceptMap ?? {})
-        setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-        if (data.isPrivacyMode) setIsPrivacyMode(true)
-
-        if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          // Normalizar registros guardados
-          const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(data.monthlyHistory)) {
-            const rec = record as any
-            history[month] = {
-              income:       rec.income       ?? 0,
-              savings:      rec.savings      ?? 0,
-              expenses:     rec.expenses     ?? [],
-              extraIncomes: rec.extraIncomes ?? [],
-              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-              manualBudget: rec.manualBudget,
-            }
-          }
-
-          // Si abril 2026 no tiene gastos reales Y aún no hemos restaurado →
-          // inyectar los datos históricos sin tocar otros meses.
-          const april = history['2026-04']
-          if (!aprilRestored && (!april || april.expenses.length === 0)) {
-            Object.assign(history, doRestoreApril())
-          } else {
-            if (hasOnboarded) setScreen('main')
-          }
-
-          setMonthlyHistory(history)
-        } else {
-          // localStorage existe pero monthlyHistory está vacío
-          if (!aprilRestored) {
-            setMonthlyHistory(doRestoreApril())
-          } else {
-            const thisMonth = getCurrentMonth()
-            setMonthlyHistory({ [thisMonth]: getDefaultMonthRecord() })
-            setCurrentMonth(thisMonth)
-            if (hasOnboarded) setScreen('main')
-          }
-        }
-      } else {
-        // Sin localStorage en absoluto
-        if (!aprilRestored) {
-          setMonthlyHistory(doRestoreApril())
-        }
-        // Si aprilRestored=true pero raw=null: situación extraña, dejar vacío
-      }
+      setMonthlyHistory(history)
     } catch {
       // ignore malformed JSON
     }
