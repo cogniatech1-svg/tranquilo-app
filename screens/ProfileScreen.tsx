@@ -59,6 +59,28 @@ export function ProfileScreen({
     setEditingProfile(false)
   }
 
+  // Handle avatar upload
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
+        const newData = { ...profileData, avatarUrl: base64 }
+        localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
+        setProfileData(newData)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Handle avatar delete
+  const handleAvatarDelete = () => {
+    const newData = { ...profileData, avatarUrl: '/logo-ui.png' }
+    localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
+    setProfileData(newData)
+  }
+
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
     const data = raw ? JSON.parse(raw) : {}
@@ -205,9 +227,9 @@ export function ProfileScreen({
       title: 'Foto de Perfil',
       icon: '📸',
       content: [
-        { label: 'Foto actual', value: 'logo-ui.png', type: 'image' },
-        { label: 'Cambiar', value: 'Subir nueva foto', type: 'button' },
-        { label: 'Eliminar', value: 'Remover foto', type: 'button-danger' },
+        { label: 'Foto actual', value: profileData.avatarUrl, type: 'image' },
+        { label: 'Cambiar', value: 'Subir nueva foto', type: 'button', handler: () => document.querySelector<HTMLInputElement>('input[data-upload-avatar]')?.click() },
+        { label: 'Eliminar', value: 'Remover foto', type: 'button-danger', handler: handleAvatarDelete },
       ]
     },
     seguridad: {
@@ -268,7 +290,7 @@ export function ProfileScreen({
             overflow: 'hidden',
           }}>
             <img
-              src="/logo-ui.png"
+              src={profileData.avatarUrl}
               alt="Avatar"
               style={{
                 width: '60px',
@@ -742,6 +764,15 @@ export function ProfileScreen({
         accept=".csv"
         onChange={handleImportCSV}
         data-import-csv
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden file input for avatar upload */}
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleAvatarUpload}
+        data-upload-avatar
         style={{ display: 'none' }}
       />
     </div>
