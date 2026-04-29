@@ -488,6 +488,11 @@ export function ProfileScreen({
           </div>
         </>
       )}
+
+      {/* Versión — diagnóstico temporal */}
+      <div className="text-center py-4">
+        <p className="text-xs text-slate-400">v28-abr-2026-B</p>
+      </div>
     </div>
   )
 }
