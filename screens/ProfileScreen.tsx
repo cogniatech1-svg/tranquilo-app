@@ -69,6 +69,8 @@ export function ProfileScreen({
         const newData = { ...profileData, avatarUrl: base64 }
         localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
         setProfileData(newData)
+        // Reset input para permitir seleccionar el mismo archivo nuevamente
+        e.target.value = ''
       }
       reader.readAsDataURL(file)
     }
@@ -476,7 +478,7 @@ export function ProfileScreen({
                           justifyContent: 'center',
                           overflow: 'hidden',
                         }}>
-                          <img src="/logo-ui.png" alt="Avatar" style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
+                          <img src={item.value} alt="Avatar" style={{ width: '70px', height: '70px', objectFit: 'cover' }} />
                         </div>
                       ) : item.type === 'button' || item.type === 'button-danger' ? (
                         <button
