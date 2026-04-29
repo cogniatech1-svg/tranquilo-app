@@ -1,88 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card } from '../components/ui/Card'
-import { SectionHeader } from '../components/ui/SectionHeader'
-import { Icon } from '../components/ui/Icon'
+import { useState } from 'react'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome } from '../lib/types'
-
-// ── Componente de diagnóstico temporal ───────────────────────────────────────
-function DiagnosticInfo() {
-  const [info, setInfo]       = useState<string[]>([])
-  const [restored, setRestored] = useState(false)
-
-  const readState = () => {
-    try {
-      const raw           = localStorage.getItem('tranquilo_v1')
-      const aprilRestored = localStorage.getItem('april2026_v1_restored')
-      const hasOnboarded  = localStorage.getItem('hasOnboarded')
-
-      const lines: string[] = []
-      lines.push(`hasOnboarded: ${hasOnboarded}`)
-      lines.push(`aprilRestored: ${aprilRestored}`)
-
-      if (raw) {
-        const data = JSON.parse(raw)
-        const mh   = data.monthlyHistory ?? {}
-        const keys = Object.keys(mh)
-        lines.push(`meses: ${keys.join(', ') || 'ninguno'}`)
-        if (mh['2026-04']) {
-          lines.push(`gastos abr-26: ${mh['2026-04'].expenses?.length ?? 0}`)
-          lines.push(`income abr-26: ${mh['2026-04'].income ?? 0}`)
-        } else {
-          lines.push('abril 2026: NO EXISTE')
-        }
-      } else {
-        lines.push('tranquilo_v1: VACÍO')
-      }
-
-      setInfo(lines)
-    } catch (e) {
-      setInfo([`Error: ${e}`])
-    }
-  }
-
-  useEffect(() => { readState() }, [])
-
-  const handleForceRestore = () => {
-    try {
-      // Borrar bandera para forzar restauración al recargar
-      localStorage.removeItem('april2026_v1_restored')
-      // Borrar datos para partir de cero en la restauración
-      localStorage.removeItem('tranquilo_v1')
-      // Mantener hasOnboarded para que no vaya a onboarding
-      // NO tocar hasOnboarded
-      setRestored(true)
-      readState()
-      // Recargar la página completa
-      setTimeout(() => window.location.reload(), 800)
-    } catch (e) {
-      setInfo([`Error al restaurar: ${e}`])
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="space-y-0.5">
-        {info.map((line, i) => <p key={i}>{line}</p>)}
-      </div>
-      {!restored ? (
-        <button
-          onClick={handleForceRestore}
-          className="mt-2 w-full text-xs py-2 px-3 rounded-lg font-semibold"
-          style={{ background: '#EF4444', color: '#fff' }}
-        >
-          🔄 Forzar restauración de datos
-        </button>
-      ) : (
-        <p className="text-xs font-bold" style={{ color: '#10B981' }}>
-          ✅ Restaurando... recargando app
-        </p>
-      )}
-    </div>
-  )
-}
 
 interface Props {
   config: CountryConfig
@@ -97,21 +17,13 @@ export function ProfileScreen({
   isPrivacyMode = false,
   onTogglePrivacy,
 }: Props) {
+  const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [pinEnabled, setPinEnabled] = useState(false)
   const [showPinInput, setShowPinInput] = useState(false)
   const [pin, setPin] = useState('')
   const [darkMode, setDarkMode] = useState(false)
-  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
-  const [showPlansModal, setShowPlansModal] = useState(false)
   const [importMessage, setImportMessage] = useState('')
-
-  // Get current month and year
-  const currentDate = new Date()
-  const monthYear = currentDate.toLocaleDateString(config.locale, {
-    month: 'long',
-    year: 'numeric',
-  })
 
   const handleExportCSV = () => {
     const raw = localStorage.getItem('tranquilo_v1')
@@ -244,335 +156,512 @@ export function ProfileScreen({
     reader.readAsText(file)
   }
 
-  return (
-    <div className="pb-20">
-      {/* Header */}
-      <div
-        className="px-5 pt-12 pb-8 text-center relative overflow-hidden"
-        style={{
-          background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
-          boxShadow: '0 8px 40px rgba(4,47,46,.30)',
-        }}
-      >
-        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute bottom-2 -left-8 w-32 h-32 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(103,232,249,.10) 0%, transparent 70%)' }} />
+  const sections = {
+    perfil: {
+      title: 'Mi Perfil',
+      icon: '👤',
+      content: [
+        { label: 'Nombre', value: 'Juan Pérez', editable: false },
+        { label: 'Email', value: 'juan@example.com', editable: false },
+        { label: 'Teléfono', value: '+57 300 123 4567', editable: false },
+        { label: 'País', value: 'Colombia', editable: false },
+      ]
+    },
+    foto: {
+      title: 'Foto de Perfil',
+      icon: '📸',
+      content: [
+        { label: 'Foto actual', value: 'logo-ui.png', type: 'image' },
+        { label: 'Cambiar', value: 'Subir nueva foto', type: 'button' },
+        { label: 'Eliminar', value: 'Remover foto', type: 'button-danger' },
+      ]
+    },
+    seguridad: {
+      title: 'Seguridad',
+      icon: '🔐',
+      content: [
+        { label: 'PIN de acceso', value: pinEnabled ? '••••' : 'Desactivado', type: 'toggle', toggleState: pinEnabled, toggleHandler: () => setPinEnabled(!pinEnabled) },
+      ]
+    },
+    datos: {
+      title: 'Mis Datos',
+      icon: '📊',
+      content: [
+        { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
+        { label: 'Importar datos', value: 'Importar CSV', type: 'button', handler: () => document.querySelector<HTMLInputElement>('input[data-import-csv]')?.click() },
+        { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
+      ]
+    },
+    preferencias: {
+      title: 'Preferencias',
+      icon: '⚙️',
+      content: [
+        { label: 'Tema oscuro', value: darkMode ? 'Activado' : 'Desactivado', type: 'toggle', toggleState: darkMode, toggleHandler: () => setDarkMode(!darkMode) },
+        { label: 'Ocultar montos', value: isPrivacyMode ? 'Activado' : 'Desactivado', type: 'toggle', toggleState: isPrivacyMode, toggleHandler: () => onTogglePrivacy?.() },
+      ]
+    },
+  }
 
-        <div className="relative">
-          {/* Logo Icon */}
-          <div className="w-28 h-28 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+  const sectionList = Object.entries(sections).map(([key, val]) => ({
+    key,
+    ...val
+  }))
+
+  return (
+    <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui' }}>
+      <div style={{ maxWidth: '420px', margin: '0 auto', paddingBottom: '40px' }}>
+
+        {/* HEADER PREMIUM - Con logo real de la app */}
+        <div style={{
+          background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
+          padding: '40px 20px 35px',
+          color: 'white',
+          textAlign: 'center',
+          position: 'relative',
+        }}>
+          {/* Avatar con logo real */}
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+            margin: '0 auto 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '3px solid rgba(255,255,255,0.25)',
+            backdropFilter: 'blur(10px)',
+            overflow: 'hidden',
+          }}>
             <img
               src="/logo-ui.png"
-              alt="Tranquilo"
-              className="w-20 h-20 object-contain"
+              alt="Avatar"
+              style={{
+                width: '60px',
+                height: '60px',
+                objectFit: 'contain',
+              }}
             />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-1">Perfil</h2>
-          <p className="text-sm text-white/70 capitalize">{monthYear}</p>
-        </div>
-      </div>
 
-      <div className="px-4 pt-6 space-y-5">
-        {/* 1. USUARIO */}
-        <div>
-          <SectionHeader>Usuario</SectionHeader>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Plan</p>
-                <p className="text-xs text-slate-500 mt-0.5">Acceso completo</p>
+          {/* Nombre y subtitle */}
+          <h1 style={{
+            margin: '0 0 6px 0',
+            fontSize: '24px',
+            fontWeight: 700,
+            letterSpacing: '-0.5px',
+          }}>
+            Juan Pérez
+          </h1>
+          <p style={{
+            margin: 0,
+            fontSize: '13px',
+            opacity: 0.85,
+            fontWeight: 500,
+          }}>
+            juan@example.com
+          </p>
+
+          {/* Divider sutil */}
+          <div style={{
+            height: '1px',
+            background: 'rgba(255,255,255,0.15)',
+            margin: '20px 0',
+          }} />
+
+          {/* Info resumida */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-around',
+            fontSize: '12px',
+          }}>
+            <div>
+              <div style={{ opacity: 0.7, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>
+                Miembro desde
               </div>
-              <span className="px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">
-                Premium
-              </span>
+              <div style={{ fontWeight: 600 }}>2024</div>
             </div>
-            <button
-              onClick={() => setShowPlansModal(true)}
-              className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-semibold text-slate-800 transition-colors"
-            >
-              Ver planes
-            </button>
-          </Card>
-        </div>
-
-        {/* 2. SEGURIDAD */}
-        <div>
-          <SectionHeader>Seguridad</SectionHeader>
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">PIN de acceso</p>
-                <p className="text-xs text-slate-500 mt-0.5">Protege tu app</p>
+            <div style={{
+              width: '1px',
+              background: 'rgba(255,255,255,0.15)',
+            }} />
+            <div>
+              <div style={{ opacity: 0.7, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>
+                Cuenta
               </div>
-              <button
-                onClick={() => setPinEnabled(!pinEnabled)}
-                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
-                  pinEnabled ? 'bg-teal-500' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                    pinEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {pinEnabled && !showPinInput && (
-              <button
-                onClick={() => setShowPinInput(true)}
-                className="w-full px-3 py-2 text-xs font-semibold text-teal-600 hover:text-teal-700 text-left"
-              >
-                ➜ Configurar PIN
-              </button>
-            )}
-
-            {showPinInput && (
-              <div className="space-y-2">
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="Ingresa un PIN de 4 dígitos"
-                  maxLength={4}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono text-center"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowPinInput(false)}
-                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (pin.length === 4 && /^\d+$/.test(pin)) {
-                        setShowPinInput(false)
-                        setPin('')
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 text-xs font-semibold bg-teal-500 text-white hover:bg-teal-600 rounded-lg transition-colors"
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* 3. DATOS */}
-        <div>
-          <SectionHeader>Datos</SectionHeader>
-          <Card className="p-4 space-y-2">
-            <button
-              onClick={handleExportCSV}
-              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors"
-            >
-              <span className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-lg">📥</span>
-                <span className="text-sm font-semibold text-slate-800">Exportar datos (CSV)</span>
-              </span>
-              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
-            </button>
-
-            <label className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
-              <span className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-lg">📤</span>
-                <span className="text-sm font-semibold text-slate-800">Importar datos (CSV)</span>
-              </span>
-              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-              />
-            </label>
-
-            {importMessage && (
-              <p className={`text-xs font-semibold text-center py-2 rounded ${
-                importMessage.includes('✅') ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'
-              }`}>
-                {importMessage}
-              </p>
-            )}
-
-            <button
-              onClick={() => setConfirmClear(true)}
-              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <span className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-lg">🗑️</span>
-                <span className="text-sm font-semibold text-red-600">Borrar todos los datos</span>
-              </span>
-              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
-            </button>
-
-            {confirmClear && (
-              <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-xs font-semibold text-red-700 mb-2">¿Estás seguro? Esta acción no se puede deshacer.</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmClear(false)}
-                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      onClearData()
-                      setConfirmClear(false)
-                    }}
-                    className="flex-1 px-3 py-2 text-xs font-semibold bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors"
-                  >
-                    Borrar
-                  </button>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* 4. PREFERENCIAS */}
-        <div>
-          <SectionHeader>Preferencias</SectionHeader>
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Tema oscuro</p>
-                <p className="text-xs text-slate-500 mt-0.5">Cambia el aspecto de la app</p>
-              </div>
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
-                  darkMode ? 'bg-slate-700' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                    darkMode ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
-                <p className="text-xs text-slate-500 mt-0.5">Privacidad en tu pantalla</p>
-              </div>
-              <button
-                onClick={() => onTogglePrivacy?.()}
-                className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
-                  isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                    isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          </Card>
-        </div>
-
-        {/* 5. SOPORTE */}
-        <div>
-          <SectionHeader>Soporte</SectionHeader>
-          <Card className="p-4">
-            <button
-              onClick={() => setFeedbackOpen(true)}
-              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 rounded-lg transition-colors"
-            >
-              <span className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-lg">💬</span>
-                <span className="text-sm font-semibold text-slate-800">Enviar feedback</span>
-              </span>
-              <Icon name="chevron" size={14} className="text-slate-300 shrink-0" />
-            </button>
-          </Card>
-        </div>
-
-        {/* 6. DIAGNÓSTICO (solo si algo está mal) */}
-        <div>
-          <SectionHeader>Diagnóstico</SectionHeader>
-          <Card className="p-4 text-xs font-mono bg-slate-50">
-            <DiagnosticInfo />
-          </Card>
-        </div>
-
-        {/* Versión */}
-        <div className="text-center pt-4 pb-8">
-          <p className="text-xs text-slate-400">Tranquilo v1.0.0</p>
-          <p className="text-xs text-slate-400 mt-1">© 2026 Tranquilo</p>
-        </div>
-      </div>
-
-      {/* Plans Modal */}
-      {showPlansModal && (
-        <>
-          {/* Overlay */}
-          <div
-            className="fixed inset-0 bg-black/40 z-50 transition-opacity"
-            onClick={() => setShowPlansModal(false)}
-          />
-          {/* Modal */}
-          <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-8">
-            <div
-              className="bg-white rounded-3xl overflow-hidden max-w-md mx-auto"
-              style={{ boxShadow: '0 20px 60px rgba(0,0,0,.20)' }}
-            >
-              {/* Header with gradient */}
-              <div
-                className="px-6 pt-8 pb-6 text-center relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #0D6259 0%, #0891B2 100%)',
-                }}
-              >
-                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-white/10 pointer-events-none" />
-                <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/10 pointer-events-none" />
-                <div className="relative">
-                  <h3 className="text-2xl font-bold text-white mb-2">Tranquilo Premium</h3>
-                  <p className="text-sm text-white/80">Próximamente</p>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="px-6 py-6 space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg">📊</span>
-                    <span className="text-sm text-slate-700">Insights más avanzados</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg">💡</span>
-                    <span className="text-sm text-slate-700">Recomendaciones inteligentes</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg">💰</span>
-                    <span className="text-sm text-slate-700">Mejor control de ahorro</span>
-                  </div>
-                </div>
-
-                {/* Button */}
-                <button className="w-full px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all active:scale-95 mt-2">
-                  Quiero acceso anticipado
-                </button>
-
-                {/* Close button */}
-                <button
-                  onClick={() => setShowPlansModal(false)}
-                  className="w-full px-4 py-2.5 text-slate-600 font-semibold rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  Cerrar
-                </button>
-              </div>
+              <div style={{ fontWeight: 600 }}>Verificada ✓</div>
             </div>
           </div>
-        </>
-      )}
+        </div>
+
+        {/* SECCIONES - Cards sutiles y profesionales */}
+        <div style={{
+          padding: '30px 20px',
+        }}>
+          {sectionList.map((section, idx) => (
+            <div key={section.key} style={{ marginBottom: '16px' }}>
+              {/* Card Container */}
+              <div
+                onClick={() => setExpandedSection(expandedSection === section.key ? null : section.key)}
+                style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  border: '1px solid #e5e7eb',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.border = '1px solid #0d6259';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 98, 89, 0.08)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.border = '1px solid #e5e7eb';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                {/* Icon */}
+                <div style={{
+                  fontSize: '24px',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(13, 98, 89, 0.08)',
+                  borderRadius: '10px',
+                }}>
+                  {section.icon}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    color: '#0f172a',
+                    marginBottom: '2px',
+                  }}>
+                    {section.title}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                  }}>
+                    {expandedSection === section.key ? 'Haz clic para contraer' : 'Haz clic para expandir'}
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div style={{
+                  fontSize: '16px',
+                  color: '#0d6259',
+                  transition: 'transform 0.2s',
+                  transform: expandedSection === section.key ? 'rotate(90deg)' : 'rotate(0deg)',
+                  fontWeight: 'bold',
+                }}>
+                  ▶
+                </div>
+              </div>
+
+              {/* Expanded Content */}
+              {expandedSection === section.key && (
+                <div style={{
+                  marginTop: '12px',
+                  background: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb',
+                  padding: '20px',
+                  animation: 'fadeIn 0.2s ease',
+                }}>
+                  {section.content.map((item: any, i: number) => (
+                    <div key={i} style={{
+                      marginBottom: i < section.content.length - 1 ? '16px' : 0,
+                      paddingBottom: i < section.content.length - 1 ? '16px' : 0,
+                      borderBottom: i < section.content.length - 1 ? '1px solid #f3f4f6' : 'none',
+                    }}>
+                      <label style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        display: 'block',
+                        marginBottom: '6px',
+                      }}>
+                        {item.label}
+                      </label>
+
+                      {item.type === 'image' ? (
+                        <div style={{
+                          width: '70px',
+                          height: '70px',
+                          background: '#f3f4f6',
+                          borderRadius: '10px',
+                          border: '2px dashed #d1d5db',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          <img src="/logo-ui.png" alt="Avatar" style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
+                        </div>
+                      ) : item.type === 'button' || item.type === 'button-danger' ? (
+                        <button
+                          onClick={item.handler}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: item.type === 'button-danger' ? '#ef4444' : '#0d6259',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '0.9';
+                            e.currentTarget.style.transform = 'scale(1.02)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}>
+                          {item.value}
+                        </button>
+                      ) : item.type === 'toggle' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <input
+                            type="checkbox"
+                            checked={item.toggleState ?? false}
+                            onChange={item.toggleHandler}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              cursor: 'pointer',
+                              accentColor: '#0d6259',
+                            }}
+                          />
+                          <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: 500 }}>
+                            {item.value}
+                          </span>
+                        </div>
+                      ) : item.type === 'select' ? (
+                        <select style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '13px',
+                          background: 'white',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                        }}>
+                          <option>{item.value}</option>
+                        </select>
+                      ) : (
+                        <div style={{ fontSize: '13px', color: '#374151', fontWeight: item.type === 'password' ? 600 : 500 }}>
+                          {item.value}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Special handling for Seguridad section PIN input */}
+                  {section.key === 'seguridad' && pinEnabled && showPinInput && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6' }}>
+                      <label style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        display: 'block',
+                        marginBottom: '6px',
+                      }}>
+                        Configurar PIN
+                      </label>
+                      <input
+                        type="password"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        placeholder="Ingresa 4 dígitos"
+                        maxLength={4}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '13px',
+                          fontFamily: 'monospace',
+                          textAlign: 'center',
+                          marginBottom: '8px',
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => setShowPinInput(false)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #d1d5db',
+                            background: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (pin.length === 4 && /^\d+$/.test(pin)) {
+                              setShowPinInput(false)
+                              setPin('')
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: '#0d6259',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Special handling for Datos section - confirm clear */}
+                  {section.key === 'datos' && confirmClear && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6', background: '#fee2e2', padding: '12px', borderRadius: '8px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#dc2626', marginBottom: '8px' }}>
+                        ¿Estás seguro? Esta acción no se puede deshacer.
+                      </p>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => setConfirmClear(false)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #fecaca',
+                            background: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => {
+                            onClearData()
+                            setConfirmClear(false)
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: '#ef4444',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Borrar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Import message */}
+                  {importMessage && (
+                    <div style={{ marginTop: '8px', padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, textAlign: 'center', background: importMessage.includes('✅') ? '#dcfce7' : '#fee2e2', color: importMessage.includes('✅') ? '#166534' : '#dc2626' }}>
+                      {importMessage}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* FOOTER */}
+        <div style={{
+          padding: '20px',
+          textAlign: 'center',
+        }}>
+          <button style={{
+            width: '100%',
+            maxWidth: '380px',
+            padding: '12px 20px',
+            borderRadius: '10px',
+            border: 'none',
+            background: '#ef4444',
+            color: 'white',
+            fontWeight: 600,
+            fontSize: '14px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            marginBottom: '16px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#dc2626';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#ef4444';
+          }}>
+            Cerrar Sesión
+          </button>
+          <p style={{
+            fontSize: '11px',
+            color: '#9ca3af',
+            margin: '10px 0 0 0',
+          }}>
+            Versión 1.0.0 • © 2026 Tranquilo
+          </p>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* Hidden file input for CSV import */}
+      <input
+        type="file"
+        accept=".csv"
+        onChange={handleImportCSV}
+        data-import-csv
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }
