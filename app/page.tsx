@@ -84,34 +84,6 @@ export default function Home() {
     setScreen('onboarding')
   }, [])
 
-  // ── HELPER: Validación REAL de coherencia financiera ────────────────────
-  const validateFinancialCoherence = (record: any): { valid: boolean; reason?: string } => {
-    const income = record.income ?? 0
-    const savings = record.savings ?? 0
-    const expenses = record.expenses ?? []
-    const pockets = record.pockets ?? []
-
-    // Calcular valores derivados
-    const budget = income - savings
-    const assigned = pockets.reduce((sum: number, p: any) => sum + (p.budget ?? 0), 0)
-    const spent = expenses.reduce((sum: number, e: any) => sum + (e.amount ?? 0), 0)
-
-    // Validar reglas
-    if (income > 0 && savings > income) {
-      return { valid: false, reason: `savings (${savings}) > income (${income})` }
-    }
-    if (assigned > budget) {
-      return { valid: false, reason: `assigned (${assigned}) > budget (${budget})` }
-    }
-    if (spent > budget) {
-      return { valid: false, reason: `spent (${spent}) > budget (${budget})` }
-    }
-
-    // Log de validación exitosa
-    console.log('✓ VALIDACIÓN OK:', { income, savings, budget, assigned, spent })
-    return { valid: true }
-  }
-
   // ── Load from localStorage ─────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -122,30 +94,7 @@ export default function Home() {
         const data = JSON.parse(raw) as StoredData
         const country = (data.countryCode as CountryCode) ?? 'CO'
 
-        // ── VALIDACIÓN COMPLETA: coherencia financiera real ──
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-          // Validar CADA mes
-          for (const [month, record] of Object.entries(data.monthlyHistory)) {
-            const rec = record as any
-            const validation = validateFinancialCoherence(rec)
-
-            if (!validation.valid) {
-              console.warn(`🚨 RESET POR INCONSISTENCIA EN ${month}:`, validation.reason)
-              console.warn('DETALLES:', {
-                income: rec.income ?? 0,
-                savings: rec.savings ?? 0,
-                budget: (rec.income ?? 0) - (rec.savings ?? 0),
-                assigned: (rec.pockets ?? []).reduce((s: number, p: any) => s + (p.budget ?? 0), 0),
-                spent: (rec.expenses ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0),
-              })
-              localStorage.removeItem(STORAGE_KEY)
-              localStorage.removeItem(ONBOARDING_FLAG)
-              setHydrated(true)
-              return
-            }
-          }
-
-          // Datos válidos: cargar monthlyHistory
           const history: Record<string, MonthRecord> = {}
           for (const [month, record] of Object.entries(data.monthlyHistory)) {
             const rec = record as any
@@ -155,6 +104,7 @@ export default function Home() {
               expenses: rec.expenses ?? [],
               extraIncomes: rec.extraIncomes ?? [],
               pockets: rec.pockets ?? DEFAULT_POCKETS,
+              manualBudget: rec.manualBudget,
             }
           }
 
@@ -397,6 +347,7 @@ export default function Home() {
   const expenses = monthData.expenses
   const extraIncomes = monthData.extraIncomes
   const pockets = monthData.pockets
+  const manualBudget = monthData.manualBudget
 
   const spentByPocket = useMemo(() => {
     const acc: Record<string, number> = Object.fromEntries(pockets.map(p => [p.id, 0]))
@@ -423,8 +374,9 @@ export default function Home() {
       monthlyIncome: income,
       monthlySavings: savings,
       currentMonth: activeMonth,
+      manualBudget,
     }),
-    [expenses, extraIncomes, pockets, income, savings, activeMonth],
+    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget],
   )
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
@@ -629,6 +581,17 @@ export default function Home() {
     }))
   }, [activeMonth, getActiveMonthData])
 
+  const handleSetManualBudget = useCallback((newBudget: number) => {
+    const monthData = getActiveMonthData()
+    setMonthlyHistory(prev => ({
+      ...prev,
+      [activeMonth]: {
+        ...monthData,
+        manualBudget: newBudget > 0 ? newBudget : undefined,
+      },
+    }))
+  }, [activeMonth, getActiveMonthData])
+
   const handleTogglePrivacy = useCallback(() => {
     setIsPrivacyMode(prev => !prev)
   }, [])
@@ -723,6 +686,7 @@ export default function Home() {
             onChangeMonth={setActiveMonth}
             onSetIncome={handleSetIncome}
             onSetSavings={handleSetSavings}
+            onSetManualBudget={handleSetManualBudget}
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}

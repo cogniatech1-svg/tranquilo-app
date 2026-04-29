@@ -77,6 +77,7 @@ export interface MonthRecord {
   expenses: Expense[]
   extraIncomes: ExtraIncome[]
   pockets: Pocket[]
+  manualBudget?: number
 }
 
 export interface ParsedTransaction {

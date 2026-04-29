@@ -28,6 +28,7 @@ interface Props {
   isViewingPast: boolean
   onSetIncome: (v: number) => void
   onSetSavings: (v: number) => void
+  onSetManualBudget: (v: number) => void
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
@@ -45,6 +46,7 @@ export function BudgetScreen({
   isViewingPast,
   onSetIncome,
   onSetSavings,
+  onSetManualBudget,
   onEditPocket,
   onDeletePocket,
   onAddPocket,
@@ -64,6 +66,7 @@ export function BudgetScreen({
   const [editingSavings, setEditingSavings] = useState(false)
   const [savingsInput, setSavingsInput] = useState('')
   const [savingsPercentage, setSavingsPercentage] = useState('')
+  const [budgetEditMode, setBudgetEditMode] = useState<'savings' | 'budget'>('savings')
   const [addingPocket, setAddingPocket] = useState(false)
   const [newName, setNewName] = useState('')
   const [newBudget, setNewBudget] = useState('')
@@ -83,19 +86,32 @@ export function BudgetScreen({
   }
 
   const saveSavings = () => {
-    let newSavingsValue = monthlySavings
-    if (savingsInput) {
-      newSavingsValue = parseAmount(savingsInput)
-    } else if (savingsPercentage && totalIncome > 0) {
-      const pct = parseAmount(savingsPercentage)
-      newSavingsValue = Math.round(totalIncome * (pct / 100))
-    }
-    // Ahorro no puede ser negativo ni exceder ingresos
-    if (newSavingsValue >= 0 && newSavingsValue <= totalIncome) {
-      onSetSavings(newSavingsValue)
+    if (budgetEditMode === 'budget' && savingsInput) {
+      const newBudgetValue = parseAmount(savingsInput)
+      if (newBudgetValue > totalIncome) {
+        alert(`❌ El presupuesto no puede exceder tus ingresos.\n\nIngresos totales: ${mm(totalIncome)}\nIntentaste establecer: ${mm(newBudgetValue)}`)
+        return
+      }
+      onSetManualBudget(newBudgetValue)
       setEditingSavings(false)
       setSavingsInput('')
       setSavingsPercentage('')
+      setBudgetEditMode('savings')
+    } else {
+      let newSavingsValue = monthlySavings
+      if (savingsInput) {
+        newSavingsValue = parseAmount(savingsInput)
+      } else if (savingsPercentage && totalIncome > 0) {
+        const pct = parseAmount(savingsPercentage)
+        newSavingsValue = Math.round(totalIncome * (pct / 100))
+      }
+      if (newSavingsValue >= 0 && newSavingsValue <= totalIncome) {
+        onSetSavings(newSavingsValue)
+        setEditingSavings(false)
+        setSavingsInput('')
+        setSavingsPercentage('')
+        setBudgetEditMode('savings')
+      }
     }
   }
 
@@ -260,34 +276,61 @@ export function BudgetScreen({
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
               Editar presupuesto
             </p>
-            <div>
-              <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
-                Monto a gastar
-              </label>
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                placeholder={`ej. ${mm(monthlyBudget)}`}
-                value={savingsInput}
-                onChange={e => setSavingsInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveSavings()}
-                className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
-              />
-              <p className="text-[9px] text-slate-400 mt-2">
-                Máximo: {mm(totalIncome)} | Ahorro resultante: {savingsInput ? mm(Math.max(0, totalIncome - parseAmount(savingsInput))) : mm(monthlySavings)}
-              </p>
-            </div>
-            <div className="flex gap-2.5">
-              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">
-                Guardar
-              </PrimaryButton>
+
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-slate-200">
               <button
-                onClick={() => {
-                  setEditingSavings(false)
-                  setSavingsInput('')
-                  setSavingsPercentage('')
-                }}
+                onClick={() => { setBudgetEditMode('savings'); setSavingsInput('') }}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'savings' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
+              >
+                Editar ahorro
+              </button>
+              <button
+                onClick={() => { setBudgetEditMode('budget'); setSavingsInput('') }}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'budget' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
+              >
+                Editar presupuesto
+              </button>
+            </div>
+
+            {budgetEditMode === 'savings' ? (
+              <div>
+                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">Ahorro mensual</label>
+                <input
+                  autoFocus
+                  type="text" inputMode="numeric"
+                  placeholder={`ej. ${mm(monthlySavings)}`}
+                  value={savingsInput}
+                  onChange={e => setSavingsInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
+                  className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
+                />
+                <p className="text-[9px] text-slate-400 mt-2">
+                  Presupuesto resultante: {savingsInput ? mm(Math.max(0, totalIncome - parseAmount(savingsInput))) : mm(monthlyBudget)}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">Presupuesto a gastar</label>
+                <input
+                  autoFocus
+                  type="text" inputMode="numeric"
+                  placeholder={`ej. ${mm(monthlyBudget)}`}
+                  value={savingsInput}
+                  onChange={e => setSavingsInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
+                  className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
+                />
+                <p className="text-[9px] text-slate-400 mt-2">
+                  Máximo: {mm(totalIncome)}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2.5">
+              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">Guardar</PrimaryButton>
+              <button
+                onClick={() => { setEditingSavings(false); setSavingsInput(''); setSavingsPercentage(''); setBudgetEditMode('savings') }}
                 className="px-4 py-3 text-slate-400 text-sm font-medium"
               >
                 Cancelar

@@ -54,6 +54,7 @@ interface FinancialEngineInput {
   monthlyIncome: number
   monthlySavings: number
   currentMonth: string
+  manualBudget?: number
 }
 
 /**
@@ -70,6 +71,7 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     monthlyIncome,
     monthlySavings,
     currentMonth,
+    manualBudget,
   } = input
 
   // ────────────────────────────────────────────────────────────────
@@ -98,26 +100,15 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const assigned = pockets.reduce((sum, pocket) => sum + pocket.budget, 0)
 
   // ────────────────────────────────────────────────────────────────
-  // 4. SAVINGS: dinero no asignado a bolsillos (es automático)
-  //    = Total Income - lo asignado a pockets
-  //    Si se gasta más del presupuesto, se reduce el ahorro
+  // 4. BUDGET: manualBudget si está definido, si no, suma de bolsillos
   // ────────────────────────────────────────────────────────────────
-  const overspent = Math.max(0, totalExpenses - assigned)
-  const savings = Math.max(0, totalIncome - assigned - overspent)
+  const budget = manualBudget ?? assigned
 
   // ────────────────────────────────────────────────────────────────
-  // 5. BUDGET: presupuesto a gastar = dinero asignado a pockets
-  //    NO es todos los ingresos, solo lo que se planea gastar
+  // 5. SAVINGS: dinero no gastado del presupuesto
   // ────────────────────────────────────────────────────────────────
-  const budget = assigned
-
-  // VALIDACIÓN CRÍTICA: assigned NO DEBE superar budget
-  if (assigned > budget) {
-    console.error('[FINANCIAL ENGINE] 🚨 CRÍTICO: Bolsillos asignados SUPERAN presupuesto')
-    console.error(`  Budget: ${budget}`)
-    console.error(`  Assigned: ${assigned}`)
-    console.error(`  Exceso: ${assigned - budget}`)
-  }
+  const overspent = Math.max(0, totalExpenses - budget)
+  const savings = Math.max(0, totalIncome - budget - overspent)
 
   // ────────────────────────────────────────────────────────────────
   // 6. REMAINING: dinero disponible en el presupuesto
