@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome } from '../lib/types'
 
@@ -47,6 +48,10 @@ export function ProfileScreen({
   const [confirmClear, setConfirmClear] = useState(false)
   const [importMessage, setImportMessage] = useState('')
 
+  // Avatar editor
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false)
+  const [tempAvatarImage, setTempAvatarImage] = useState<string>('')
+
   // Save profile to localStorage
   const saveProfileData = () => {
     localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
@@ -59,21 +64,35 @@ export function ProfileScreen({
     setEditingProfile(false)
   }
 
-  // Handle avatar upload
+  // Handle avatar upload - mostrar editor
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
       reader.onload = (event) => {
         const base64 = event.target?.result as string
-        const newData = { ...profileData, avatarUrl: base64 }
-        localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
-        setProfileData(newData)
+        setTempAvatarImage(base64)
+        setShowAvatarEditor(true)
         // Reset input para permitir seleccionar el mismo archivo nuevamente
         e.target.value = ''
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  // Handle avatar editor save
+  const handleAvatarSave = (croppedImage: string) => {
+    const newData = { ...profileData, avatarUrl: croppedImage }
+    localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
+    setProfileData(newData)
+    setShowAvatarEditor(false)
+    setTempAvatarImage('')
+  }
+
+  // Handle avatar editor cancel
+  const handleAvatarCancel = () => {
+    setShowAvatarEditor(false)
+    setTempAvatarImage('')
   }
 
   // Handle avatar delete
@@ -777,6 +796,15 @@ export function ProfileScreen({
         data-upload-avatar
         style={{ display: 'none' }}
       />
+
+      {/* Avatar Editor Modal */}
+      {showAvatarEditor && tempAvatarImage && (
+        <AvatarEditor
+          imageSrc={tempAvatarImage}
+          onSave={handleAvatarSave}
+          onCancel={handleAvatarCancel}
+        />
+      )}
     </div>
   )
 }
