@@ -296,36 +296,6 @@ export function ProfileScreen({
             {profileData.email}
           </p>
 
-          {/* Divider sutil */}
-          <div style={{
-            height: '1px',
-            background: 'rgba(255,255,255,0.15)',
-            margin: '20px 0',
-          }} />
-
-          {/* Info resumida */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            fontSize: '12px',
-          }}>
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>
-                Miembro desde
-              </div>
-              <div style={{ fontWeight: 600 }}>2024</div>
-            </div>
-            <div style={{
-              width: '1px',
-              background: 'rgba(255,255,255,0.15)',
-            }} />
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>
-                Cuenta
-              </div>
-              <div style={{ fontWeight: 600 }}>Verificada ✓</div>
-            </div>
-          </div>
         </div>
 
         {/* SECCIONES - Cards sutiles y profesionales */}
