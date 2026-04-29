@@ -100,9 +100,10 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const assigned = pockets.reduce((sum, pocket) => sum + pocket.budget, 0)
 
   // ────────────────────────────────────────────────────────────────
-  // 4. BUDGET: manualBudget si está definido, si no, suma de bolsillos
+  // 4. BUDGET: manualBudget si está definido Y > 0, si no, suma de bolsillos
+  //    Si estableces manualBudget en 0, se desactiva y vuelve a bolsillos
   // ────────────────────────────────────────────────────────────────
-  const budget = manualBudget ?? assigned
+  const budget = (manualBudget && manualBudget > 0) ? manualBudget : assigned
 
   // ────────────────────────────────────────────────────────────────
   // 5. SAVINGS: dinero no gastado del presupuesto
