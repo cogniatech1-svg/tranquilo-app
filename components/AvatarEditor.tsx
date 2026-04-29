@@ -11,21 +11,46 @@ interface AvatarEditorProps {
 export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
   const [zoom, setZoom] = useState(1)
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [fitZoom, setFitZoom] = useState(1) // Zoom que encaja la imagen
 
   // Cargar la imagen cuando cambia imageSrc
   useEffect(() => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      drawPreview(img, zoom, offsetX, offsetY)
+      imageRef.current = img
+
+      // Calcular zoom que encaja la imagen completa en el círculo
+      const size = 300
+      let calculatedFitZoom: number
+
+      if (img.width > img.height) {
+        calculatedFitZoom = size / img.width
+      } else {
+        calculatedFitZoom = size / img.height
+      }
+
+      setFitZoom(calculatedFitZoom)
+      setZoom(calculatedFitZoom)
+      setOffsetX(0)
+      setOffsetY(0)
+      drawPreview(img, calculatedFitZoom, 0, 0)
     }
     img.src = imageSrc
-  }, [imageSrc, zoom, offsetX, offsetY])
+  }, [imageSrc])
+
+  // Redibujar cuando cambian zoom u offset
+  useEffect(() => {
+    if (imageRef.current) {
+      drawPreview(imageRef.current, zoom, offsetX, offsetY)
+    }
+  }, [zoom, offsetX, offsetY])
 
   // Dibujar preview circular
   const drawPreview = (img: HTMLImageElement, z: number, ox: number, oy: number) => {
@@ -168,8 +193,8 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
           </label>
           <input
             type="range"
-            min="0.5"
-            max="3"
+            min={Math.max(0.3, fitZoom * 0.5)}
+            max={fitZoom * 3}
             step="0.1"
             value={zoom}
             onChange={handleZoom}
@@ -182,6 +207,9 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
               accentColor: '#0d6259',
             }}
           />
+          <p style={{ fontSize: '11px', color: '#9ca3af', margin: '6px 0 0 0' }}>
+            Arrastra para mover • Usa el slider para zoom
+          </p>
         </div>
 
         {/* Botones */}
