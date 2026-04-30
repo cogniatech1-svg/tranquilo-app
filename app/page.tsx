@@ -277,13 +277,13 @@ export default function Home() {
   // 2. Load from Firestore in background (merge strategy)
   useEffect(() => {
     // Capture userId to maintain type narrowing across async boundary
-    const currentUserId = userId
+    const currentUserId: string | null = userId
 
     const initializeApp = async () => {
       try {
-        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${currentUserId}`
+        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${currentUserId!}`
         const raw           = localStorage.getItem(storageKey)
-        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId}`
+        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // Parsear datos existentes (o partir de objeto vacío)
@@ -302,7 +302,7 @@ export default function Home() {
             data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
             // Escribir a localStorage de inmediato (sin esperar a React state)
             localStorage.setItem(storageKey, JSON.stringify(data))
-            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId}`}`, 'true')
+            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId!}`}`, 'true')
           }
           localStorage.setItem(aprilRestoredKey, 'true')
         }
