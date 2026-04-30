@@ -114,19 +114,25 @@ async function migrateLocalDataToUser(userId: string): Promise<void> {
     }
 
     const parsedData = JSON.parse(localData) as StoredData
-    const userDataRef = doc(getDb(), 'users', userId, 'data', 'main')
 
-    // Save to user's namespace
-    const cleanedData = cleanUndefined(parsedData)
-    await setDoc(userDataRef, cleanedData, { merge: true })
-
-    // Change localStorage key to user-specific key
+    // IMPORTANT: Save to localStorage FIRST (guaranteed to work)
+    // Then save to Firestore (can fail without breaking migration)
     localStorage.setItem(`tranquilo_v1_${userId}`, JSON.stringify(parsedData))
     localStorage.setItem(`${MIGRATION_FLAG}_${userId}`, 'true')
+    console.log('Data migrated to localStorage with userId:', userId)
 
-    console.log('Data migrated to user namespace:', userId)
+    // Then try to sync to Firestore in background (optional)
+    try {
+      const userDataRef = doc(getDb(), 'users', userId, 'data', 'main')
+      const cleanedData = cleanUndefined(parsedData)
+      await setDoc(userDataRef, cleanedData, { merge: true })
+      console.log('Data also synced to Firestore:', userId)
+    } catch (firestoreError) {
+      console.warn('Firestore sync failed but localStorage migration succeeded:', firestoreError)
+      // Data is safe in localStorage, Firestore sync is optional
+    }
   } catch (error) {
-    console.error('Error migrating data:', error)
+    console.error('Error migrating data to localStorage:', error)
     // Don't throw - migration failure shouldn't break signup
   }
 }
