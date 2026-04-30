@@ -276,11 +276,14 @@ export default function Home() {
   // 1. Load localStorage first (offline-first, always available)
   // 2. Load from Firestore in background (merge strategy)
   useEffect(() => {
+    // Capture userId to maintain type narrowing across async boundary
+    const currentUserId = userId
+
     const initializeApp = async () => {
       try {
-        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${userId}`
+        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${currentUserId}`
         const raw           = localStorage.getItem(storageKey)
-        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${userId}`
+        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // Parsear datos existentes (o partir de objeto vacío)
@@ -299,14 +302,14 @@ export default function Home() {
             data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
             // Escribir a localStorage de inmediato (sin esperar a React state)
             localStorage.setItem(storageKey, JSON.stringify(data))
-            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${userId}`}`, 'true')
+            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId}`}`, 'true')
           }
           localStorage.setItem(aprilRestoredKey, 'true')
         }
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
-        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${userId}`}`) === 'true'
+        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId}`}`) === 'true'
         const country      = (data.countryCode as CountryCode) ?? 'CO'
 
         setCountryCode(country)
@@ -344,9 +347,9 @@ export default function Home() {
         // SOLO si NO es guest mode
         // Merge con localStorage si hay datos en Firestore
         // PHASE 2: Pass userId to loadFromFirestore
-        if (!isGuest && userId) {
+        if (!isGuest && currentUserId) {
           try {
-            const firestoreData = await loadFromFirestore(userId)
+            const firestoreData = await loadFromFirestore(currentUserId)
             if (firestoreData && firestoreData.monthlyHistory) {
               console.log('Firestore data loaded and merged with localStorage')
               // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
@@ -363,7 +366,7 @@ export default function Home() {
       setHydrated(true)
     }
 
-    if (userId) {
+    if (currentUserId) {
       initializeApp()
     } else {
       setHydrated(true)
@@ -377,6 +380,10 @@ export default function Home() {
   // PHASE 2: Only save if user is authenticated
   useEffect(() => {
     if (!hydrated || !userId) return
+
+    // Capture userId to ensure type safety in async operations
+    const currentUserId = userId
+
     const activeData = getActiveMonthData()
     const dataToSave: StoredData = {
       // Datos del mes actual (para backward compatibility)
@@ -408,7 +415,7 @@ export default function Home() {
       // - Saves to localStorage first (synchronously)
       // - Then saves to Firestore (async, non-blocking)
       // PHASE 2: Pass userId to saveToFirestore
-      saveToFirestore(userId, dataToSave).catch((error) => {
+      saveToFirestore(currentUserId, dataToSave).catch((error) => {
         console.error('Error in saveToFirestore:', error)
         // Data is safe in localStorage even if Firestore fails
       })
@@ -421,12 +428,14 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated || !userId || isGuest) return
 
+    // Capture userId to ensure type safety in subscription
+    const currentUserId = userId
+
     let unsubscribe: (() => void) | null = null
 
     try {
       // PHASE 2: Pass userId to subscribeToFirestore
-      // userId is guaranteed to be non-null here due to the check above
-      unsubscribe = subscribeToFirestore(userId as string, (firestoreData: StoredData) => {
+      unsubscribe = subscribeToFirestore(currentUserId, (firestoreData: StoredData) => {
         // Firestore data was merged with localStorage in subscribeToFirestore
         // Update React state with the merged data
         if (firestoreData.monthlyHistory) {
