@@ -11,29 +11,38 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-// Debug: Log config values to see what's being used
+// Lazy initialization - only on client side
+let initialized = false
+let app: any = {}
+let db: any = {}
+let auth: any = {}
+
+const initializeFirebase = () => {
+  if (initialized || typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    initialized = true
+    app = initializeApp(firebaseConfig)
+    db = getFirestore(app)
+    auth = getAuth(app)
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Firebase initialized:', {
+        apiKey: firebaseConfig.apiKey ? '***hidden***' : 'MISSING',
+        projectId: firebaseConfig.projectId,
+      })
+    }
+  } catch (error) {
+    console.warn('Firebase initialization error:', error)
+    // Keep dummy objects to prevent runtime errors
+  }
+}
+
+// Initialize immediately if on client side
 if (typeof window !== 'undefined') {
-  console.log('Firebase Config:', {
-    apiKey: firebaseConfig.apiKey ? '***hidden***' : 'MISSING',
-    projectId: firebaseConfig.projectId,
-  })
+  initializeFirebase()
 }
 
-// Initialize Firebase
-let app: any
-let db: any
-let auth: any
-
-try {
-  app = initializeApp(firebaseConfig)
-  db = getFirestore(app)
-  auth = getAuth(app)
-} catch (error) {
-  console.warn('Firebase initialization error:', error)
-  // If initialization fails, create dummy objects to prevent runtime errors
-  app = {}
-  db = {}
-  auth = {}
-}
-
-export { app, db, auth }
+export { app, db, auth, initializeFirebase }
