@@ -121,11 +121,27 @@ export function LoginScreen({ onLoginSuccess, onGuestMode }: LoginScreenProps) {
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div
             style={{
-              fontSize: '48px',
-              marginBottom: '16px',
+              width: '80px',
+              height: '80px',
+              borderRadius: '24px',
+              background: 'linear-gradient(135deg, #0d6259 0%, #0891b2 100%)',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              overflow: 'hidden',
             }}
           >
-            💰
+            <img
+              src="/logo-ui.png"
+              alt="Tranquilo"
+              style={{
+                width: '60px',
+                height: '60px',
+                objectFit: 'contain',
+              }}
+            />
           </div>
           <h1
             style={{
