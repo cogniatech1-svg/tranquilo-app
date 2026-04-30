@@ -344,7 +344,7 @@ export default function Home() {
         // SOLO si NO es guest mode
         // Merge con localStorage si hay datos en Firestore
         // PHASE 2: Pass userId to loadFromFirestore
-        if (!isGuest) {
+        if (!isGuest && userId) {
           try {
             const firestoreData = await loadFromFirestore(userId)
             if (firestoreData && firestoreData.monthlyHistory) {
@@ -425,7 +425,8 @@ export default function Home() {
 
     try {
       // PHASE 2: Pass userId to subscribeToFirestore
-      unsubscribe = subscribeToFirestore(userId, (firestoreData: StoredData) => {
+      // userId is guaranteed to be non-null here due to the check above
+      unsubscribe = subscribeToFirestore(userId as string, (firestoreData: StoredData) => {
         // Firestore data was merged with localStorage in subscribeToFirestore
         // Update React state with the merged data
         if (firestoreData.monthlyHistory) {
