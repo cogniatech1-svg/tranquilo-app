@@ -24,6 +24,7 @@ import {
   parseAmount,
   getDefaultMonthRecord,
 } from '../lib/utils'
+import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -233,101 +234,173 @@ export default function Home() {
     setScreen('onboarding')
   }, [])
 
-  // ── Load from localStorage ─────────────────────────────────────────────────
+  // ── Load from localStorage + Firestore ────────────────────────────────────
   // IMPORTANTE: la restauración de abril 2026 ocurre AQUÍ, de forma síncrona,
   // escribiendo directo a localStorage ANTES de actualizar el estado React.
   // Así no hay condiciones de carrera entre useEffects separados.
+  //
+  // FIREBASE DUAL STORAGE:
+  // 1. Load localStorage first (offline-first, always available)
+  // 2. Load from Firestore in background (merge strategy)
   useEffect(() => {
-    try {
-      const raw           = localStorage.getItem(STORAGE_KEY)
-      const aprilRestored = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
+    const initializeApp = async () => {
+      try {
+        const raw           = localStorage.getItem(STORAGE_KEY)
+        const aprilRestored = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
 
-      // Parsear datos existentes (o partir de objeto vacío)
-      let data: StoredData = {}
-      if (raw) {
-        try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
-      }
-
-      // ── RESTAURACIÓN INMEDIATA DE ABRIL 2026 ──────────────────────────────
-      // Se ejecuta en la misma pasada del efecto, antes de cargar el estado.
-      // Así garantizamos que el histórico siempre tiene los 122 gastos.
-      if (!aprilRestored) {
-        const aprilExpenses = data.monthlyHistory?.['2026-04']?.expenses?.length ?? 0
-        if (aprilExpenses === 0) {
-          if (!data.monthlyHistory) data.monthlyHistory = {}
-          data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
-          // Escribir a localStorage de inmediato (sin esperar a React state)
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-          localStorage.setItem(ONBOARDING_FLAG, 'true')
+        // Parsear datos existentes (o partir de objeto vacío)
+        let data: StoredData = {}
+        if (raw) {
+          try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
         }
-        localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
-      }
 
-      // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
-      // Re-leer la bandera DESPUÉS de posible restauración
-      const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
-      const country      = (data.countryCode as CountryCode) ?? 'CO'
-
-      setCountryCode(country)
-      setConceptMap(data.conceptMap ?? {})
-      setLearnedCategoryMap(data.learnedCategoryMap ?? {})
-      if (data.isPrivacyMode) setIsPrivacyMode(true)
-
-      if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
-        const history: Record<string, MonthRecord> = {}
-        for (const [month, record] of Object.entries(data.monthlyHistory)) {
-          const rec = record as any
-          history[month] = {
-            income:       rec.income       ?? 0,
-            savings:      rec.savings      ?? 0,
-            expenses:     rec.expenses     ?? [],
-            extraIncomes: rec.extraIncomes ?? [],
-            pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-            manualBudget: rec.manualBudget,
+        // ── RESTAURACIÓN INMEDIATA DE ABRIL 2026 ──────────────────────────────
+        // Se ejecuta en la misma pasada del efecto, antes de cargar el estado.
+        // Así garantizamos que el histórico siempre tiene los 122 gastos.
+        if (!aprilRestored) {
+          const aprilExpenses = data.monthlyHistory?.['2026-04']?.expenses?.length ?? 0
+          if (aprilExpenses === 0) {
+            if (!data.monthlyHistory) data.monthlyHistory = {}
+            data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
+            // Escribir a localStorage de inmediato (sin esperar a React state)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+            localStorage.setItem(ONBOARDING_FLAG, 'true')
           }
-        }
-        setMonthlyHistory(history)
-
-        // Si acabamos de restaurar abril → ir directo a ese mes
-        if (!aprilRestored && history['2026-04']) {
-          setActiveMonth('2026-04')
-          setCurrentMonth('2026-04')
+          localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
         }
 
-        if (hasOnboarded) setScreen('main')
-      } else {
-        if (hasOnboarded) setScreen('main')
+        // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
+        // Re-leer la bandera DESPUÉS de posible restauración
+        const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+        const country      = (data.countryCode as CountryCode) ?? 'CO'
+
+        setCountryCode(country)
+        setConceptMap(data.conceptMap ?? {})
+        setLearnedCategoryMap(data.learnedCategoryMap ?? {})
+        if (data.isPrivacyMode) setIsPrivacyMode(true)
+
+        if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
+          const history: Record<string, MonthRecord> = {}
+          for (const [month, record] of Object.entries(data.monthlyHistory)) {
+            const rec = record as any
+            history[month] = {
+              income:       rec.income       ?? 0,
+              savings:      rec.savings      ?? 0,
+              expenses:     rec.expenses     ?? [],
+              extraIncomes: rec.extraIncomes ?? [],
+              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+              manualBudget: rec.manualBudget,
+            }
+          }
+          setMonthlyHistory(history)
+
+          // Si acabamos de restaurar abril → ir directo a ese mes
+          if (!aprilRestored && history['2026-04']) {
+            setActiveMonth('2026-04')
+            setCurrentMonth('2026-04')
+          }
+
+          if (hasOnboarded) setScreen('main')
+        } else {
+          if (hasOnboarded) setScreen('main')
+        }
+
+        // ── CARGAR DE FIRESTORE EN BACKGROUND (sin bloquear UI) ────────────────
+        // Merge con localStorage si hay datos en Firestore
+        try {
+          const firestoreData = await loadFromFirestore()
+          if (firestoreData && firestoreData.monthlyHistory) {
+            console.log('Firestore data loaded and merged with localStorage')
+            // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
+            // Aquí solo notificamos que ocurrió la sincronización
+          }
+        } catch (error) {
+          console.warn('Could not load from Firestore (offline?), continuing with localStorage:', error)
+          // Esto es OK - localStorage es el fallback
+        }
+      } catch {
+        // ignorar JSON malformado
       }
-    } catch {
-      // ignorar JSON malformado
+      setHydrated(true)
     }
-    setHydrated(true)
+
+    initializeApp()
   }, [])
 
-  // ── Persist to localStorage ────────────────────────────────────────────────
+  // ── Persist to localStorage + Firestore ───────────────────────────────────
+  // FIREBASE DUAL STORAGE:
+  // 1. Save to localStorage IMMEDIATELY (synchronous, always works)
+  // 2. Save to Firestore in background (async, non-blocking)
   useEffect(() => {
     if (!hydrated) return
     const activeData = getActiveMonthData()
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        // Datos del mes actual (para backward compatibility)
-        monthlyIncome: activeData.income,
-        monthlySavings: activeData.savings,
-        expenses: activeData.expenses,
-        extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
-        // ÚNICA FUENTE DE VERDAD
-        monthlyHistory,
-        // Metadatos
-        conceptMap,
-        learnedCategoryMap,
-        currentMonth,
-        countryCode,
-        isPrivacyMode,
-      }),
-    )
+    const dataToSave: StoredData = {
+      // Datos del mes actual (para backward compatibility)
+      monthlyIncome: activeData.income,
+      monthlySavings: activeData.savings,
+      expenses: activeData.expenses,
+      extraIncomes: activeData.extraIncomes,
+      pockets: activeData.pockets,
+      // ÚNICA FUENTE DE VERDAD
+      monthlyHistory,
+      // Metadatos
+      conceptMap,
+      learnedCategoryMap,
+      currentMonth,
+      countryCode,
+      isPrivacyMode,
+    }
+
+    // saveToFirestore handles both localStorage and Firestore:
+    // - Saves to localStorage first (synchronously)
+    // - Then saves to Firestore (async, non-blocking)
+    saveToFirestore(dataToSave).catch((error) => {
+      console.error('Error in saveToFirestore:', error)
+      // Data is safe in localStorage even if Firestore fails
+    })
   }, [hydrated, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
+
+  // ── Real-time sync from Firestore ──────────────────────────────────────────
+  // Subscribe to Firestore updates and merge with local state
+  useEffect(() => {
+    if (!hydrated) return
+
+    let unsubscribe: (() => void) | null = null
+
+    try {
+      unsubscribe = subscribeToFirestore((firestoreData: StoredData) => {
+        // Firestore data was merged with localStorage in subscribeToFirestore
+        // Update React state with the merged data
+        if (firestoreData.monthlyHistory) {
+          const history: Record<string, MonthRecord> = {}
+          for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
+            const rec = record as any
+            history[month] = {
+              income:       rec.income       ?? 0,
+              savings:      rec.savings      ?? 0,
+              expenses:     rec.expenses     ?? [],
+              extraIncomes: rec.extraIncomes ?? [],
+              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+              manualBudget: rec.manualBudget,
+            }
+          }
+          setMonthlyHistory(history)
+        }
+        if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
+        if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
+        if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
+        if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
+        if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
+      })
+    } catch (error) {
+      console.warn('Could not subscribe to Firestore (offline?):', error)
+      // This is OK - app continues to work with localStorage
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [hydrated])
 
 
   // ── Derived state ─────────────────────────────────────────────────────────
