@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tranquilo - Opción 3 Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Header Verde */
+    .header {
+      background: linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%);
+      padding: 30px 20px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -5%;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(103,232,249,.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Avatar + Nombre */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      border: 3px solid rgba(255,255,255,0.3);
+    }
+
+    .profile-info h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .profile-info p {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    /* Nivel/Logro */
+    .achievement {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Estado/Health Indicator */
+    .health-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.1);
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(5px);
+    }
+
+    .health-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .health-dot.green {
+      background: #10B981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    .health-dot.yellow {
+      background: #F59E0B;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+
+    .health-dot.red {
+      background: #EF4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .health-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Resumen Financiero */
+    .financial-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .summary-item {
+      background: rgba(255,255,255,0.12);
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .summary-item .label {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .summary-item .value {
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Mes/Año */
+    .month-year {
+      text-align: center;
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 15px;
+    }
+
+    /* Content */
+    .content {
+      padding: 30px 20px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+      opacity: 0.6;
+      border-left: 3px solid #0d6259;
+      padding-left: 12px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-text {
+      font-size: 13px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER MEJORADO -->
+    <div class="header">
+      <div class="header-content">
+        <!-- Avatar + Nombre -->
+        <div class="profile-header">
+          <div class="avatar">👤</div>
+          <div class="profile-info">
+            <h2>Tu nombre aquí</h2>
+            <p>Tranquilo Premium</p>
+          </div>
+        </div>
+
+        <!-- Logro/Nivel -->
+        <div class="achievement">
+          ⭐ Experto en Finanzas
+        </div>
+
+        <!-- Indicador de Salud -->
+        <div class="health-indicator">
+          <div class="health-dot green"></div>
+          <div class="health-text">Tu salud financiera es excelente</div>
+        </div>
+
+        <!-- Resumen Rápido -->
+        <div class="financial-summary">
+          <div class="summary-item">
+            <div class="label">Gastado</div>
+            <div class="value">$8.5M</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Presupuesto</div>
+            <div class="value">$10M</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Disponible</div>
+            <div class="value">$1.5M</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Ahorro</div>
+            <div class="value">25%</div>
+          </div>
+        </div>
+
+        <!-- Mes y Año -->
+        <div class="month-year">
+          Abril de 2026
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <div class="section-title">Usuario</div>
+
+      <div class="card">
+        <div class="card-title">📊 Perfil</div>
+        <div class="card-text">Acceso completo • Premium</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 Objetivo de ahorro</div>
+        <div class="card-text">Vas en camino a alcanzar tu meta mensual</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📈 Tendencia</div>
+        <div class="card-text">Tu gasto esta semana fue menor al promedio</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

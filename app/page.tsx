@@ -12,6 +12,7 @@ import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { InsightsScreen }      from '../screens/InsightsScreen'
 import { ProfileScreen }       from '../screens/ProfileScreen'
 import { OnboardingScreen }    from '../screens/OnboardingScreen'
+import { LoginScreen }         from '../screens/LoginScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
@@ -25,6 +26,7 @@ import {
   getDefaultMonthRecord,
 } from '../lib/utils'
 import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
+import { subscribeToAuthState, logOut as firebaseLogOut } from '../lib/auth'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -192,7 +194,9 @@ const DEFAULT_POCKETS: Pocket[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const [hydrated,      setHydrated]      = useState(false)
-  const [screen,        setScreen]        = useState<'onboarding' | 'main'>('onboarding')
+  const [userId,        setUserId]        = useState<string | null>(null)
+  const [authLoading,   setAuthLoading]   = useState(true)
+  const [screen,        setScreen]        = useState<'login' | 'onboarding' | 'main'>('login')
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
@@ -215,6 +219,32 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
+  // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
+  // Subscribe to Firebase auth state changes
+  // This runs once on mount and keeps track of the current user
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState((user) => {
+      if (user) {
+        setUserId(user.uid)
+        setAuthLoading(false)
+        // User is authenticated - check if they've completed onboarding
+        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+        if (hasOnboarded) {
+          setScreen('main')
+        } else {
+          setScreen('onboarding')
+        }
+      } else {
+        // User is not authenticated
+        setUserId(null)
+        setAuthLoading(false)
+        setScreen('login')
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   // ── HELPER: Obtener datos del mes activo (SIEMPRE usa este helper) ──────────
   const getActiveMonthData = useCallback(() => {
     return monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
@@ -222,9 +252,11 @@ export default function Home() {
 
   // ── RESET: Limpiar datos corruptos y forzar onboarding ────────────────────
   const resetData = useCallback(() => {
+    if (!userId) return
     console.warn('Data reset due to inconsistent financial state')
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(ONBOARDING_FLAG)
+    const userStorageKey = `${STORAGE_KEY}_${userId}`
+    localStorage.removeItem(userStorageKey)
+    localStorage.removeItem(`${ONBOARDING_FLAG}_${userId}`)
     setMonthlyHistory({})
     setConceptMap({})
     setLearnedCategoryMap({})
@@ -232,7 +264,7 @@ export default function Home() {
     setActiveMonth(getCurrentMonth())
     setCurrentMonth(getCurrentMonth())
     setScreen('onboarding')
-  }, [])
+  }, [userId])
 
   // ── Load from localStorage + Firestore ────────────────────────────────────
   // IMPORTANTE: la restauración de abril 2026 ocurre AQUÍ, de forma síncrona,
@@ -245,8 +277,10 @@ export default function Home() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const raw           = localStorage.getItem(STORAGE_KEY)
-        const aprilRestored = localStorage.getItem(APRIL_RESTORED_FLAG) === 'true'
+        const userStorageKey = `${STORAGE_KEY}_${userId}`
+        const raw           = localStorage.getItem(userStorageKey)
+        const aprilRestoredKey = `${APRIL_RESTORED_FLAG}_${userId}`
+        const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // Parsear datos existentes (o partir de objeto vacío)
         let data: StoredData = {}
@@ -263,15 +297,15 @@ export default function Home() {
             if (!data.monthlyHistory) data.monthlyHistory = {}
             data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
             // Escribir a localStorage de inmediato (sin esperar a React state)
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-            localStorage.setItem(ONBOARDING_FLAG, 'true')
+            localStorage.setItem(userStorageKey, JSON.stringify(data))
+            localStorage.setItem(`${ONBOARDING_FLAG}_${userId}`, 'true')
           }
-          localStorage.setItem(APRIL_RESTORED_FLAG, 'true')
+          localStorage.setItem(aprilRestoredKey, 'true')
         }
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
-        const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${userId}`) === 'true'
         const country      = (data.countryCode as CountryCode) ?? 'CO'
 
         setCountryCode(country)
@@ -307,8 +341,9 @@ export default function Home() {
 
         // ── CARGAR DE FIRESTORE EN BACKGROUND (sin bloquear UI) ────────────────
         // Merge con localStorage si hay datos en Firestore
+        // PHASE 2: Pass userId to loadFromFirestore
         try {
-          const firestoreData = await loadFromFirestore()
+          const firestoreData = await loadFromFirestore(userId)
           if (firestoreData && firestoreData.monthlyHistory) {
             console.log('Firestore data loaded and merged with localStorage')
             // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
@@ -324,15 +359,20 @@ export default function Home() {
       setHydrated(true)
     }
 
-    initializeApp()
-  }, [])
+    if (userId) {
+      initializeApp()
+    } else {
+      setHydrated(true)
+    }
+  }, [userId])
 
   // ── Persist to localStorage + Firestore ───────────────────────────────────
   // FIREBASE DUAL STORAGE:
   // 1. Save to localStorage IMMEDIATELY (synchronous, always works)
   // 2. Save to Firestore in background (async, non-blocking)
+  // PHASE 2: Only save if user is authenticated
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated || !userId) return
     const activeData = getActiveMonthData()
     const dataToSave: StoredData = {
       // Datos del mes actual (para backward compatibility)
@@ -354,21 +394,24 @@ export default function Home() {
     // saveToFirestore handles both localStorage and Firestore:
     // - Saves to localStorage first (synchronously)
     // - Then saves to Firestore (async, non-blocking)
-    saveToFirestore(dataToSave).catch((error) => {
+    // PHASE 2: Pass userId to saveToFirestore
+    saveToFirestore(userId, dataToSave).catch((error) => {
       console.error('Error in saveToFirestore:', error)
       // Data is safe in localStorage even if Firestore fails
     })
-  }, [hydrated, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
+  }, [hydrated, userId, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
   // ── Real-time sync from Firestore ──────────────────────────────────────────
   // Subscribe to Firestore updates and merge with local state
+  // PHASE 2: Only subscribe if user is authenticated
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated || !userId) return
 
     let unsubscribe: (() => void) | null = null
 
     try {
-      unsubscribe = subscribeToFirestore((firestoreData: StoredData) => {
+      // PHASE 2: Pass userId to subscribeToFirestore
+      unsubscribe = subscribeToFirestore(userId, (firestoreData: StoredData) => {
         // Firestore data was merged with localStorage in subscribeToFirestore
         // Update React state with the merged data
         if (firestoreData.monthlyHistory) {
@@ -400,7 +443,7 @@ export default function Home() {
     return () => {
       if (unsubscribe) unsubscribe()
     }
-  }, [hydrated])
+  }, [hydrated, userId])
 
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -609,8 +652,10 @@ export default function Home() {
   }, [activeMonth, getActiveMonthData])
 
   const handleClearData = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(ONBOARDING_FLAG)
+    if (!userId) return
+    const userStorageKey = `${STORAGE_KEY}_${userId}`
+    localStorage.removeItem(userStorageKey)
+    localStorage.removeItem(`${ONBOARDING_FLAG}_${userId}`)
     setConceptMap({})
     setLearnedCategoryMap({})
     const thisMonth = getCurrentMonth()
@@ -620,7 +665,7 @@ export default function Home() {
       [thisMonth]: getDefaultMonthRecord(),
     })
     setScreen('onboarding')
-  }, [])
+  }, [userId])
 
   const handleChangeCountry = useCallback((code: CountryCode) => {
     setCountryCode(code)
@@ -663,9 +708,20 @@ export default function Home() {
     setIsPrivacyMode(prev => !prev)
   }, [])
 
+  const handleLogOut = useCallback(async () => {
+    try {
+      await firebaseLogOut()
+      // Auth state listener will handle clearing state and showing login screen
+    } catch (error) {
+      console.error('Error logging out:', error)
+      alert('Error logging out. Please try again.')
+    }
+  }, [])
+
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number) => {
-    // Mark onboarding as complete
-    localStorage.setItem(ONBOARDING_FLAG, 'true')
+    if (!userId) return
+    // Mark onboarding as complete for this user
+    localStorage.setItem(`${ONBOARDING_FLAG}_${userId}`, 'true')
 
     setCountryCode(code)
 
@@ -691,7 +747,18 @@ export default function Home() {
     })
 
     setScreen('main')
-  }, [])
+  }, [userId])
+
+  // ── Show login screen if not authenticated ────────────────────────────────
+  if (screen === 'login') {
+    return (
+      <LoginScreen
+        onLoginSuccess={() => {
+          // Auth state listener will handle setting screen to 'onboarding' or 'main'
+        }}
+      />
+    )
+  }
 
   // ── Wait for hydration ─────────────────────────────────────────────────────
   if (!hydrated) return (
@@ -995,6 +1062,8 @@ export default function Home() {
             onClearData={handleClearData}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
+            userEmail={userId ? 'User' : 'Guest'}
+            onLogOut={handleLogOut}
           />
         )}
       </div>

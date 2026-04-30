@@ -8,9 +8,14 @@ import {
 import { db } from './firebase'
 import { StoredData } from './types'
 
-const STORAGE_KEY = 'tranquilo_v1'
-const FIRESTORE_COLLECTION = 'shared_data'
-const FIRESTORE_DOC_ID = 'main' // Single document for Phase 1, will be per-user after Phase 2 auth
+const STORAGE_KEY_BASE = 'tranquilo_v1'
+
+/**
+ * Get user-specific localStorage key
+ */
+function getStorageKey(userId: string): string {
+  return `${STORAGE_KEY_BASE}_${userId}`
+}
 
 /**
  * Merge strategy: Keep all data from both sources WITHOUT duplicates
@@ -107,16 +112,18 @@ function cleanUndefined(obj: any): any {
 /**
  * Save data to Firestore with error handling
  * Saves to localStorage FIRST (synchronously), then Firestore (async)
+ * PHASE 2: Data is scoped per userId at /users/{userId}/data/main
  */
-export async function saveToFirestore(data: StoredData): Promise<void> {
+export async function saveToFirestore(userId: string, data: StoredData): Promise<void> {
   try {
-    // Always save to localStorage first (immediate)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    // Always save to localStorage first (immediate) - scoped to user
+    const storageKey = getStorageKey(userId)
+    localStorage.setItem(storageKey, JSON.stringify(data))
 
     // Then save to Firestore (background, non-blocking)
     // Remove undefined values first (Firestore doesn't accept them)
     const cleanedData = cleanUndefined(data)
-    const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID)
+    const docRef = doc(db, 'users', userId, 'data', 'main')
     await setDoc(docRef, cleanedData, { merge: true })
   } catch (error) {
     console.error('Error saving to Firestore:', error)
@@ -128,15 +135,17 @@ export async function saveToFirestore(data: StoredData): Promise<void> {
  * Load data from Firestore with fallback to localStorage
  * Returns localStorage immediately, updates from Firestore in background
  * Has a 3-second timeout to avoid blocking the app
+ * PHASE 2: Data is scoped per userId at /users/{userId}/data/main
  */
-export async function loadFromFirestore(): Promise<StoredData | null> {
+export async function loadFromFirestore(userId: string): Promise<StoredData | null> {
   try {
-    // Load from localStorage first (always available)
-    const localData = localStorage.getItem(STORAGE_KEY)
+    // Load from localStorage first (always available) - scoped to user
+    const storageKey = getStorageKey(userId)
+    const localData = localStorage.getItem(storageKey)
     const localParsed = localData ? JSON.parse(localData) : null
 
     // Try to load from Firestore in background with timeout
-    const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID)
+    const docRef = doc(db, 'users', userId, 'data', 'main')
 
     // Create a promise with timeout
     const firestorePromise = getDoc(docRef)
@@ -168,7 +177,8 @@ export async function loadFromFirestore(): Promise<StoredData | null> {
   } catch (error) {
     console.error('Error loading from Firestore, using localStorage:', error)
     // Fall back to localStorage
-    const localData = localStorage.getItem(STORAGE_KEY)
+    const storageKey = getStorageKey(userId)
+    const localData = localStorage.getItem(storageKey)
     return localData ? JSON.parse(localData) : null
   }
 }
@@ -177,19 +187,22 @@ export async function loadFromFirestore(): Promise<StoredData | null> {
  * Subscribe to real-time updates from Firestore
  * Merges cloud data with local on every update
  * Returns unsubscribe function
+ * PHASE 2: Data is scoped per userId at /users/{userId}/data/main
  */
 export function subscribeToFirestore(
+  userId: string,
   onUpdate: (data: StoredData) => void
 ): Unsubscribe {
   try {
-    const docRef = doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID)
+    const docRef = doc(db, 'users', userId, 'data', 'main')
 
     return onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const cloudData = snapshot.data() as StoredData
 
         // Get current local data
-        const localData = localStorage.getItem(STORAGE_KEY)
+        const storageKey = getStorageKey(userId)
+        const localData = localStorage.getItem(storageKey)
         const localParsed = localData ? JSON.parse(localData) : null
 
         // Merge and call update callback
@@ -198,7 +211,7 @@ export function subscribeToFirestore(
           : cloudData
 
         // Update localStorage with merged data
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedData))
+        localStorage.setItem(storageKey, JSON.stringify(mergedData))
 
         // Notify app of update
         onUpdate(mergedData)

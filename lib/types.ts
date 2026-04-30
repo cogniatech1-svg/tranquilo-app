@@ -102,3 +102,14 @@ export interface StoredData {
   countryCode?: CountryCode
   isPrivacyMode?: boolean
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 2: AUTHENTICATION TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  uid: string
+  email: string | null
+}
+
+export type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error'

@@ -10,6 +10,8 @@ interface Props {
   onClearData: () => void
   isPrivacyMode?: boolean
   onTogglePrivacy?: () => void
+  userEmail?: string
+  onLogOut?: () => Promise<void>
 }
 
 export function ProfileScreen({
@@ -17,6 +19,8 @@ export function ProfileScreen({
   onClearData,
   isPrivacyMode = false,
   onTogglePrivacy,
+  userEmail = 'User',
+  onLogOut,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -734,7 +738,13 @@ export function ProfileScreen({
           padding: '20px',
           textAlign: 'center',
         }}>
-          <button style={{
+          <button
+            onClick={async () => {
+              if (onLogOut) {
+                await onLogOut()
+              }
+            }}
+            style={{
             width: '100%',
             maxWidth: '380px',
             padding: '12px 20px',
