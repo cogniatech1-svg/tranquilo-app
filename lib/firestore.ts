@@ -5,7 +5,7 @@ import {
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore'
-import { db } from './firebase'
+import { getDb } from './firebase'
 import { StoredData } from './types'
 
 const STORAGE_KEY_BASE = 'tranquilo_v1'
@@ -123,7 +123,7 @@ export async function saveToFirestore(userId: string, data: StoredData): Promise
     // Then save to Firestore (background, non-blocking)
     // Remove undefined values first (Firestore doesn't accept them)
     const cleanedData = cleanUndefined(data)
-    const docRef = doc(db, 'users', userId, 'data', 'main')
+    const docRef = doc(getDb(), 'users', userId, 'data', 'main')
     await setDoc(docRef, cleanedData, { merge: true })
   } catch (error) {
     console.error('Error saving to Firestore:', error)
@@ -145,7 +145,7 @@ export async function loadFromFirestore(userId: string): Promise<StoredData | nu
     const localParsed = localData ? JSON.parse(localData) : null
 
     // Try to load from Firestore in background with timeout
-    const docRef = doc(db, 'users', userId, 'data', 'main')
+    const docRef = doc(getDb(), 'users', userId, 'data', 'main')
 
     // Create a promise with timeout
     const firestorePromise = getDoc(docRef)
@@ -194,7 +194,7 @@ export function subscribeToFirestore(
   onUpdate: (data: StoredData) => void
 ): Unsubscribe {
   try {
-    const docRef = doc(db, 'users', userId, 'data', 'main')
+    const docRef = doc(getDb(), 'users', userId, 'data', 'main')
 
     return onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {

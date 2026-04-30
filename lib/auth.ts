@@ -7,7 +7,7 @@ import {
   Unsubscribe,
 } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
-import { auth, db } from './firebase'
+import { getAuth_, getDb } from './firebase'
 import { StoredData } from './types'
 
 const STORAGE_KEY = 'tranquilo_v1'
@@ -20,7 +20,7 @@ const MIGRATION_FLAG = 'migration_completed'
 export async function signUp(email: string, password: string): Promise<FirebaseUser> {
   try {
     // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    const userCredential = await createUserWithEmailAndPassword(getAuth_(), email, password)
     const user = userCredential.user
     const userId = user.uid
 
@@ -28,7 +28,7 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
     await migrateLocalDataToUser(userId)
 
     // Create user document in Firestore
-    const userDocRef = doc(db, 'users', userId, 'data', 'main')
+    const userDocRef = doc(getDb(), 'users', userId, 'data', 'main')
     const localData = localStorage.getItem(STORAGE_KEY)
     const dataToMigrate: StoredData = localData ? JSON.parse(localData) : {}
 
@@ -53,7 +53,7 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
  */
 export async function logIn(email: string, password: string): Promise<FirebaseUser> {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password)
+    const userCredential = await signInWithEmailAndPassword(getAuth_(), email, password)
     console.log('User logged in:', userCredential.user.uid)
     return userCredential.user
   } catch (error) {
@@ -68,10 +68,10 @@ export async function logIn(email: string, password: string): Promise<FirebaseUs
  */
 export async function logOut(): Promise<void> {
   try {
-    await signOut(auth)
+    await signOut(getAuth_())
     // Clear user data from localStorage but keep config
     localStorage.removeItem(STORAGE_KEY)
-    const userId = auth.currentUser?.uid
+    const userId = getAuth_().currentUser?.uid
     if (userId) {
       localStorage.removeItem(`tranquilo_v1_${userId}`)
       localStorage.removeItem(`${MIGRATION_FLAG}_${userId}`)
@@ -90,7 +90,7 @@ export async function logOut(): Promise<void> {
 export function subscribeToAuthState(
   callback: (user: FirebaseUser | null) => void
 ): Unsubscribe {
-  return onAuthStateChanged(auth, callback)
+  return onAuthStateChanged(getAuth_(), callback)
 }
 
 /**
@@ -98,7 +98,7 @@ export function subscribeToAuthState(
  * Returns null if not logged in
  */
 export function getCurrentUser(): FirebaseUser | null {
-  return auth.currentUser
+  return getAuth_().currentUser
 }
 
 /**
@@ -114,7 +114,7 @@ async function migrateLocalDataToUser(userId: string): Promise<void> {
     }
 
     const parsedData = JSON.parse(localData) as StoredData
-    const userDataRef = doc(db, 'users', userId, 'data', 'main')
+    const userDataRef = doc(getDb(), 'users', userId, 'data', 'main')
 
     // Save to user's namespace
     const cleanedData = cleanUndefined(parsedData)

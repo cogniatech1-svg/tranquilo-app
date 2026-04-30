@@ -11,38 +11,60 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-// Lazy initialization - only on client side
+// Singleton pattern - only initialize once on client side
+let firebaseApp: any = null
+let firebaseDb: any = null
+let firebaseAuth: any = null
 let initialized = false
-let app: any = {}
-let db: any = {}
-let auth: any = {}
 
-const initializeFirebase = () => {
-  if (initialized || typeof window === 'undefined') {
+function ensureFirebaseInitialized() {
+  // Only run on client side
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  // Only initialize once
+  if (initialized) {
     return
   }
 
   try {
     initialized = true
-    app = initializeApp(firebaseConfig)
-    db = getFirestore(app)
-    auth = getAuth(app)
+    firebaseApp = initializeApp(firebaseConfig)
+    firebaseDb = getFirestore(firebaseApp)
+    firebaseAuth = getAuth(firebaseApp)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('Firebase initialized:', {
-        apiKey: firebaseConfig.apiKey ? '***hidden***' : 'MISSING',
-        projectId: firebaseConfig.projectId,
-      })
+      console.log('Firebase initialized successfully')
     }
   } catch (error) {
     console.warn('Firebase initialization error:', error)
-    // Keep dummy objects to prevent runtime errors
+    initialized = false
   }
 }
 
-// Initialize immediately if on client side
+// Initialize on first import if on client
 if (typeof window !== 'undefined') {
-  initializeFirebase()
+  ensureFirebaseInitialized()
 }
 
-export { app, db, auth, initializeFirebase }
+// Getters that ensure Firebase is initialized before use
+export function getApp() {
+  ensureFirebaseInitialized()
+  return firebaseApp
+}
+
+export function getDb() {
+  ensureFirebaseInitialized()
+  return firebaseDb
+}
+
+export function getAuth_() {
+  ensureFirebaseInitialized()
+  return firebaseAuth
+}
+
+// For backward compatibility, also export direct references
+export const app = firebaseApp
+export const db = firebaseDb
+export const auth = firebaseAuth
