@@ -11,6 +11,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
+// Debug: Log config values to see what's being used
+if (typeof window !== 'undefined') {
+  console.log('Firebase Config:', {
+    apiKey: firebaseConfig.apiKey ? '***hidden***' : 'MISSING',
+    projectId: firebaseConfig.projectId,
+  })
+}
+
 // Initialize Firebase
 let app: any
 let db: any
