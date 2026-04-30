@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockups - LoginScreen Opciones</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f3f4f6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #0f172a;
+      font-size: 28px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .option {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .option h2 {
+      color: #0d6259;
+      font-size: 18px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #0d6259;
+      padding-bottom: 10px;
+    }
+
+    .mockup {
+      background: linear-gradient(135deg, #0d6259 0%, #0891b2 100%);
+      border-radius: 16px;
+      padding: 40px 30px;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .mockup-content {
+      width: 100%;
+      max-width: 400px;
+      background: white;
+      border-radius: 16px;
+      padding: 40px 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0d6259 0%, #0891b2 100%);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+
+    .logo-icon img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+      filter: brightness(1.1);
+    }
+
+    .logo h3 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .logo p {
+      margin: 0;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
+      font-family: system-ui;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #0d6259;
+      box-shadow: 0 0 0 3px rgba(13, 98, 89, 0.1);
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 600;
+      color: #9ca3af;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: #0d6259;
+      border-bottom-color: #0d6259;
+    }
+
+    .button {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .button-primary {
+      background: #0d6259;
+      color: white;
+    }
+
+    .button-primary:hover {
+      background: #0a4a42;
+    }
+
+    .button-secondary {
+      background: #f0f9ff;
+      color: #0d6259;
+      border: 1px solid #0d6259;
+    }
+
+    .button-secondary:hover {
+      background: #e0f2fe;
+    }
+
+    .button-outline {
+      background: white;
+      color: #0d6259;
+      border: 2px solid #0d6259;
+    }
+
+    .button-outline:hover {
+      background: #f0f9ff;
+    }
+
+    .divider {
+      text-align: center;
+      margin: 16px 0;
+      position: relative;
+    }
+
+    .divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #e5e7eb;
+    }
+
+    .divider span {
+      background: white;
+      padding: 0 8px;
+      color: #9ca3af;
+      font-size: 12px;
+      position: relative;
+    }
+
+    .footer-text {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .description {
+      background: #f0f9ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #0d6259;
+      line-height: 1.5;
+    }
+
+    .description h4 {
+      margin: 0 0 8px 0;
+      font-weight: 600;
+    }
+
+    .description ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    .description li {
+      margin: 4px 0;
+    }
+
+    @media (max-width: 768px) {
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 LoginScreen - Dos Opciones</h1>
+
+    <div class="options-grid">
+      <!-- OPCIÓN A: Continuar sin Cuenta -->
+      <div class="option">
+        <h2>Opción A: "Continuar sin Cuenta"</h2>
+
+        <div class="mockup">
+          <div class="mockup-content">
+            <!-- Logo -->
+            <div class="logo">
+              <div class="logo-icon" style="background: linear-gradient(135deg, #0d6259 0%, #0a4a42 100%); border: none !important;">
+                <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <text x="50" y="70" font-size="70" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">💰</text>
+                </svg>
+              </div>
+              <h3>Tranquilo</h3>
+              <p>Gestiona tus finanzas personales</p>
+            </div>
+
+            <!-- Mode Tabs -->
+            <div class="mode-tabs">
+              <button class="tab active">Iniciar Sesión</button>
+              <button class="tab">Registrarse</button>
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" placeholder="tu@email.com">
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" placeholder="••••••••">
+            </div>
+
+            <!-- Primary Button -->
+            <button class="button button-primary">Iniciar Sesión</button>
+
+            <!-- Divider -->
+            <div class="divider">
+              <span>o</span>
+            </div>
+
+            <!-- Guest Mode Button - NUEVO -->
+            <button class="button button-outline">Continuar sin Cuenta</button>
+
+            <!-- Footer -->
+            <div class="footer-text">
+              ¿No tienes cuenta? Registrate arriba
+            </div>
+          </div>
+        </div>
+
+        <div class="description">
+          <h4>✅ Ventajas:</h4>
+          <ul>
+            <li>Entrada inmediata sin fricciones</li>
+            <li>Datos guardados en localStorage</li>
+            <li>Funciona completamente offline</li>
+            <li>Opción para hacer login después y migrar</li>
+          </ul>
+          <h4>❌ Limitaciones:</h4>
+          <ul>
+            <li>No se sincroniza a Firestore</li>
+            <li>No funciona multi-dispositivo</li>
+            <li>Datos locales solo en este navegador</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- OPCIÓN B: Probar Demo -->
+      <div class="option">
+        <h2>Opción B: "Probar Demo"</h2>
+
+        <div class="mockup">
+          <div class="mockup-content">
+            <!-- Logo -->
+            <div class="logo">
+              <div class="logo-icon" style="background: linear-gradient(135deg, #0d6259 0%, #0a4a42 100%); border: none !important;">
+                <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <text x="50" y="70" font-size="70" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">💰</text>
+                </svg>
+              </div>
+              <h3>Tranquilo</h3>
+              <p>Gestiona tus finanzas personales</p>
+            </div>
+
+            <!-- Mode Tabs -->
+            <div class="mode-tabs">
+              <button class="tab active">Iniciar Sesión</button>
+              <button class="tab">Registrarse</button>
+            </div>
+
+            <!-- Email Field -->
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" placeholder="tu@email.com">
+            </div>
+
+            <!-- Password Field -->
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" placeholder="••••••••">
+            </div>
+
+            <!-- Primary Button -->
+            <button class="button button-primary">Iniciar Sesión</button>
+
+            <!-- Divider -->
+            <div class="divider">
+              <span>o</span>
+            </div>
+
+            <!-- Demo Button - NUEVO -->
+            <button class="button button-secondary">🎬 Probar Demo (Datos Temporales)</button>
+
+            <!-- Footer -->
+            <div class="footer-text">
+              ¿No tienes cuenta? Registrate arriba
+            </div>
+          </div>
+        </div>
+
+        <div class="description">
+          <h4>✅ Ventajas:</h4>
+          <ul>
+            <li>Claramente un modo de "prueba"</li>
+            <li>Datos temporales, no confunde</li>
+            <li>Incentiva crear cuenta para guardar</li>
+            <li>Sin datos fantasma después</li>
+          </ul>
+          <h4>❌ Limitaciones:</h4>
+          <ul>
+            <li>Menos intuitivo que "continuar sin cuenta"</li>
+            <li>Los datos desaparecen (puede frustrar)</li>
+            <li>Requiere lógica extra para limpiar datos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARACIÓN -->
+    <div class="option" style="margin-top: 40px;">
+      <h2>📊 Comparación Detallada</h2>
+
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
+          <th style="padding: 12px; text-align: left; font-weight: 600;">Aspecto</th>
+          <th style="padding: 12px; text-align: left; font-weight: 600;">Opción A: Sin Cuenta</th>
+          <th style="padding: 12px; text-align: left; font-weight: 600;">Opción B: Demo</th>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Acceso</strong></td>
+          <td style="padding: 12px;">Inmediato</td>
+          <td style="padding: 12px;">Inmediato</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Persistencia</strong></td>
+          <td style="padding: 12px;">Permanente (localStorage)</td>
+          <td style="padding: 12px;">Temporal (se borra)</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Sincronización</strong></td>
+          <td style="padding: 12px;">No (solo local)</td>
+          <td style="padding: 12px;">No (datos se pierden)</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Multi-dispositivo</strong></td>
+          <td style="padding: 12px;">No</td>
+          <td style="padding: 12px;">No</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Después hacer login</strong></td>
+          <td style="padding: 12px;">Migrar datos ✅</td>
+          <td style="padding: 12px;">Empezar de cero ❌</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>Complejidad</strong></td>
+          <td style="padding: 12px;">Media (implementar migración)</td>
+          <td style="padding: 12px;">Alta (lógica de limpieza)</td>
+        </tr>
+
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px;"><strong>UX</strong></td>
+          <td style="padding: 12px;">Excelente (menos fricción)</td>
+          <td style="padding: 12px;">Buena (clara intención)</td>
+        </tr>
+
+        <tr style="background: #f0f9ff;">
+          <td style="padding: 12px;"><strong>Mi recomendación</strong></td>
+          <td style="padding: 12px; color: #10b981;"><strong>⭐⭐⭐⭐⭐ MEJOR</strong></td>
+          <td style="padding: 12px; color: #6b7280;">⭐⭐⭐ Buena</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- RECOMENDACIÓN FINAL -->
+    <div class="option" style="margin-top: 40px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f7ff 100%); border-left: 4px solid #0d6259;">
+      <h2 style="color: #0d6259;">🎯 Mi Recomendación</h2>
+
+      <p style="color: #0d6259; line-height: 1.6; margin-bottom: 15px;">
+        <strong>Opción A: "Continuar sin Cuenta"</strong> es la mejor opción porque:
+      </p>
+
+      <ol style="color: #0d6259; margin-left: 20px; line-height: 1.8;">
+        <li><strong>Mejor UX:</strong> Los usuarios que quieren probar ven menos barreras</li>
+        <li><strong>No pierden datos:</strong> Lo que escriban se guarda (aunque local)</li>
+        <li><strong>Migración natural:</strong> Si después quieren login, sus datos se migran</li>
+        <li><strong>Menos confusión:</strong> El usuario no piensa "¿dónde fueron mis datos?"</li>
+        <li><strong>Similar a Phase 1:</strong> Es lo que ya funcionaba antes</li>
+      </ol>
+
+      <p style="color: #0d6259; margin-top: 15px; font-style: italic;">
+        <strong>Alternativa:</strong> Podrías tener ambas, pero "Continuar sin Cuenta" como botón principal y "Probar Demo" como secundario si quieres algo super temporal.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

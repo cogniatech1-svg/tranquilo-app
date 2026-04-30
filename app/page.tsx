@@ -195,6 +195,7 @@ const DEFAULT_POCKETS: Pocket[] = [
 export default function Home() {
   const [hydrated,      setHydrated]      = useState(false)
   const [userId,        setUserId]        = useState<string | null>(null)
+  const [isGuest,       setIsGuest]       = useState(false)
   const [authLoading,   setAuthLoading]   = useState(true)
   const [screen,        setScreen]        = useState<'login' | 'onboarding' | 'main'>('login')
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
@@ -277,9 +278,9 @@ export default function Home() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const userStorageKey = `${STORAGE_KEY}_${userId}`
-        const raw           = localStorage.getItem(userStorageKey)
-        const aprilRestoredKey = `${APRIL_RESTORED_FLAG}_${userId}`
+        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${userId}`
+        const raw           = localStorage.getItem(storageKey)
+        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${userId}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // Parsear datos existentes (o partir de objeto vacío)
@@ -297,15 +298,15 @@ export default function Home() {
             if (!data.monthlyHistory) data.monthlyHistory = {}
             data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
             // Escribir a localStorage de inmediato (sin esperar a React state)
-            localStorage.setItem(userStorageKey, JSON.stringify(data))
-            localStorage.setItem(`${ONBOARDING_FLAG}_${userId}`, 'true')
+            localStorage.setItem(storageKey, JSON.stringify(data))
+            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${userId}`}`, 'true')
           }
           localStorage.setItem(aprilRestoredKey, 'true')
         }
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
-        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${userId}`) === 'true'
+        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${userId}`}`) === 'true'
         const country      = (data.countryCode as CountryCode) ?? 'CO'
 
         setCountryCode(country)
@@ -340,18 +341,21 @@ export default function Home() {
         }
 
         // ── CARGAR DE FIRESTORE EN BACKGROUND (sin bloquear UI) ────────────────
+        // SOLO si NO es guest mode
         // Merge con localStorage si hay datos en Firestore
         // PHASE 2: Pass userId to loadFromFirestore
-        try {
-          const firestoreData = await loadFromFirestore(userId)
-          if (firestoreData && firestoreData.monthlyHistory) {
-            console.log('Firestore data loaded and merged with localStorage')
-            // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
-            // Aquí solo notificamos que ocurrió la sincronización
+        if (!isGuest) {
+          try {
+            const firestoreData = await loadFromFirestore(userId)
+            if (firestoreData && firestoreData.monthlyHistory) {
+              console.log('Firestore data loaded and merged with localStorage')
+              // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
+              // Aquí solo notificamos que ocurrió la sincronización
+            }
+          } catch (error) {
+            console.warn('Could not load from Firestore (offline?), continuing with localStorage:', error)
+            // Esto es OK - localStorage es el fallback
           }
-        } catch (error) {
-          console.warn('Could not load from Firestore (offline?), continuing with localStorage:', error)
-          // Esto es OK - localStorage es el fallback
         }
       } catch {
         // ignorar JSON malformado
@@ -364,12 +368,12 @@ export default function Home() {
     } else {
       setHydrated(true)
     }
-  }, [userId])
+  }, [userId, isGuest])
 
   // ── Persist to localStorage + Firestore ───────────────────────────────────
   // FIREBASE DUAL STORAGE:
   // 1. Save to localStorage IMMEDIATELY (synchronous, always works)
-  // 2. Save to Firestore in background (async, non-blocking)
+  // 2. Save to Firestore in background (async, non-blocking) - SKIP if guest mode
   // PHASE 2: Only save if user is authenticated
   useEffect(() => {
     if (!hydrated || !userId) return
@@ -391,21 +395,31 @@ export default function Home() {
       isPrivacyMode,
     }
 
-    // saveToFirestore handles both localStorage and Firestore:
-    // - Saves to localStorage first (synchronously)
-    // - Then saves to Firestore (async, non-blocking)
-    // PHASE 2: Pass userId to saveToFirestore
-    saveToFirestore(userId, dataToSave).catch((error) => {
-      console.error('Error in saveToFirestore:', error)
-      // Data is safe in localStorage even if Firestore fails
-    })
-  }, [hydrated, userId, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
+    if (isGuest) {
+      // Guest mode: only save to localStorage, not Firestore
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+      } catch (error) {
+        console.error('Error saving to localStorage:', error)
+      }
+    } else {
+      // Authenticated mode: save to both localStorage and Firestore
+      // saveToFirestore handles both localStorage and Firestore:
+      // - Saves to localStorage first (synchronously)
+      // - Then saves to Firestore (async, non-blocking)
+      // PHASE 2: Pass userId to saveToFirestore
+      saveToFirestore(userId, dataToSave).catch((error) => {
+        console.error('Error in saveToFirestore:', error)
+        // Data is safe in localStorage even if Firestore fails
+      })
+    }
+  }, [hydrated, userId, isGuest, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
   // ── Real-time sync from Firestore ──────────────────────────────────────────
   // Subscribe to Firestore updates and merge with local state
-  // PHASE 2: Only subscribe if user is authenticated
+  // PHASE 2: Only subscribe if user is authenticated (NOT guest mode)
   useEffect(() => {
-    if (!hydrated || !userId) return
+    if (!hydrated || !userId || isGuest) return
 
     let unsubscribe: (() => void) | null = null
 
@@ -443,7 +457,7 @@ export default function Home() {
     return () => {
       if (unsubscribe) unsubscribe()
     }
-  }, [hydrated, userId])
+  }, [hydrated, userId, isGuest])
 
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -718,6 +732,22 @@ export default function Home() {
     }
   }, [])
 
+  const handleGuestMode = useCallback(() => {
+    // Enable guest mode: use localStorage without Firestore sync
+    setIsGuest(true)
+    setUserId('guest')
+    setAuthLoading(false)
+
+    // Check if user has onboarded before
+    const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+    if (hasOnboarded) {
+      setScreen('main')
+    } else {
+      setScreen('onboarding')
+    }
+    setHydrated(true)
+  }, [])
+
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number) => {
     if (!userId) return
     // Mark onboarding as complete for this user
@@ -756,6 +786,7 @@ export default function Home() {
         onLoginSuccess={() => {
           // Auth state listener will handle setting screen to 'onboarding' or 'main'
         }}
+        onGuestMode={handleGuestMode}
       />
     )
   }

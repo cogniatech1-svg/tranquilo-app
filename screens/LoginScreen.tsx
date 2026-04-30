@@ -5,11 +5,12 @@ import { signUp, logIn } from '../lib/auth'
 
 interface LoginScreenProps {
   onLoginSuccess: () => void
+  onGuestMode?: () => void
 }
 
 type Mode = 'login' | 'signup'
 
-export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export function LoginScreen({ onLoginSuccess, onGuestMode }: LoginScreenProps) {
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -347,6 +348,56 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           }}
         >
           {loading ? 'Cargando...' : mode === 'login' ? 'Iniciar Sesión' : 'Registrarse'}
+        </button>
+
+        {/* Divider */}
+        <div style={{
+          textAlign: 'center',
+          margin: '24px 0',
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            height: '1px',
+            background: '#e5e7eb',
+          }} />
+          <span style={{
+            background: 'white',
+            padding: '0 8px',
+            color: '#9ca3af',
+            fontSize: '12px',
+            position: 'relative',
+          }}>
+            o
+          </span>
+        </div>
+
+        {/* Guest Mode Button */}
+        <button
+          onClick={onGuestMode}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            border: '2px solid #0d6259',
+            background: 'white',
+            color: '#0d6259',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLButtonElement).style.background = '#f0f9ff'
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLButtonElement).style.background = 'white'
+          }}
+        >
+          Continuar sin Cuenta
         </button>
 
         {/* Footer */}
