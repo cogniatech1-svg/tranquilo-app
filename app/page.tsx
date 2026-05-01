@@ -295,27 +295,57 @@ export default function Home() {
 
         let raw = localStorage.getItem(storageKey);
 
+        console.log('[initializeApp] DEBUG MIGRACIÓN - Paso 1:', {
+          storageKey,
+          rawExists: !!raw,
+          rawLength: raw?.length,
+          STORAGE_KEY
+        })
+
         // Parsear para verificar si está REALMENTE vacío (no solo si es null)
         let userDataIsEmpty = false
         if (raw) {
           try {
             const parsed = JSON.parse(raw)
-            // Considerar vacío si no tiene monthlyHistory o está vacío
             userDataIsEmpty = !parsed.monthlyHistory || Object.keys(parsed.monthlyHistory).length === 0
-          } catch {
-            // Si no se puede parsear, considerar vacío
+            console.log('[initializeApp] DEBUG MIGRACIÓN - Paso 2 (userDataIsEmpty):', {
+              hasMonthlyHistory: !!parsed.monthlyHistory,
+              monthlyHistoryLength: parsed.monthlyHistory ? Object.keys(parsed.monthlyHistory).length : 0,
+              userDataIsEmpty
+            })
+          } catch (e) {
             userDataIsEmpty = true
+            console.warn('[initializeApp] DEBUG MIGRACIÓN - Error parsing user data:', e)
           }
+        } else {
+          console.log('[initializeApp] DEBUG MIGRACIÓN - raw es null/undefined')
         }
 
         // MIGRAR: Si el usuario NO tiene datos (null, vacío, o sin monthlyHistory) Y hay datos legacy
+        console.log('[initializeApp] DEBUG MIGRACIÓN - Paso 3 (verificar condición):', {
+          condition: (!raw || userDataIsEmpty) && !isGuest && currentUserId,
+          '!raw': !raw,
+          'userDataIsEmpty': userDataIsEmpty,
+          '!isGuest': !isGuest,
+          'currentUserId': !!currentUserId
+        })
+
         if ((!raw || userDataIsEmpty) && !isGuest && currentUserId) {
           const legacyData = localStorage.getItem(STORAGE_KEY);
+          console.log('[initializeApp] DEBUG MIGRACIÓN - Paso 4 (legacy):', {
+            legacyDataExists: !!legacyData,
+            legacySize: legacyData?.length
+          })
 
           if (legacyData) {
             try {
               const legacyParsed = JSON.parse(legacyData)
               const legacyHasData = legacyParsed.monthlyHistory && Object.keys(legacyParsed.monthlyHistory).length > 0
+
+              console.log('[initializeApp] DEBUG MIGRACIÓN - Paso 5 (legacyParsed):', {
+                legacyHasData,
+                legacyMonths: legacyParsed.monthlyHistory ? Object.keys(legacyParsed.monthlyHistory) : []
+              })
 
               if (legacyHasData) {
                 console.log("[initializeApp] ⚠️ MIGRACIÓN CRÍTICA: Copiando datos legacy → usuario", {
@@ -332,11 +362,17 @@ export default function Home() {
                 // localStorage.removeItem(STORAGE_KEY);
 
                 raw = legacyData;
+              } else {
+                console.log('[initializeApp] DEBUG: Legacy data no tiene monthlyHistory con datos')
               }
             } catch (e) {
               console.warn('[initializeApp] Error parsing legacy data during migration:', e)
             }
+          } else {
+            console.log('[initializeApp] DEBUG: No hay datos legacy en STORAGE_KEY')
           }
+        } else {
+          console.log('[initializeApp] DEBUG: Condición de migración no se cumplió')
         }
         const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
