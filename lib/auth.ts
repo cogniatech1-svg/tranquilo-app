@@ -103,38 +103,31 @@ export function getCurrentUser(): FirebaseUser | null {
 
 /**
  * Migrate local data (from Phase 1) to user's Firestore namespace
- * This happens automatically on signup
+ * SIMPLE AND CORRECT:
+ * - Only run if user data doesn't exist
+ * - Never overwrite existing user data
+ * - Don't delete legacy data
  */
-async function migrateLocalDataToUser(userId: string): Promise<void> {
-  try {
-    const localData = localStorage.getItem(STORAGE_KEY)
-    if (!localData) {
-      console.log('No local data to migrate')
-      return
-    }
+export async function migrateLocalDataToUser(userId: string): Promise<void> {
+  const userKey = `tranquilo_v1_${userId}`
+  const existingUserData = localStorage.getItem(userKey)
 
-    const parsedData = JSON.parse(localData) as StoredData
-
-    // IMPORTANT: Save to localStorage FIRST (guaranteed to work)
-    // Then save to Firestore (can fail without breaking migration)
-    localStorage.setItem(`tranquilo_v1_${userId}`, JSON.stringify(parsedData))
-    localStorage.setItem(`${MIGRATION_FLAG}_${userId}`, 'true')
-    console.log('Data migrated to localStorage with userId:', userId)
-
-    // Then try to sync to Firestore in background (optional)
-    try {
-      const userDataRef = doc(getDb(), 'users', userId, 'data', 'main')
-      const cleanedData = cleanUndefined(parsedData)
-      await setDoc(userDataRef, cleanedData, { merge: true })
-      console.log('Data also synced to Firestore:', userId)
-    } catch (firestoreError) {
-      console.warn('Firestore sync failed but localStorage migration succeeded:', firestoreError)
-      // Data is safe in localStorage, Firestore sync is optional
-    }
-  } catch (error) {
-    console.error('Error migrating data to localStorage:', error)
-    // Don't throw - migration failure shouldn't break signup
+  // ❌ Already has data → DO NOT TOUCH
+  if (existingUserData) {
+    console.log('[migrate] User already has data, skipping migration')
+    return
   }
+
+  const legacyData = localStorage.getItem(STORAGE_KEY)
+
+  if (!legacyData) {
+    console.log('[migrate] No legacy data to migrate')
+    return
+  }
+
+  console.log('[migrate] ✅ Migrating legacy data to user:', userId)
+
+  localStorage.setItem(userKey, legacyData)
 }
 
 /**
