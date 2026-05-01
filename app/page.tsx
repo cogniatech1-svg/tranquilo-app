@@ -13,6 +13,7 @@ import { InsightsScreen }      from '../screens/InsightsScreen'
 import { ProfileScreen }       from '../screens/ProfileScreen'
 import { OnboardingScreen }    from '../screens/OnboardingScreen'
 import { LoginScreen }         from '../screens/LoginScreen'
+import { RecoveryScreen }      from '../screens/RecoveryScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
@@ -197,7 +198,7 @@ export default function Home() {
   const [userId,        setUserId]        = useState<string | null>(null)
   const [isGuest,       setIsGuest]       = useState(false)
   const [authLoading,   setAuthLoading]   = useState(true)
-  const [screen,        setScreen]        = useState<'login' | 'onboarding' | 'main'>('login')
+  const [screen,        setScreen]        = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
 
   const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
@@ -233,9 +234,29 @@ export default function Home() {
         // Firebase has resolved the user UID, now migrate legacy data
         migrateLocalDataToUser(user.uid)
 
+        // Check if user has data OR if they need recovery
+        const userKey = `${STORAGE_KEY}_${user.uid}`
+        const userData = localStorage.getItem(userKey)
+        let hasData = false
+
+        if (userData) {
+          try {
+            const parsed = JSON.parse(userData)
+            const months = Object.keys(parsed.monthlyHistory || {})
+            hasData = months.length > 0
+          } catch {
+            // Invalid JSON
+          }
+        }
+
         // User is authenticated - check if they've completed onboarding
         const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-        if (hasOnboarded) {
+
+        // If no data, show recovery screen (for CSV restoration)
+        if (!hasData && !hasOnboarded) {
+          console.log('[auth] No data detected, showing recovery screen')
+          setScreen('recovery')
+        } else if (hasOnboarded) {
           setScreen('main')
         } else {
           setScreen('onboarding')
@@ -833,6 +854,20 @@ export default function Home() {
 
     setScreen('main')
   }, [userId])
+
+  // ── Show recovery screen for data restoration ──────────────────────────────
+  if (screen === 'recovery' && userId) {
+    return (
+      <RecoveryScreen
+        userId={userId}
+        onRestored={() => {
+          // After restoration, show onboarding or main
+          const hasOnboarded = localStorage.getItem(`hasOnboarded_${userId}`) === 'true'
+          setScreen(hasOnboarded ? 'main' : 'onboarding')
+        }}
+      />
+    )
+  }
 
   // ── Show login screen if not authenticated ────────────────────────────────
   if (screen === 'login') {
