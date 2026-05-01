@@ -280,9 +280,40 @@ export default function Home() {
     const currentUserId: string | null = userId
 
     const initializeApp = async () => {
+      // ⚠️ CRITICAL: Guard against undefined userId
+      if (!currentUserId && !isGuest) {
+        console.warn('[initializeApp] Exiting early: currentUserId not available yet')
+        return
+      }
+
       try {
-        const storageKey = isGuest ? STORAGE_KEY : `${STORAGE_KEY}_${currentUserId!}`
-        const raw           = localStorage.getItem(storageKey)
+        const storageKey = isGuest
+          ? STORAGE_KEY
+          : `${STORAGE_KEY}_${currentUserId}`;
+
+        console.log('[initializeApp] Loading with storageKey:', storageKey)
+
+        let raw = localStorage.getItem(storageKey);
+
+        // SOLO migrar cuando tienes userId válido
+        if (!raw && !isGuest && currentUserId) {
+          const legacyData = localStorage.getItem(STORAGE_KEY);
+
+          if (legacyData) {
+            console.log("[initializeApp] Migrando datos legacy → usuario", {
+              from: STORAGE_KEY,
+              to: storageKey,
+              legacyDataSize: legacyData.length
+            });
+
+            localStorage.setItem(storageKey, legacyData);
+
+            // ❌ NO borres todavía (evita pérdida accidental)
+            // localStorage.removeItem(STORAGE_KEY);
+
+            raw = legacyData;
+          }
+        }
         const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
@@ -312,6 +343,12 @@ export default function Home() {
         const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId}`}`) === 'true'
         const country      = (data.countryCode as CountryCode) ?? 'CO'
 
+        console.log('[initializeApp] State loading:', {
+          hasOnboarded,
+          monthsLoaded: data.monthlyHistory ? Object.keys(data.monthlyHistory) : [],
+          expensesInApril: data.monthlyHistory?.['2026-04']?.expenses?.length ?? 0,
+        })
+
         setCountryCode(country)
         setConceptMap(data.conceptMap ?? {})
         setLearnedCategoryMap(data.learnedCategoryMap ?? {})
@@ -330,6 +367,7 @@ export default function Home() {
               manualBudget: rec.manualBudget,
             }
           }
+          console.log('[initializeApp] Setting monthlyHistory with', Object.keys(history).length, 'months')
           setMonthlyHistory(history)
 
           // Si acabamos de restaurar abril → ir directo a ese mes
@@ -360,15 +398,24 @@ export default function Home() {
             // Esto es OK - localStorage es el fallback
           }
         }
-      } catch {
+      } catch (e) {
         // ignorar JSON malformado
+        console.warn('[initializeApp] Error during initialization:', e)
       }
+      console.log('[initializeApp] Hydration complete, currentUserId:', currentUserId)
       setHydrated(true)
     }
 
-    if (currentUserId) {
+    console.log('[LoadEffect] Deciding whether to call initializeApp:', {
+      currentUserId: !!currentUserId,
+      isGuest,
+      willInitialize: !!currentUserId || isGuest
+    })
+
+    if (currentUserId || isGuest) {
       initializeApp()
     } else {
+      console.log('[LoadEffect] No userId and not guest, waiting for Firebase...')
       setHydrated(true)
     }
   }, [userId, isGuest])
