@@ -295,23 +295,47 @@ export default function Home() {
 
         let raw = localStorage.getItem(storageKey);
 
-        // SOLO migrar cuando tienes userId válido
-        if (!raw && !isGuest && currentUserId) {
+        // Parsear para verificar si está REALMENTE vacío (no solo si es null)
+        let userDataIsEmpty = false
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw)
+            // Considerar vacío si no tiene monthlyHistory o está vacío
+            userDataIsEmpty = !parsed.monthlyHistory || Object.keys(parsed.monthlyHistory).length === 0
+          } catch {
+            // Si no se puede parsear, considerar vacío
+            userDataIsEmpty = true
+          }
+        }
+
+        // MIGRAR: Si el usuario NO tiene datos (null, vacío, o sin monthlyHistory) Y hay datos legacy
+        if ((!raw || userDataIsEmpty) && !isGuest && currentUserId) {
           const legacyData = localStorage.getItem(STORAGE_KEY);
 
           if (legacyData) {
-            console.log("[initializeApp] Migrando datos legacy → usuario", {
-              from: STORAGE_KEY,
-              to: storageKey,
-              legacyDataSize: legacyData.length
-            });
+            try {
+              const legacyParsed = JSON.parse(legacyData)
+              const legacyHasData = legacyParsed.monthlyHistory && Object.keys(legacyParsed.monthlyHistory).length > 0
 
-            localStorage.setItem(storageKey, legacyData);
+              if (legacyHasData) {
+                console.log("[initializeApp] ⚠️ MIGRACIÓN CRÍTICA: Copiando datos legacy → usuario", {
+                  from: STORAGE_KEY,
+                  to: storageKey,
+                  legacySize: legacyData.length,
+                  monthsInLegacy: Object.keys(legacyParsed.monthlyHistory).length,
+                  userDataWasEmpty: !raw || userDataIsEmpty
+                });
 
-            // ❌ NO borres todavía (evita pérdida accidental)
-            // localStorage.removeItem(STORAGE_KEY);
+                localStorage.setItem(storageKey, legacyData);
 
-            raw = legacyData;
+                // ❌ NO borres todavía (evita pérdida accidental)
+                // localStorage.removeItem(STORAGE_KEY);
+
+                raw = legacyData;
+              }
+            } catch (e) {
+              console.warn('[initializeApp] Error parsing legacy data during migration:', e)
+            }
           }
         }
         const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
