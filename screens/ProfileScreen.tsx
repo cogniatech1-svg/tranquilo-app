@@ -792,7 +792,7 @@ export function ProfileScreen({
       {/* Hidden file input for CSV import */}
       <input
         type="file"
-        accept=".csv"
+        accept="text/csv,.csv,text/plain"
         onChange={handleImportCSV}
         data-import-csv
         style={{ display: 'none' }}
