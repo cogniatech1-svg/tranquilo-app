@@ -788,8 +788,8 @@ export function ProfileScreen({
           }
         }
       `}</style>
-
-      {/* Hidden file input for CSV import */}
+      
+      {/* Hidden file input for CSV import updated*/}
       <input
         type="file"
         accept="text/csv,.csv,text/plain"
