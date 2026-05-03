@@ -329,48 +329,55 @@ export default function Home() {
   // 1. Save to localStorage IMMEDIATELY (synchronous, always works)
   // 2. Save to Firestore in background (async, non-blocking) - SKIP if guest mode
   // PHASE 2: Only save if user is authenticated
+  // DEBOUNCE: Only save after 2 seconds without changes (prevents Firestore saturation)
   useEffect(() => {
     if (!hydrated || !userId) return
 
     // Capture userId to ensure type safety in async operations
     const currentUserId = userId
 
-    const activeData = getActiveMonthData()
-    const dataToSave: StoredData = {
-      // Datos del mes actual (para backward compatibility)
-      monthlyIncome: activeData.income,
-      monthlySavings: activeData.savings,
-      expenses: activeData.expenses,
-      extraIncomes: activeData.extraIncomes,
-      pockets: activeData.pockets,
-      // ÚNICA FUENTE DE VERDAD
-      monthlyHistory,
-      // Metadatos
-      conceptMap,
-      learnedCategoryMap,
-      currentMonth,
-      countryCode,
-      isPrivacyMode,
-    }
-
-    if (isGuest) {
-      // Guest mode: only save to localStorage, not Firestore
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
-      } catch (error) {
-        console.error('Error saving to localStorage:', error)
+    // Set up debounce timer - wait 2 seconds before saving
+    const timer = setTimeout(async () => {
+      const activeData = getActiveMonthData()
+      const dataToSave: StoredData = {
+        // Datos del mes actual (para backward compatibility)
+        monthlyIncome: activeData.income,
+        monthlySavings: activeData.savings,
+        expenses: activeData.expenses,
+        extraIncomes: activeData.extraIncomes,
+        pockets: activeData.pockets,
+        // ÚNICA FUENTE DE VERDAD
+        monthlyHistory,
+        // Metadatos
+        conceptMap,
+        learnedCategoryMap,
+        currentMonth,
+        countryCode,
+        isPrivacyMode,
       }
-    } else {
-      // Authenticated mode: save to both localStorage and Firestore
-      // saveToFirestore handles both localStorage and Firestore:
-      // - Saves to localStorage first (synchronously)
-      // - Then saves to Firestore (async, non-blocking)
-      // PHASE 2: Pass userId to saveToFirestore
-      saveToFirestore(currentUserId, dataToSave).catch((error) => {
-        console.error('Error in saveToFirestore:', error)
-        // Data is safe in localStorage even if Firestore fails
-      })
-    }
+
+      if (isGuest) {
+        // Guest mode: only save to localStorage, not Firestore
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+        } catch (error) {
+          console.error('Error saving to localStorage:', error)
+        }
+      } else {
+        // Authenticated mode: save to both localStorage and Firestore
+        // saveToFirestore handles both localStorage and Firestore:
+        // - Saves to localStorage first (synchronously)
+        // - Then saves to Firestore (async, non-blocking)
+        // PHASE 2: Pass userId to saveToFirestore
+        saveToFirestore(currentUserId, dataToSave).catch((error) => {
+          console.error('Error in saveToFirestore:', error)
+          // Data is safe in localStorage even if Firestore fails
+        })
+      }
+    }, 2000)
+
+    // Clean up timer on unmount or when dependencies change
+    return () => clearTimeout(timer)
   }, [hydrated, userId, isGuest, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
   // ── Real-time sync from Firestore ──────────────────────────────────────────
