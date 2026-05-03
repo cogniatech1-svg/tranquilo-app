@@ -246,10 +246,18 @@ export default function Home() {
           console.log('[initializeApp] Setting monthlyHistory with', Object.keys(history).length, 'months')
           setMonthlyHistory(history)
 
-          // Si acabamos de restaurar abril → ir directo a ese mes
-          if (!aprilRestored && history['2026-04']) {
-            setActiveMonth('2026-04')
-            setCurrentMonth('2026-04')
+          // Si hay datos, ir al primer mes disponible (puede estar en formato DD/MM/Y o YYYY-MM)
+          const availableMonths = Object.keys(history)
+          if (availableMonths.length > 0) {
+            // Preferir abril si existe (en cualquier formato)
+            let targetMonth = availableMonths.find(m => m.includes('04/2') || m === '2026-04')
+            // Si no hay abril, usar el primer mes
+            if (!targetMonth) {
+              targetMonth = availableMonths[0]
+            }
+            console.log('[initializeApp] Setting activeMonth to:', targetMonth)
+            setActiveMonth(targetMonth)
+            setCurrentMonth(targetMonth)
           }
 
           if (hasOnboarded) setScreen('main')
