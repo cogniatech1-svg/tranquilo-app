@@ -139,6 +139,7 @@ export default function Home() {
     isMountedRef.current = true
 
     const unsubscribe = subscribeToAuthState((user) => {
+      console.log('[subscribeToAuthState] Callback received user:', user ? `${user.email} (${user.uid})` : 'null')
       // Synchronous callback: just call handleAuth, don't await
       // This keeps the callback signature clean for Firebase
       handleAuth(user)
