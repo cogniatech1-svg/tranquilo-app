@@ -444,7 +444,7 @@ export function ProfileScreen({
       icon: '📊',
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
-        { label: 'Importar datos', value: 'Importar CSV', type: 'button', handler: () => { console.log("[BUTTON CLICK] Importar CSV clicked"); document.querySelector<HTMLInputElement>('input[data-import-csv]')?.click() } },
+        { label: 'Importar datos', value: 'Importar CSV', type: 'button', handler: () => document.querySelector<HTMLInputElement>('input[data-import-csv]')?.click() },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
@@ -965,23 +965,15 @@ export function ProfileScreen({
         }
       `}</style>
       
-      {/* CSV import file input - visible on mobile */}
-      <input
-        type="file"
-        accept="*/*"
-        onChange={handleImportCSV}
-        data-import-csv
-        style={{
-          position: 'absolute',
-          bottom: '20px',
-          right: '20px',
-          opacity: 0,
-          width: '100px',
-          height: '100px',
-          cursor: 'pointer',
-          zIndex: 9999
-        }}
-      />
+      {/* CSV import file input - use label for native mobile support */}
+      <label data-import-csv style={{ display: 'none' }}>
+        <input
+          type="file"
+          accept="*/*"
+          onChange={handleImportCSV}
+          style={{ display: 'none' }}
+        />
+      </label>
 
       {/* Hidden file input for avatar upload */}
       <input
