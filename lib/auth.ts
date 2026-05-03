@@ -144,10 +144,19 @@ export async function migrateLocalDataToUser(userId: string): Promise<void> {
     }
   }
 
-  // Solo saltar si tiene datos reales
+  // Solo saltar si tiene datos REALES (no solo estructura vacía)
   if (userData && Object.keys(userData).length > 0) {
-    console.log('[migration] User already has valid data, skipping')
-    return
+    // Verificar si hay datos reales: expenses array con items, o monthlyHistory con meses
+    const hasRealExpenses = userData.expenses && Array.isArray(userData.expenses) && userData.expenses.length > 0
+    const hasRealMonthlyHistory = userData.monthlyHistory && Object.keys(userData.monthlyHistory).length > 0
+    const hasRealIncomes = userData.extraIncomes && Array.isArray(userData.extraIncomes) && userData.extraIncomes.length > 0
+
+    if (hasRealExpenses || hasRealMonthlyHistory || hasRealIncomes) {
+      console.log('[migration] User already has valid data, skipping')
+      return
+    }
+
+    console.log('[migration] User has empty structure, will migrate guest data')
   }
 
   // 2. Si no hay datos guest → no hay nada que migrar

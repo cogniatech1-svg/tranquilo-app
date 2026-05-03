@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import { AddExpenseSheet } from '../components/AddExpenseSheet'
 import { BottomNavigation } from '../components/BottomNavigation'
@@ -45,6 +45,9 @@ const APRIL_RESTORED_FLAG = 'april2026_v1_restored'
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
+  // Track if component is mounted to avoid state updates on unmounted components
+  const isMountedRef = useRef(true)
+
   const [hydrated,      setHydrated]      = useState(false)
   const [userId,        setUserId]        = useState<string | null>(null)
   const [isGuest,       setIsGuest]       = useState(false)
@@ -76,7 +79,12 @@ export default function Home() {
   // Subscribe to Firebase auth state changes
   // This runs once on mount and keeps track of the current user
   useEffect(() => {
+    isMountedRef.current = true
+
     const unsubscribe = subscribeToAuthState((user) => {
+      // Only update state if component is still mounted
+      if (!isMountedRef.current) return
+
       console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
       if (user) {
         console.log('[AUTH] Setting userId:', user.uid)
@@ -89,6 +97,9 @@ export default function Home() {
         // Use IIFE to handle async without breaking callback signature
         (async () => {
           await migrateLocalDataToUser(user.uid)
+
+          // Check if component is still mounted before updating state
+          if (!isMountedRef.current) return
 
           // Check if user has data OR if they need recovery
           const userKey = `${STORAGE_KEY}_${user.uid}`
@@ -126,7 +137,10 @@ export default function Home() {
       }
     })
 
-    return () => unsubscribe()
+    return () => {
+      isMountedRef.current = false
+      unsubscribe()
+    }
   }, [])
 
   // ── HELPER: Obtener datos del mes activo (SIEMPRE usa este helper) ──────────
