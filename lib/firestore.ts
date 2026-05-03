@@ -140,8 +140,16 @@ export async function saveToFirestore(userId: string, data: StoredData): Promise
     // Use merge: false to fully replace the document (not just update fields)
     // This ensures monthlyHistory with all months/expenses gets saved, not merged
     console.log('[saveToFirestore] 🚀 Guardando en Firestore:', docRef.path)
+
+    // Log EXACTLY what we're sending
+    console.log('[FIRESTORE WRITE DATA]', JSON.stringify(cleanedData.monthlyHistory, null, 2))
+
     await setDoc(docRef, cleanedData, { merge: false })
     console.log('[saveToFirestore] ✅ Guardado exitosamente')
+
+    // Immediately read back to verify what was actually saved
+    const snap = await getDoc(docRef)
+    console.log('[FIRESTORE READ AFTER WRITE]', snap.data()?.monthlyHistory)
   } catch (error) {
     console.error('Error saving to Firestore:', error)
     // Data is safe in localStorage, Firestore error won't block the app
