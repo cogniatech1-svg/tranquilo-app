@@ -234,10 +234,28 @@ export default function Home() {
         if (!isGuest && currentUserId) {
           try {
             const firestoreData = await loadFromFirestore(currentUserId)
-            if (firestoreData && firestoreData.monthlyHistory) {
+            if (firestoreData && firestoreData.monthlyHistory && Object.keys(firestoreData.monthlyHistory).length > 0) {
               console.log('Firestore data loaded and merged with localStorage')
-              // Los datos fueron mergados en loadFromFirestore y guardados a localStorage
-              // Aquí solo notificamos que ocurrió la sincronización
+              // Actualizar React state con datos de Firestore
+              const firestoreHistory: Record<string, MonthRecord> = {}
+              for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
+                const rec = record as any
+                firestoreHistory[month] = {
+                  income:       rec.income       ?? 0,
+                  savings:      rec.savings      ?? 0,
+                  expenses:     rec.expenses     ?? [],
+                  extraIncomes: rec.extraIncomes ?? [],
+                  pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+                  manualBudget: rec.manualBudget,
+                }
+              }
+              console.log('[initializeApp] Updating state with Firestore data:', Object.keys(firestoreHistory).length, 'months')
+              setMonthlyHistory(firestoreHistory)
+              if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
+              if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
+              if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
+              if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
+              if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
             }
           } catch (error) {
             console.warn('Could not load from Firestore (offline?), continuing with localStorage:', error)
