@@ -468,21 +468,28 @@ function buildHistorial(
 
   const processed = sorted.map(([key, rec]) => {
     // Parse month from DD/MM/Y or YYYY-MM format
-    let y: string
-    let m: string
+    let year: number
+    let month: number
     if (key.includes('-')) {
-      [y, m] = key.split('-')
+      const [y, m] = key.split('-')
+      year = parseInt(y)
+      month = parseInt(m)
     } else if (key.includes('/')) {
       const parts = key.split('/')
-      y = parts[2]
-      m = parts[1]
+      let y = parseInt(parts[2])
+      // Handle short year format (e.g., "2" → "2026")
+      if (y < 100) {
+        y = 2000 + y
+      }
+      month = parseInt(parts[1])
+      year = y
     } else {
       // Fallback
       const now = new Date()
-      y = now.getFullYear().toString()
-      m = String(now.getMonth() + 1).padStart(2, '0')
+      year = now.getFullYear()
+      month = now.getMonth() + 1
     }
-    const name = new Date(`${y}-${m}-15`).toLocaleDateString(config.locale, {
+    const name = new Date(year, month - 1, 15).toLocaleDateString(config.locale, {
       month: 'long', year: '2-digit',
     })
     const income = rec.income ?? 0
