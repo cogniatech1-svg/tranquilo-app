@@ -737,28 +737,35 @@ export function ProfileScreen({
                           <img src={item.value} alt="Avatar" style={{ width: '70px', height: '70px', objectFit: 'cover' }} />
                         </div>
                       ) : item.type === 'file-button' ? (
-                        <label className="import-button" style={{
-                          width: '100%',
-                          display: 'block',
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: '#0d6259',
-                          color: 'white',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          textAlign: 'center',
-                        }}>
-                          {item.value}
+                        <>
+                          <label
+                            htmlFor="csv-import-input"
+                            className="import-button"
+                            style={{
+                              width: '100%',
+                              display: 'block',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: '#0d6259',
+                              color: 'white',
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              textAlign: 'center',
+                            }}>
+                            {item.value}
+                          </label>
                           <input
+                            id="csv-import-input"
                             type="file"
                             accept=".csv"
                             onChange={handleImportCSV}
                             style={{ display: 'none' }}
                           />
-                        </label>
+                        </>
+                      )
                       ) : item.type === 'button' || item.type === 'button-danger' ? (
                         <button
                           onClick={item.handler}
