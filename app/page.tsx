@@ -75,76 +75,80 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
+  // ── HANDLE AUTH: Separate async logic from Firebase callback ────────────────
+  // This function is async but Firebase callback stays synchronous
+  const handleAuth = useCallback(async (user: any) => {
+    // Guard: only update state if component is still mounted
+    if (!isMountedRef.current) return
+
+    console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
+
+    if (user) {
+      console.log('[AUTH] Setting userId:', user.uid)
+
+      // ✅ MIGRATION: This is the CORRECT moment to migrate
+      // Firebase has resolved the user UID, now migrate legacy data
+      await migrateLocalDataToUser(user.uid)
+
+      // Guard: check if still mounted after async operation
+      if (!isMountedRef.current) return
+
+      // Update state with userId and clear loading flag
+      setUserId(user.uid)
+      setAuthLoading(false)
+
+      // Check if user has data OR if they need recovery
+      const userKey = `${STORAGE_KEY}_${user.uid}`
+      const userData = localStorage.getItem(userKey)
+      let hasData = false
+
+      if (userData) {
+        try {
+          const parsed = JSON.parse(userData)
+          const months = Object.keys(parsed.monthlyHistory || {})
+          hasData = months.length > 0
+        } catch {
+          // Invalid JSON
+        }
+      }
+
+      // User is authenticated - check if they've completed onboarding
+      const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+
+      // If no data, show recovery screen (for CSV restoration)
+      if (!hasData && !hasOnboarded) {
+        console.log('[auth] No data detected, showing recovery screen')
+        setScreen('recovery')
+      } else if (hasOnboarded) {
+        setScreen('main')
+      } else {
+        setScreen('onboarding')
+      }
+    } else {
+      // User is not authenticated
+      setUserId(null)
+      setAuthLoading(false)
+      setScreen('login')
+    }
+  }, [])
+
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
-  // Subscribe to Firebase auth state changes
-  // This runs once on mount and keeps track of the current user
+  // Subscribe to Firebase auth state changes - callback is synchronous
+  // All async logic is in handleAuth function
   useEffect(() => {
     isMountedRef.current = true
 
     const unsubscribe = subscribeToAuthState((user) => {
-      // Only update state if component is still mounted
-      if (!isMountedRef.current) return
-
-      console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
-      if (user) {
-        console.log('[AUTH] Setting userId:', user.uid)
-        setUserId(user.uid)
-        setAuthLoading(false)
-
-        // ✅ MIGRATION: This is the CORRECT moment to migrate
-        // Firebase has resolved the user UID, now migrate legacy data
-        // CRITICAL: Wait for migration to complete before checking localStorage
-        // Use IIFE to handle async without breaking callback signature
-        (async () => {
-          await migrateLocalDataToUser(user.uid)
-
-          // Check if component is still mounted before updating state
-          if (!isMountedRef.current) return
-
-          // Check if user has data OR if they need recovery
-          const userKey = `${STORAGE_KEY}_${user.uid}`
-          const userData = localStorage.getItem(userKey)
-          let hasData = false
-
-          if (userData) {
-            try {
-              const parsed = JSON.parse(userData)
-              const months = Object.keys(parsed.monthlyHistory || {})
-              hasData = months.length > 0
-            } catch {
-              // Invalid JSON
-            }
-          }
-
-          // User is authenticated - check if they've completed onboarding
-          const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-
-          // If no data, show recovery screen (for CSV restoration)
-          if (!hasData && !hasOnboarded) {
-            console.log('[auth] No data detected, showing recovery screen')
-            setScreen('recovery')
-          } else if (hasOnboarded) {
-            setScreen('main')
-          } else {
-            setScreen('onboarding')
-          }
-        })()
-      } else {
-        // User is not authenticated
-        // Check if component is still mounted before updating state
-        if (!isMountedRef.current) return
-
-        setUserId(null)
-        setAuthLoading(false)
-        setScreen('login')
-      }
+      // Synchronous callback: just call handleAuth, don't await
+      // This keeps the callback signature clean for Firebase
+      handleAuth(user)
     })
 
     return () => {
       isMountedRef.current = false
       unsubscribe()
     }
-  }, [])
+  }, [handleAuth])
 
   // ── HELPER: Obtener datos del mes activo (SIEMPRE usa este helper) ──────────
   const getActiveMonthData = useCallback(() => {
