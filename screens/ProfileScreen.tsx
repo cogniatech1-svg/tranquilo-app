@@ -290,30 +290,62 @@ export function ProfileScreen({
           const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').replace('""', '"'))
           if (parts.length < 4) continue
 
-          const [fecha, tipo, categoria, monto] = parts
-          const descripcion = parts.slice(4).join(',')
+          // Detect if CSV has 6 columns (with pocketId) or 5 columns (without)
+          // Column 4 is either pocketId (string like "transport") or monto (numeric)
+          const isPocketIdColumn = isNaN(Number(parts[3]))
+
+          let fecha, tipo, categoria, pocketIdFromCsv, monto, descripcion
+
+          if (isPocketIdColumn && parts.length >= 6) {
+            // 6-column format: [Fecha, Tipo, Categoría, pocketId, Monto, Descripción]
+            [fecha, tipo, categoria, pocketIdFromCsv] = parts
+            monto = parts[4]
+            descripcion = parts.slice(5).join(',')
+            console.log('[CSV Import] 6-column detected:', { fecha, tipo, categoria, pocketIdFromCsv, monto, descripcion })
+          } else {
+            // 5-column format: [Fecha, Tipo, Categoría, Monto, Descripción]
+            [fecha, tipo, categoria, monto] = parts
+            descripcion = parts.slice(4).join(',')
+            pocketIdFromCsv = null
+            console.log('[CSV Import] 5-column format:', { fecha, tipo, categoria, monto, descripcion })
+          }
 
           if (tipo === 'gasto') {
-            const pocketId = pocketMap[categoria] || 'recreacion'
+            // Use pocketId from CSV if available, otherwise map from categoria
+            const pocketId = pocketIdFromCsv || pocketMap[categoria] || 'recreacion'
+            const amount = parseInt(monto) || 0
+
+            console.log('[CSV Import] Adding expense:', { pocketId, amount, concept: descripcion })
+
             data.expenses.push({
               id: Date.now().toString() + Math.random(),
               date: fecha + 'T00:00:00',
               pocketId,
-              amount: parseInt(monto) || 0,
+              amount,
               concept: descripcion,
             })
             importedCount++
           } else if (tipo === 'ingreso') {
+            const amount = parseInt(monto) || 0
+
+            console.log('[CSV Import] Adding income:', { amount, note: descripcion })
+
             data.extraIncomes.push({
               id: Date.now().toString() + Math.random(),
               date: fecha + 'T00:00:00',
-              amount: parseInt(monto) || 0,
+              amount,
               note: descripcion,
               category: 'extra' as const,
             })
             importedCount++
           }
         }
+
+        console.log('[CSV Import] Saving to localStorage:', {
+          totalExpenses: data.expenses?.length,
+          totalIncomes: data.extraIncomes?.length,
+          importedCount
+        })
 
         localStorage.setItem('tranquilo_v1', JSON.stringify(data))
         setImportMessage(`✅ ${importedCount} movimientos importados correctamente`)
@@ -322,6 +354,7 @@ export function ProfileScreen({
           window.location.reload()
         }, 2000)
       } catch (err) {
+        console.error('[CSV Import] Error:', err)
         setImportMessage('❌ Error al importar. Verifica el formato del CSV')
       }
     }
