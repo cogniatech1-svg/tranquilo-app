@@ -477,9 +477,15 @@ function buildHistorial(
     } else if (key.includes('/')) {
       const parts = key.split('/')
       let y = parseInt(parts[2])
-      // Handle short year format (e.g., "2" → "2026")
+      // Handle short year format (e.g., "2" from "2026")
       if (y < 100) {
-        y = 2000 + y
+        if (y < 10) {
+          // Single digit: assume 202X (for years 2020-2029)
+          y = 2020 + y
+        } else {
+          // 2 digits: assume 20XX for 00-50, 19XX for 50-99
+          y = y <= 50 ? 2000 + y : 1900 + y
+        }
       }
       month = parseInt(parts[1])
       year = y
@@ -490,7 +496,7 @@ function buildHistorial(
       month = now.getMonth() + 1
     }
     const name = new Date(year, month - 1, 15).toLocaleDateString(config.locale, {
-      month: 'long', year: '2-digit',
+      month: 'long', year: 'numeric',
     })
     const income = rec.income ?? 0
     const recSavings = rec.savings ?? 0
