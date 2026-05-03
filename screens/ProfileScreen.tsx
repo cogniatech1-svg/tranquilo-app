@@ -259,33 +259,12 @@ export function ProfileScreen({
   }
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[IMPORT HIT]")
     const file = e.target.files?.[0]
     if (!file) return
 
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
-        // Corregir encoding mal formado en strings importados del CSV
-        const fixEncoding = (text: string) => {
-          if (!text) return text
-          try {
-            return decodeURIComponent(escape(text))
-          } catch {
-            return text
-          }
-        }
-
-        // Convertir DD/MM/YYYY a YYYY-MM-DD
-        const convertDateFormat = (dateStr: string): string => {
-          const parts = dateStr.split('/')
-          if (parts.length === 3) {
-            const [day, month, year] = parts
-            return `${year}-${month}-${day}`
-          }
-          return dateStr
-        }
-
         const csv = event.target?.result as string
         const lines = csv.trim().split('\n')
         if (lines.length < 2) {
@@ -293,20 +272,8 @@ export function ProfileScreen({
           return
         }
 
-        // Buscar la key correcta: primero intentar user-scoped, luego guest
-        let raw = null
-        const allKeys = Object.keys(localStorage)
-        const userKeys = allKeys.filter(k => k.startsWith('tranquilo_v1_'))
-
-        if (userKeys.length > 0) {
-          // Si estás logueado, usar la key del usuario
-          raw = localStorage.getItem(userKeys[0])
-        } else {
-          // Si no estás logueado, usar la key guest
-          raw = localStorage.getItem('tranquilo_v1')
-        }
-
-        const data = raw ? JSON.parse(raw) : { expenses: [], extraIncomes: [], pockets: [], monthlyHistory: {} }
+        const raw = localStorage.getItem('tranquilo_v1')
+        const data = raw ? JSON.parse(raw) : { expenses: [], extraIncomes: [], pockets: [] }
 
         const pocketMap: Record<string, string> = {}
         for (const p of (data.pockets ?? [])) {
@@ -314,110 +281,32 @@ export function ProfileScreen({
         }
 
         let importedCount = 0
-        const currentDate = new Date().toISOString().split('T')[0]
-
-        // Parse header to detect CSV format
-        const headerLine = lines[0]
-        const headerParts = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase())
-        const hasPocketId = headerParts.includes('pocketid')
-
-        // Decodificar encoding issues (UTF-8 mal encoded)
-        const decodeEncoding = (text: string): string => {
-          return text
-            .replace(/Ã¡/g, 'á')
-            .replace(/Ã©/g, 'é')
-            .replace(/Ã­/g, 'í')
-            .replace(/Ã³/g, 'ó')
-            .replace(/Ãº/g, 'ú')
-            .replace(/Ã±/g, 'ñ')
-            .replace(/Ã‰/g, 'É')
-            .replace(/Ã/g, 'À')
-        }
-
-        // Capitalizar cada palabra
-        const capitalizeWords = (text: string): string => {
-          return text
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ')
-        }
-
-        // Parser CSV robusto que maneja comillas
-        const parseCSVLine = (line: string) => {
-          const result = []
-          let current = ''
-          let insideQuotes = false
-
-          for (let j = 0; j < line.length; j++) {
-            const char = line[j]
-            const nextChar = line[j + 1]
-
-            if (char === '"') {
-              if (insideQuotes && nextChar === '"') {
-                current += '"'
-                j++ // Skip next quote
-              } else {
-                insideQuotes = !insideQuotes
-              }
-            } else if (char === ',' && !insideQuotes) {
-              result.push(current.trim())
-              current = ''
-            } else {
-              current += char
-            }
-          }
-          result.push(current.trim())
-          return result
-        }
 
         // Skip header, process data rows
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim()
           if (!line) continue
 
-          const parts = parseCSVLine(line).map(p => p.replace(/^"|"$/g, ''))
+          const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').replace('""', '"'))
+          if (parts.length < 4) continue
 
-          let fecha, tipo, categoria, pocketId, monto, descripcion
-
-          if (hasPocketId) {
-            // New format: Fecha, Tipo, Categoría, pocketId, Monto, Descripción
-            if (parts.length < 5) continue
-            [fecha, tipo, categoria, pocketId, monto] = parts
-            descripcion = parts.slice(5).join(',')
-          } else {
-            // Old format: Fecha, Tipo, Categoría, Monto, Descripción
-            if (parts.length < 4) continue
-            [fecha, tipo, categoria, monto] = parts
-            descripcion = parts.slice(4).join(',')
-            pocketId = '' // Will use fallback below
-          }
+          const [fecha, tipo, categoria, monto] = parts
+          const descripcion = parts.slice(4).join(',')
 
           if (tipo === 'gasto') {
-            // Usar solo categoría como fuente de pocketId
-            const rawCategory = categoria
-            const pocketIdFixed = fixEncoding(rawCategory)
-              ?.toString()
-              .toLowerCase()
-              .trim()
-
-            const concept = fixEncoding(descripcion)
-            const convertedDate = convertDateFormat(fecha)
-
-            console.log("[IMPORT DEBUG]", rawCategory, "→", pocketIdFixed)
-
+            const pocketId = pocketMap[categoria] || 'recreacion'
             data.expenses.push({
               id: Date.now().toString() + Math.random(),
-              date: convertedDate + 'T00:00:00',
-              pocketId: pocketIdFixed || 'default',
+              date: fecha + 'T00:00:00',
+              pocketId,
               amount: parseInt(monto) || 0,
-              concept: concept,
+              concept: descripcion,
             })
             importedCount++
           } else if (tipo === 'ingreso') {
-            const convertedDate = convertDateFormat(fecha)
             data.extraIncomes.push({
               id: Date.now().toString() + Math.random(),
-              date: convertedDate + 'T00:00:00',
+              date: fecha + 'T00:00:00',
               amount: parseInt(monto) || 0,
               note: descripcion,
               category: 'extra' as const,
@@ -426,56 +315,7 @@ export function ProfileScreen({
           }
         }
 
-        // Extraer todos los pocketIds únicos del CSV importado
-        const pocketIds = new Set<string>()
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
-
-          const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').replace('""', '"'))
-          let tipo, categoria, pocketId, monto
-
-          if (hasPocketId) {
-            [, tipo, categoria, pocketId, monto] = parts
-          } else {
-            [, tipo, categoria, monto] = parts
-            pocketId = ''
-          }
-
-          if (tipo === 'gasto') {
-            const normalizedPocketId = categoria
-              ?.toString()
-              .toLowerCase()
-              .trim() || 'default'
-            pocketIds.add(normalizedPocketId)
-          }
-        }
-
-        // Crear pockets faltantes a partir de los pocketIds del CSV
-        const existingPocketIds = new Set((data.pockets ?? []).map((p: any) => p.id))
-        for (const pId of pocketIds) {
-          if (!existingPocketIds.has(pId)) {
-            // Capitalizar nombre (decodificar + capitalizar cada palabra)
-            const pocketName = capitalizeWords(decodeEncoding(pId))
-
-            data.pockets.push({
-              id: pId,
-              name: pocketName,
-              budget: 0,
-              icon: '💰'
-            })
-          }
-        }
-
-        // Migrar datos de estructura flat a monthlyHistory
-        const migratedData = migrateToMonthlyHistory(data)
-
-        // Guardar en la key correcta
-        if (userKeys.length > 0) {
-          localStorage.setItem(userKeys[0], JSON.stringify(migratedData))
-        } else {
-          localStorage.setItem('tranquilo_v1', JSON.stringify(migratedData))
-        }
+        localStorage.setItem('tranquilo_v1', JSON.stringify(data))
         setImportMessage(`✅ ${importedCount} movimientos importados correctamente`)
         setTimeout(() => {
           setImportMessage('')
