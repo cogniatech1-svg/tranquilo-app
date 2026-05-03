@@ -122,7 +122,34 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   // ────────────────────────────────────────────────────────────────
   const today = new Date()
   const day = today.getDate()
-  const [year, month] = currentMonth.split('-').map(Number)
+
+  // Parse month from either YYYY-MM or DD/MM/YYYY format
+  let year: number
+  let month: number
+  if (currentMonth.includes('-')) {
+    // YYYY-MM format
+    const [y, m] = currentMonth.split('-').map(Number)
+    year = y
+    month = m
+  } else if (currentMonth.includes('/')) {
+    // DD/MM/YYYY format
+    const parts = currentMonth.split('/')
+    if (parts.length === 3) {
+      year = parseInt(parts[2])
+      month = parseInt(parts[1])
+    } else {
+      // Fallback
+      const now = new Date()
+      year = now.getFullYear()
+      month = now.getMonth() + 1
+    }
+  } else {
+    // Fallback
+    const now = new Date()
+    year = now.getFullYear()
+    month = now.getMonth() + 1
+  }
+
   const daysInMonth = new Date(year, month, 0).getDate()
 
   // ────────────────────────────────────────────────────────────────
