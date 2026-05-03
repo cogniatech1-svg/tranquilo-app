@@ -965,10 +965,10 @@ export function ProfileScreen({
         }
       `}</style>
       
-      {/* Hidden file input for CSV import updated*/}
+      {/* Hidden file input for CSV import - accept any file on mobile */}
       <input
         type="file"
-        accept=".csv"
+        accept="*/*"
         onChange={handleImportCSV}
         data-import-csv
         style={{ display: 'none' }}
