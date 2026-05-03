@@ -68,7 +68,20 @@ export function TransactionsScreen({
     return Object.entries(map)
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([key, items]) => {
-        const d = new Date(key + 'T12:00:00')
+        // Handle both DD/MM/YYYY and YYYY-MM-DD formats
+        let isoDate = key
+        if (key.includes('/')) {
+          // Convert DD/MM/YYYY to YYYY-MM-DD
+          const parts = key.split('/')
+          if (parts.length === 3) {
+            const day = parts[0]
+            const month = parts[1]
+            const year = parts[2]
+            isoDate = `${year}-${month}-${day}`
+          }
+        }
+
+        const d = new Date(isoDate + 'T12:00:00')
         let label: string
         if (d.toDateString() === today.toDateString()) label = 'Hoy'
         else if (d.toDateString() === yesterday.toDateString()) label = 'Ayer'
