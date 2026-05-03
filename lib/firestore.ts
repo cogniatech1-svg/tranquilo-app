@@ -291,11 +291,19 @@ export function subscribeToFirestore(
         })
 
         // Update localStorage with merged data
-        localStorage.setItem(storageKey, JSON.stringify(mergedData))
+        const newDataStr = JSON.stringify(mergedData)
+        const oldDataStr = localStorage.getItem(storageKey)
 
-        // Notify app of update
-        console.log('[subscribeToFirestore] 🔔 Calling onUpdate callback')
-        onUpdate(mergedData)
+        // Only notify if data actually changed (prevents infinite loop)
+        if (oldDataStr !== newDataStr) {
+          console.log('[subscribeToFirestore] 🔄 Data changed, updating localStorage and state')
+          localStorage.setItem(storageKey, newDataStr)
+          // Notify app of update
+          console.log('[subscribeToFirestore] 🔔 Calling onUpdate callback')
+          onUpdate(mergedData)
+        } else {
+          console.log('[subscribeToFirestore] ℹ️ Data unchanged, skipping update')
+        }
       }
     })
   } catch (error) {
