@@ -131,6 +131,9 @@ export default function Home() {
         })()
       } else {
         // User is not authenticated
+        // Check if component is still mounted before updating state
+        if (!isMountedRef.current) return
+
         setUserId(null)
         setAuthLoading(false)
         setScreen('login')
@@ -720,6 +723,9 @@ export default function Home() {
   }, [])
 
   const handleGuestMode = useCallback(() => {
+    // Check if component is still mounted before updating state
+    if (!isMountedRef.current) return
+
     // Enable guest mode: use localStorage without Firestore sync
     setIsGuest(true)
     setUserId('guest')
