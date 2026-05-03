@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome } from '../lib/types'
@@ -56,6 +56,9 @@ export function ProfileScreen({
   // Avatar editor
   const [showAvatarEditor, setShowAvatarEditor] = useState(false)
   const [tempAvatarImage, setTempAvatarImage] = useState<string>('')
+
+  // File input reference for CSV import
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Save profile to localStorage
   const saveProfileData = () => {
@@ -444,7 +447,7 @@ export function ProfileScreen({
       icon: '📊',
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
-        { label: 'Importar datos', value: 'Importar CSV', type: 'button', handler: () => document.querySelector<HTMLInputElement>('input[data-import-csv]')?.click() },
+        { label: 'Importar datos', value: 'Importar CSV', type: 'button', handler: () => fileInputRef.current?.click() },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
@@ -965,15 +968,14 @@ export function ProfileScreen({
         }
       `}</style>
       
-      {/* CSV import file input - use label for native mobile support */}
-      <label data-import-csv style={{ display: 'none' }}>
-        <input
-          type="file"
-          accept="*/*"
-          onChange={handleImportCSV}
-          style={{ display: 'none' }}
-        />
-      </label>
+      {/* CSV import file input - using useRef for reliable mobile support */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleImportCSV}
+        style={{ display: 'none' }}
+      />
 
       {/* Hidden file input for avatar upload */}
       <input
