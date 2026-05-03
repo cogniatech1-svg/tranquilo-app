@@ -155,6 +155,15 @@ export function ProfileScreen({
         monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
       })
 
+      // Log the EXACT data being sent to Firestore
+      console.log("[FORCE SYNC] 📤 DATOS ENVIADOS A FIRESTORE:", {
+        monthlyHistory: data.monthlyHistory ? Object.entries(data.monthlyHistory).map(([m, r]: any) => ({ month: m, expenseCount: r.expenses?.length })) : 'NO EXISTE',
+        monthlyIncome: data.monthlyIncome,
+        monthlySavings: data.monthlySavings,
+        expenses: data.expenses?.length,
+        conceptMap: !!data.conceptMap ? Object.keys(data.conceptMap).length : 0,
+      })
+
       // Force save to Firestore
       await saveToFirestore(userId, data)
       alert("✅ Datos sincronizados a Firestore correctamente\n📊 Ahora abre el app en el celular")
