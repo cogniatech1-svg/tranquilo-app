@@ -388,10 +388,8 @@ export function BudgetScreen({
 
           <SectionHeader
             action={
-              !addingPocket && unassigned > 0 ? (
+              !addingPocket ? (
                 <button onClick={() => setAddingPocket(true)}>+ Agregar</button>
-              ) : !addingPocket ? (
-                <button disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} title="No hay presupuesto disponible">+ Agregar</button>
               ) : undefined
             }
           >

@@ -28,6 +28,8 @@ import {
 } from '../lib/utils'
 import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
 import { subscribeToAuthState, logOut as firebaseLogOut, migrateLocalDataToUser } from '../lib/auth'
+import { normalizePocketNames } from '../lib/migrations'
+import { DEFAULT_POCKETS } from '../lib/constants'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -38,12 +40,6 @@ const ONBOARDING_FLAG = 'hasOnboarded'
 // de abril 2026 nunca vuelve a ejecutarse. Así los gastos nuevos del usuario
 // nunca son sobreescritos por datos hardcodeados.
 const APRIL_RESTORED_FLAG = 'april2026_v1_restored'
-
-const DEFAULT_POCKETS: Pocket[] = [
-  { id: 'recreacion',   name: 'Recreación',   budget: 100_000 },
-  { id: 'hogar',        name: 'Hogar',        budget: 800_000 },
-  { id: 'alimentacion', name: 'Alimentación', budget: 600_000 },
-]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT
@@ -176,18 +172,6 @@ export default function Home() {
 
         let raw = localStorage.getItem(storageKey);
 
-        // ✅ RECOVERY: If user has no data, try to recover from legacy storage
-        // This is a SAFETY NET, not the primary migration (which happens in onAuthStateChanged)
-        if (!raw && !isGuest && currentUserId) {
-          const legacyData = localStorage.getItem(STORAGE_KEY);
-
-          if (legacyData) {
-            console.log('[initializeApp] RECOVERY: Found legacy data, copying to user storage');
-
-            localStorage.setItem(storageKey, legacyData);
-            raw = legacyData;
-          }
-        }
         const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
@@ -195,21 +179,6 @@ export default function Home() {
         let data: StoredData = {}
         if (raw) {
           try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
-        }
-
-        // ── RESTAURACIÓN INMEDIATA DE ABRIL 2026 ──────────────────────────────
-        // Se ejecuta en la misma pasada del efecto, antes de cargar el estado.
-        // Así garantizamos que el histórico siempre tiene los 122 gastos.
-        if (!aprilRestored) {
-          const aprilExpenses = data.monthlyHistory?.['2026-04']?.expenses?.length ?? 0
-          if (aprilExpenses === 0) {
-            if (!data.monthlyHistory) data.monthlyHistory = {}
-            //data.monthlyHistory['2026-04'] = APRIL_2026_RECORD
-            // Escribir a localStorage de inmediato (sin esperar a React state)
-            localStorage.setItem(storageKey, JSON.stringify(data))
-            localStorage.setItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId!}`}`, 'true')
-          }
-          localStorage.setItem(aprilRestoredKey, 'true')
         }
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
@@ -229,8 +198,11 @@ export default function Home() {
         if (data.isPrivacyMode) setIsPrivacyMode(true)
 
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
+          // Normalizar pocketNames (decodificar encoding issues y capitalizar)
+          const normalizedData = normalizePocketNames(data)
+
           const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(data.monthlyHistory)) {
+          for (const [month, record] of Object.entries(normalizedData.monthlyHistory)) {
             const rec = record as any
             history[month] = {
               income:       rec.income       ?? 0,
@@ -535,27 +507,52 @@ export default function Home() {
   }, [activeMonth, getActiveMonthData])
 
   const handleAddPocket = useCallback((name: string, budget: number, icon?: string) => {
-    const monthData = getActiveMonthData()
+    console.log("[ADD POCKET] called", { name, budget, activeMonth })
     const budget_available = snapshot.budget
 
-    // VALIDACIÓN: sum(pockets) <= presupuesto
-    const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
-    const totalIfAdded = currentTotal + budget
+    setMonthlyHistory(prev => {
+      console.log("[ADD POCKET] prev state", prev)
+      // 1. Asegurar que el mes actual existe en monthlyHistory
+      if (!prev[activeMonth]) {
+        prev = {
+          ...prev,
+          [activeMonth]: {
+            income: 0,
+            savings: 0,
+            expenses: [],
+            extraIncomes: [],
+            pockets: [],
+            manualBudget: undefined,
+          },
+        }
+      }
 
-    if (totalIfAdded > budget_available) {
-      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nActualmente asignado: $${currentTotal}\nIntentando agregar: $${budget}\nTotal resultaría en: $${totalIfAdded}`)
-      return false
-    }
+      const monthData = prev[activeMonth]
 
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        pockets: [...monthData.pockets, { id: Date.now().toString(), name, budget, icon }],
-      },
-    }))
-    return true
-  }, [activeMonth, getActiveMonthData, snapshot.budget])
+      // 2. VALIDACIÓN: sum(pockets) <= presupuesto
+      const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
+      const totalIfAdded = currentTotal + budget
+
+      // TEMP: deshabilitar validación de presupuesto para permitir crear bolsillos
+      // if (totalIfAdded > budget_available) {
+      //   return prev
+      // }
+
+      // 3. Agregar nuevo pocket a monthlyHistory[activeMonth].pockets
+      console.log("[ADD POCKET] new pockets", [
+        ...monthData.pockets,
+        { id: "test", name, budget, icon }
+      ])
+      return {
+        ...prev,
+        [activeMonth]: {
+          ...monthData,
+          pockets: [...monthData.pockets, { id: Date.now().toString(), name, budget, icon }],
+        },
+      }
+    })
+    console.log("[ADD POCKET] setMonthlyHistory executed")
+  }, [activeMonth, snapshot.budget])
 
   const handleAddExtraIncome = useCallback((amount: number, note: string) => {
     const monthData = getActiveMonthData()

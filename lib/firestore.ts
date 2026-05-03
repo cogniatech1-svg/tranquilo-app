@@ -159,9 +159,34 @@ export async function loadFromFirestore(userId: string): Promise<StoredData | nu
       if (snapshot.exists()) {
         const cloudData = snapshot.data() as StoredData
 
-        // Merge if both exist
-        if (localParsed) {
+        // Validate that Firestore has real data
+        if (
+          !cloudData ||
+          !cloudData.monthlyHistory ||
+          Object.keys(cloudData.monthlyHistory).length === 0
+        ) {
+          console.warn("Skipping Firestore overwrite: empty or invalid data")
+          return localParsed
+        }
+
+        // Merge if both exist - but only if cloud is more complete
+        if (localParsed && cloudData) {
+          // Si local tiene más datos que cloud, usar local directamente
+          const localMonths = Object.keys(localParsed.monthlyHistory || {}).length
+          const cloudMonths = Object.keys(cloudData.monthlyHistory || {}).length
+
+          if (localMonths >= cloudMonths) {
+            console.warn("Using local data: appears more complete than cloud")
+            return localParsed
+          }
+
+          // Solo hacer merge si cloud es más completo
           return mergeLocalAndCloud(localParsed, cloudData)
+        }
+
+        // If only local exists
+        if (localParsed) {
+          return localParsed
         }
 
         // Use cloud data if local doesn't exist
@@ -199,6 +224,16 @@ export function subscribeToFirestore(
     return onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const cloudData = snapshot.data() as StoredData
+
+        // Validate that Firestore has real data
+        if (
+          !cloudData ||
+          !cloudData.monthlyHistory ||
+          Object.keys(cloudData.monthlyHistory).length === 0
+        ) {
+          console.warn("Skipping Firestore overwrite: empty or invalid data")
+          return
+        }
 
         // Get current local data
         const storageKey = getStorageKey(userId)

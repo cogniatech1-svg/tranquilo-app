@@ -9,6 +9,7 @@ import {
 import { doc, setDoc } from 'firebase/firestore'
 import { getAuth_, getDb } from './firebase'
 import { StoredData } from './types'
+import { migrateToMonthlyHistory } from './migrations'
 
 const STORAGE_KEY = 'tranquilo_v1'
 const MIGRATION_FLAG = 'migration_completed'
@@ -24,7 +25,7 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
     const user = userCredential.user
     const userId = user.uid
 
-    // Migrate any existing local data to this user's Firestore namespace
+    // Migrate guest data to user's scoped storage
     await migrateLocalDataToUser(userId)
 
     // Create user document in Firestore
@@ -68,7 +69,12 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
 export async function logIn(email: string, password: string): Promise<FirebaseUser> {
   try {
     const userCredential = await signInWithEmailAndPassword(getAuth_(), email, password)
-    console.log('User logged in:', userCredential.user.uid)
+    const userId = userCredential.user.uid
+
+    // Migrate guest data to user's scoped storage
+    await migrateLocalDataToUser(userId)
+
+    console.log('User logged in:', userId)
     return userCredential.user
   } catch (error) {
     console.error('Error logging in:', error)
@@ -115,32 +121,58 @@ export function getCurrentUser(): FirebaseUser | null {
 }
 
 /**
- * Migrate local data (from Phase 1) to user's Firestore namespace
- * SIMPLE AND CORRECT:
- * - Only run if user data doesn't exist
- * - Never overwrite existing user data
- * - Don't delete legacy data
+ * Migrate guest data to user's scoped storage
+ * - Validate that user doesn't already have real data
+ * - If no guest data → skip
+ * - If guest data exists → transform structure and save to user key
  */
 export async function migrateLocalDataToUser(userId: string): Promise<void> {
+  const guestKey = 'tranquilo_v1'
   const userKey = `tranquilo_v1_${userId}`
-  const existingUserData = localStorage.getItem(userKey)
 
-  // ❌ Already has data → DO NOT TOUCH
-  if (existingUserData) {
-    console.log('[migrate] User already has data, skipping migration')
+  const guestRaw = localStorage.getItem(guestKey)
+  const userRaw = localStorage.getItem(userKey)
+
+  // 1. Validate if user already has real data
+  let userData = null
+
+  if (userRaw) {
+    try {
+      userData = JSON.parse(userRaw)
+    } catch {
+      userData = null
+    }
+  }
+
+  // Solo saltar si tiene datos reales
+  if (userData && Object.keys(userData).length > 0) {
+    console.log('[migration] User already has valid data, skipping')
     return
   }
 
-  const legacyData = localStorage.getItem(STORAGE_KEY)
-
-  if (!legacyData) {
-    console.log('[migrate] No legacy data to migrate')
+  // 2. Si no hay datos guest → no hay nada que migrar
+  if (!guestRaw) {
+    console.log('[migration] No guest data found')
     return
   }
 
-  console.log('[migrate] ✅ Migrating legacy data to user:', userId)
+  try {
+    const parsed = JSON.parse(guestRaw)
 
-  localStorage.setItem(userKey, legacyData)
+    // 3. Transformar estructura (usar función pura)
+    const migrated = migrateToMonthlyHistory(parsed)
+
+    // 4. Guardar en la clave del usuario
+    localStorage.setItem(userKey, JSON.stringify(migrated))
+
+    // 5. Eliminar datos guest INMEDIATAMENTE (muy importante - no permitir ambas keys)
+    localStorage.removeItem(guestKey)
+    console.log('[migration] cleaned guest data')
+
+    console.log('[migration] Guest data migrated successfully')
+  } catch (error) {
+    console.error('[migration] Error parsing guest data:', error)
+  }
 }
 
 /**

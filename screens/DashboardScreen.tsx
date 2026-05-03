@@ -8,6 +8,7 @@ import { maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
+import { capitalizeWords } from '../lib/migrations'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -65,57 +66,68 @@ export function DashboardScreen({
   }, [])
 
   const handleExportCSV = () => {
-    const raw = localStorage.getItem('tranquilo_v1')
-    const data = raw ? JSON.parse(raw) : {}
+    console.log("[EXPORT HIT] handleExportCSV en DashboardScreen.tsx")
+    alert("EXPORT EJECUTADO")
+    // 1. DETECTAR KEY CORRECTA (user-scoped o guest)
+    let raw = null
+    const allKeys = Object.keys(localStorage)
+    const userKeys = allKeys.filter(k => k.startsWith('tranquilo_v1_'))
 
+    if (userKeys.length > 0) {
+      raw = localStorage.getItem(userKeys[0])
+    } else {
+      raw = localStorage.getItem('tranquilo_v1')
+    }
+
+    const data = raw ? JSON.parse(raw) : { monthlyHistory: {} }
+
+    // 2. EXTRAER NOMBRES DE POCKETS DESDE monthlyHistory
     const pocketNames: Record<string, string> = {}
-    for (const p of (data.pockets ?? [])) pocketNames[p.id] = p.name
-
-    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'Monto', 'Descripción']]
-
-    // Gastos del mes actual
-    for (const e of (data.expenses ?? [])) {
-      rows.push([
-        e.date.slice(0, 10),
-        'gasto',
-        pocketNames[e.pocketId] ?? e.pocketId ?? '',
-        String(e.amount),
-        e.concept ?? '',
-      ])
+    for (const record of Object.values(data.monthlyHistory ?? {})) {
+      const rec = record as any
+      for (const p of (rec.pockets ?? [])) {
+        pocketNames[p.id] = capitalizeWords(p.name)
+      }
     }
 
-    // Ingresos extras
-    for (const i of (data.extraIncomes ?? [])) {
-      rows.push([
-        i.date.slice(0, 10),
-        'ingreso',
-        'Ingresos',
-        String(i.amount),
-        i.concept ?? '',
-      ])
-    }
+    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'pocketId', 'Monto', 'Descripción']]
 
-    // Meses anteriores
+    // 3. EXTRAER DE monthlyHistory (nueva estructura)
     for (const [, record] of Object.entries(data.monthlyHistory ?? {})) {
-      const rec = record as { expenses?: Array<{ date: string; pocketId: string; amount: number; concept: string }> }
+      const rec = record as any
       for (const e of (rec.expenses ?? [])) {
         rows.push([
           e.date.slice(0, 10),
           'gasto',
           pocketNames[e.pocketId] ?? e.pocketId ?? '',
+          e.pocketId ?? '',
           String(e.amount),
           e.concept ?? '',
         ])
       }
+      for (const i of (rec.extraIncomes ?? [])) {
+        rows.push([
+          i.date.slice(0, 10),
+          'ingreso',
+          'Ingresos',
+          'ingresos',
+          String(i.amount),
+          i.concept ?? '',
+        ])
+      }
     }
 
-    // Ordenar por fecha descendente
+    // 4. ORDENAR POR FECHA DESCENDENTE
     const [header, ...body] = rows
     body.sort((a, b) => b[0].localeCompare(a[0]))
 
+    // 5. GENERAR CSV CON BOM UTF-8 Y FORMATO EXCEL
+    const BOM = '\uFEFF'
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    const csv = [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    console.log("[CSV DEBUG DashboardScreen]", rows.slice(0, 5))
+    const csvContent = BOM + [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
+
+    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

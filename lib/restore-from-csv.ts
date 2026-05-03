@@ -11,6 +11,7 @@ interface CSVRow {
   fecha: string
   tipo: string
   categoria: string
+  pocketId: string
   monto: number
   descripcion: string
 }
@@ -18,24 +19,51 @@ interface CSVRow {
 /**
  * Parse CSV data from the backup file
  * Expected format: Fecha,Tipo,Categoría,Monto,Descripción
+ * Handles encoding issues: Categoría/CategorÃ­a, Descripción/DescripciÃ³n
  */
 function parseCSVData(csvText: string): CSVRow[] {
   const lines = csvText.split('\n').filter(line => line.trim())
 
-  // Skip header
-  const dataLines = lines.slice(1)
+  if (lines.length < 2) return []
 
-  return dataLines.map(line => {
-    // Handle quoted fields with commas
-    const regex = /(?:[^,"]+|"[^"]*")+/g
+  // Parse header with encoding tolerance
+  const headerLine = lines[0]
+  const regex = /(?:[^,"]+|"[^"]*")+/g
+  const headerFields = headerLine.match(regex) || []
+
+  // Normalize header names to handle encoding issues
+  const normalizeHeader = (h: string): string => {
+    return h.trim().replace(/"/g, '').toLowerCase()
+  }
+
+  const headers = headerFields.map(normalizeHeader)
+
+  // Find column indices with encoding tolerance
+  const findColumn = (possibleNames: string[]): number => {
+    return headers.findIndex(h => possibleNames.includes(h))
+  }
+
+  const fechaIdx = findColumn(['fecha'])
+  const tipoIdx = findColumn(['tipo'])
+  const categoriaIdx = findColumn(['categoría', 'categoriã­a']) // Handle encoding
+  const pocketIdIdx = findColumn(['pocketid']) // New column for pocket ID
+  const montoIdx = findColumn(['monto'])
+  const descripcionIdx = findColumn(['descripción', 'descripciã³n']) // Handle encoding
+
+  // Parse data rows
+  return lines.slice(1).map(line => {
     const fields = line.match(regex) || []
+    const cleanField = (idx: number): string => {
+      return fields[idx]?.trim().replace(/"/g, '') || ''
+    }
 
     return {
-      fecha: fields[0]?.trim().replace(/"/g, '') || '',
-      tipo: fields[1]?.trim().replace(/"/g, '') || '',
-      categoria: fields[2]?.trim().replace(/"/g, '') || '',
-      monto: parseInt(fields[3]?.trim().replace(/"/g, '') || '0'),
-      descripcion: fields[4]?.trim().replace(/"/g, '') || '',
+      fecha: cleanField(fechaIdx),
+      tipo: cleanField(tipoIdx),
+      categoria: cleanField(categoriaIdx),
+      pocketId: cleanField(pocketIdIdx), // New field from CSV
+      monto: Number(cleanField(montoIdx)) || 0,
+      descripcion: cleanField(descripcionIdx),
     }
   })
 }
@@ -45,6 +73,18 @@ function parseCSVData(csvText: string): CSVRow[] {
  */
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+/**
+ * Corregir encoding mal formado en strings importados del CSV
+ */
+const fixEncoding = (text: string) => {
+  if (!text) return text
+  try {
+    return decodeURIComponent(escape(text))
+  } catch {
+    return text
+  }
 }
 
 /**
@@ -70,20 +110,39 @@ function convertCSVToAppData(rows: CSVRow[]): StoredData {
     }
 
     if (row.tipo.toLowerCase() === 'gasto') {
+      // Use pocketId from CSV if present, otherwise fallback to categoria
+      const rawCategory = row.pocketId || row.categoria || ''
+      const pocketId = fixEncoding(rawCategory)
+        ?.toString()
+        .toLowerCase()
+        .trim() || 'default'
+
+      console.log("[IMPORT DEBUG]", rawCategory, "→", pocketId)
+
+      const concept = fixEncoding(row.descripcion.trim())
+
       const expense: Expense = {
         id: generateId(),
         date,
-        concept: `${row.categoria.trim()} - ${row.descripcion.trim()}`,
         amount: row.monto,
-        pocketId: 'default',
+        concept,
+        pocketId,
       }
-      monthlyHistory[month].expenses.push(expense)
+      // Deduplication: check if exact duplicate exists
+      const exists = monthlyHistory[month].expenses.some(e =>
+        e.date === expense.date &&
+        e.amount === expense.amount &&
+        e.concept === expense.concept
+      )
+      if (!exists) {
+        monthlyHistory[month].expenses.push(expense)
+      }
     } else if (row.tipo.toLowerCase() === 'ingreso') {
       const income: ExtraIncome = {
         id: generateId(),
         date,
         amount: row.monto,
-        concept: row.descripcion.trim(),
+        concept: fixEncoding(row.descripcion.trim()),
       }
       monthlyHistory[month].extraIncomes.push(income)
       totalIncome += row.monto
@@ -111,9 +170,11 @@ function convertCSVToAppData(rows: CSVRow[]): StoredData {
 
 /**
  * MAIN: Restore data from CSV backup
- * Call this after user logs in
+ * Always saves to guest storage key (tranquilo_v1)
+ * Migration to user-scoped key happens during login
+ * Only saves to localStorage (no Firestore)
  */
-export async function restoreFromCSV(csvText: string, userId: string): Promise<void> {
+export async function restoreFromCSV(csvText: string): Promise<void> {
   console.log('[restore-csv] Starting restoration...')
 
   try {
@@ -125,14 +186,12 @@ export async function restoreFromCSV(csvText: string, userId: string): Promise<v
     const appData = convertCSVToAppData(rows)
     console.log('[restore-csv] Converted to app format')
 
-    // Save to localStorage (user-scoped)
-    const storageKey = `tranquilo_v1_${userId}`
-    localStorage.setItem(storageKey, JSON.stringify(appData))
-    console.log('[restore-csv] ✅ Saved to localStorage:', storageKey)
+    // Always save to guest storage key
+    const key = 'tranquilo_v1'
 
-    // Save to Firestore
-    await saveToFirestore(userId, appData)
-    console.log('[restore-csv] ✅ Saved to Firestore')
+    // Save to localStorage - completely overwrites existing data
+    localStorage.setItem(key, JSON.stringify(appData))
+    console.log('[CSV RESTORE] SAVED:', key, appData)
 
     console.log('[restore-csv] ✅ RESTORATION COMPLETE - 260+ transactions recovered')
   } catch (error) {

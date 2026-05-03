@@ -2,6 +2,7 @@ import { Icon } from './ui/Icon'
 import { getPocketIcon, getPocketPalette, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, Pocket } from '../lib/types'
+import { DEFAULT_POCKETS } from '../lib/constants'
 
 interface Props {
   expense: Expense
@@ -24,8 +25,13 @@ export function TransactionItem({
   showDivider = true,
   isPrivacyMode = false,
 }: Props) {
-  const icon = pocket ? getPocketIcon(pocket.id, pocket.name, pocket.icon) : '💳'
-  const pal = getPocketPalette(pocket?.id ?? '', pocketIndex)
+  // Ensure pocket exists, fallback to default
+  const safePocket = pocket ?? DEFAULT_POCKETS[pocketIndex] ?? DEFAULT_POCKETS[0]
+
+  const icon = getPocketIcon(safePocket.id, safePocket.name, safePocket.icon)
+  const pal = getPocketPalette(safePocket.id, pocketIndex)
+  const bgColor = pal?.bg ?? '#e2e8f0'
+  const textColor = pal?.text ?? '#64748b'
 
   return (
     <div
@@ -36,7 +42,7 @@ export function TransactionItem({
       {/* Icon */}
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl leading-none select-none"
-        style={{ backgroundColor: pal.bg }}
+        style={{ backgroundColor: bgColor }}
       >
         {icon}
       </div>
@@ -47,7 +53,7 @@ export function TransactionItem({
           {expense.concept}
         </p>
         {pocket && (
-          <p className="text-[11px] mt-0.5 font-medium" style={{ color: pal.text }}>
+          <p className="text-[11px] mt-0.5 font-medium" style={{ color: textColor }}>
             {pocket.name}
           </p>
         )}
