@@ -246,16 +246,22 @@ export default function Home() {
           console.log('[initializeApp] Setting monthlyHistory with', Object.keys(history).length, 'months')
           setMonthlyHistory(history)
 
-          // Si hay datos, ir al primer mes disponible (puede estar en formato DD/MM/Y o YYYY-MM)
+          // Si hay datos, ir al mes con gastos (preferentemente abril)
           const availableMonths = Object.keys(history)
           if (availableMonths.length > 0) {
-            // Preferir abril si existe (en cualquier formato)
-            let targetMonth = availableMonths.find(m => m.includes('04/2') || m === '2026-04')
-            // Si no hay abril, usar el primer mes
+            // Preferir abril CON gastos (en cualquier formato)
+            let targetMonth = availableMonths.find(m =>
+              (m.includes('04/2') || m === '2026-04') && history[m].expenses?.length > 0
+            )
+            // Si no hay abril con gastos, usar el primer mes CON gastos
+            if (!targetMonth) {
+              targetMonth = availableMonths.find(m => history[m].expenses?.length > 0)
+            }
+            // Si aún no hay mes con gastos, usar el primer mes
             if (!targetMonth) {
               targetMonth = availableMonths[0]
             }
-            console.log('[initializeApp] Setting activeMonth to:', targetMonth)
+            console.log('[initializeApp] Setting activeMonth to:', targetMonth, '| expenses:', history[targetMonth]?.expenses?.length)
             setActiveMonth(targetMonth)
             setCurrentMonth(targetMonth)
           }
