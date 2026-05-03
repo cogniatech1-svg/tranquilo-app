@@ -333,11 +333,14 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated || !userId) return
 
+    console.log('[AUTO-SAVE] Dependencies changed, restarting debounce timer')
+
     // Capture userId to ensure type safety in async operations
     const currentUserId = userId
 
     // Set up debounce timer - wait 2 seconds before saving
     const timer = setTimeout(async () => {
+      console.log('[AUTO-SAVE] 🔔 2-second debounce fired, executing save')
       const activeData = getActiveMonthData()
       const dataToSave: StoredData = {
         // Datos del mes actual (para backward compatibility)
