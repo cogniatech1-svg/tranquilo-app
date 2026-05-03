@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome } from '../lib/types'
@@ -56,9 +56,6 @@ export function ProfileScreen({
   // Avatar editor
   const [showAvatarEditor, setShowAvatarEditor] = useState(false)
   const [tempAvatarImage, setTempAvatarImage] = useState<string>('')
-
-  // File input reference for CSV import
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Save profile to localStorage
   const saveProfileData = () => {
@@ -447,7 +444,7 @@ export function ProfileScreen({
       icon: '📊',
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
-        { label: 'Importar datos', value: 'Importar CSV', type: 'file-button', ref: fileInputRef },
+        { label: 'Importar datos', value: 'Importar CSV', type: 'file-button' },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
@@ -682,32 +679,22 @@ export function ProfileScreen({
                           <img src={item.value} alt="Avatar" style={{ width: '70px', height: '70px', objectFit: 'cover' }} />
                         </div>
                       ) : item.type === 'file-button' ? (
-                        <label
-                          style={{
-                            width: '100%',
-                            display: 'block',
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: '#0d6259',
-                            color: 'white',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            textAlign: 'center',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = '0.9';
-                            e.currentTarget.style.transform = 'scale(1.02)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = '1';
-                            e.currentTarget.style.transform = 'scale(1)';
-                          }}>
+                        <label className="import-button" style={{
+                          width: '100%',
+                          display: 'block',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: '#0d6259',
+                          color: 'white',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          textAlign: 'center',
+                        }}>
                           {item.value}
                           <input
-                            ref={item.ref}
                             type="file"
                             accept=".csv"
                             onChange={handleImportCSV}
@@ -998,6 +985,15 @@ export function ProfileScreen({
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        label.import-button:hover {
+          opacity: 0.9;
+          transform: scale(1.02);
+        }
+
+        label.import-button:active {
+          transform: scale(0.98);
         }
       `}</style>
 
