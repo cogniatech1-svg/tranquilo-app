@@ -10,6 +10,32 @@ import type { CountryConfig } from '../lib/config'
 import type { Expense, MonthRecord, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
 
+/**
+ * Parse date string in DD/MM/YYYY or YYYY-MM-DD format
+ * Returns a valid Date object or null if parsing fails
+ */
+function parseDateString(dateStr: string): Date | null {
+  if (!dateStr) return null
+
+  try {
+    // Remove time part if present
+    const datePart = dateStr.split('T')[0]
+
+    if (datePart.includes('/')) {
+      // DD/MM/YYYY format
+      const [d, m, y] = datePart.split('/')
+      return new Date(`${y}-${m}-${d}T12:00:00`)
+    } else if (datePart.includes('-')) {
+      // YYYY-MM-DD format
+      return new Date(datePart + 'T12:00:00')
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 interface Props {
   snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
   expenses: Expense[]
@@ -441,7 +467,21 @@ function buildHistorial(
   if (sorted.length === 0) return { months: [], trendMsg: null }
 
   const processed = sorted.map(([key, rec]) => {
-    const [y, m] = key.split('-')
+    // Parse month from DD/MM/Y or YYYY-MM format
+    let y: string
+    let m: string
+    if (key.includes('-')) {
+      [y, m] = key.split('-')
+    } else if (key.includes('/')) {
+      const parts = key.split('/')
+      y = parts[2]
+      m = parts[1]
+    } else {
+      // Fallback
+      const now = new Date()
+      y = now.getFullYear().toString()
+      m = String(now.getMonth() + 1).padStart(2, '0')
+    }
     const name = new Date(`${y}-${m}-15`).toLocaleDateString(config.locale, {
       month: 'long', year: '2-digit',
     })
@@ -766,7 +806,7 @@ export function InsightsScreen({
                           ) : (
                             <div className="divide-y divide-slate-100">
                               {pocketExpenses.map(e => {
-                                const d = new Date(e.date)
+                                const d = parseDateString(e.date) || new Date()
                                 const dateStr = d.toLocaleDateString(config.locale, { day: 'numeric', month: 'short' })
                                 return (
                                   <div key={e.id} className="flex items-center justify-between px-5 py-3 gap-3">
