@@ -765,7 +765,6 @@ export function ProfileScreen({
                             style={{ display: 'none' }}
                           />
                         </>
-                      )
                       ) : item.type === 'button' || item.type === 'button-danger' ? (
                         <button
                           onClick={item.handler}
