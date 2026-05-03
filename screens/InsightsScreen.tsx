@@ -495,9 +495,10 @@ function buildHistorial(
       year = now.getFullYear()
       month = now.getMonth() + 1
     }
-    const name = new Date(year, month - 1, 15).toLocaleDateString(config.locale, {
-      month: 'long', year: 'numeric',
+    const monthName = new Date(year, month - 1, 15).toLocaleDateString(config.locale, {
+      month: 'long',
     })
+    const name = `${monthName} de ${year}`
     const income = rec.income ?? 0
     const recSavings = rec.savings ?? 0
     const budget = Math.max(0, income - recSavings)
