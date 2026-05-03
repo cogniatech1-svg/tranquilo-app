@@ -28,8 +28,8 @@ import {
 } from '../lib/utils'
 import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
 import { subscribeToAuthState, logOut as firebaseLogOut, migrateLocalDataToUser } from '../lib/auth'
+import { repairStoredData, DEFAULT_POCKETS } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
-import { DEFAULT_POCKETS } from '../lib/constants'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -210,6 +210,12 @@ export default function Home() {
         if (raw) {
           try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
         }
+
+        // ── REPARAR DATOS CORRUPTOS (PHASE 2) ────────────────────────────────
+        // Asegura que todos los 9 bolsillos estén presentes
+        // Detecta y reporta gastos con nombres genéricos ("Expense 1", etc)
+        console.log('[initializeApp] 🔧 Repairing corrupted data...')
+        data = repairStoredData(data)
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
