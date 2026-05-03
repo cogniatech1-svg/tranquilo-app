@@ -132,15 +132,31 @@ export function ProfileScreen({
         return
       }
 
-      const data = JSON.parse(raw) as StoredData
-      console.log("[FORCE SYNC] Datos encontrados:", {
-        months: Object.keys(data.monthlyHistory || {}).length,
+      let data = JSON.parse(raw) as StoredData
+
+      console.log("[FORCE SYNC] Datos encontrados (ANTES):", {
+        hasMonthlyHistory: !!data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0,
+        monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+        expenses: data.expenses?.length ?? 0,
+        extraIncomes: data.extraIncomes?.length ?? 0,
         userId,
+      })
+
+      // CRITICAL: Migrate old structure (expenses array) to new structure (monthlyHistory)
+      if (data.expenses && data.expenses.length > 0 && (!data.monthlyHistory || Object.keys(data.monthlyHistory).length === 0)) {
+        console.log("[FORCE SYNC] 🔄 Detectada estructura antigua - migrando a monthlyHistory...")
+        data = migrateToMonthlyHistory(data)
+        console.log("[FORCE SYNC] ✅ Migración completada")
+      }
+
+      console.log("[FORCE SYNC] Datos después de migración:", {
+        hasMonthlyHistory: !!data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0,
+        monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
       })
 
       // Force save to Firestore
       await saveToFirestore(userId, data)
-      alert("✅ Datos sincronizados a Firestore correctamente")
+      alert("✅ Datos sincronizados a Firestore correctamente\n📊 Ahora abre el app en el celular")
       console.log("[FORCE SYNC] ✅ Sincronización completada")
     } catch (error) {
       console.error("[FORCE SYNC] Error:", error)
