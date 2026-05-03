@@ -779,7 +779,8 @@ export function ProfileScreen({
                           <input
                             id="csv-import-input"
                             type="file"
-                            accept=".csv"
+                            accept=".csv,text/csv,application/vnd.ms-excel"
+                            capture={false}
                             onChange={handleImportCSV}
                             style={{ display: 'none' }}
                           />
