@@ -76,7 +76,7 @@ export default function Home() {
   // Subscribe to Firebase auth state changes
   // This runs once on mount and keeps track of the current user
   useEffect(() => {
-    const unsubscribe = subscribeToAuthState((user) => {
+    const unsubscribe = subscribeToAuthState(async (user) => {
       console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
       if (user) {
         console.log('[AUTH] Setting userId:', user.uid)
@@ -85,7 +85,8 @@ export default function Home() {
 
         // ✅ MIGRATION: This is the CORRECT moment to migrate
         // Firebase has resolved the user UID, now migrate legacy data
-        migrateLocalDataToUser(user.uid)
+        // CRITICAL: Wait for migration to complete before checking localStorage
+        await migrateLocalDataToUser(user.uid)
 
         // Check if user has data OR if they need recovery
         const userKey = `${STORAGE_KEY}_${user.uid}`
