@@ -77,7 +77,9 @@ export default function Home() {
   // This runs once on mount and keeps track of the current user
   useEffect(() => {
     const unsubscribe = subscribeToAuthState((user) => {
+      console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
       if (user) {
+        console.log('[AUTH] Setting userId:', user.uid)
         setUserId(user.uid)
         setAuthLoading(false)
 
@@ -168,9 +170,11 @@ export default function Home() {
           ? STORAGE_KEY
           : `${STORAGE_KEY}_${currentUserId}`;
 
-        console.log('[initializeApp] Loading with storageKey:', storageKey)
+        console.log('[initializeApp] 🚀 Starting initialization')
+        console.log('[initializeApp] isGuest:', isGuest, '| userId:', currentUserId, '| storageKey:', storageKey)
 
         let raw = localStorage.getItem(storageKey);
+        console.log('[initializeApp] localStorage has data:', !!raw, '| size:', raw?.length ?? 0, 'bytes')
 
         const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
@@ -232,10 +236,16 @@ export default function Home() {
         // Merge con localStorage si hay datos en Firestore
         // PHASE 2: Pass userId to loadFromFirestore
         if (!isGuest && currentUserId) {
+          console.log('[initializeApp] 📱 Loading from Firestore for userId:', currentUserId)
           try {
             const firestoreData = await loadFromFirestore(currentUserId)
+            console.log('[initializeApp] Firestore response:', firestoreData ? '✅ Got data' : '❌ No data', {
+              hasMonthlyHistory: !!firestoreData?.monthlyHistory,
+              months: firestoreData?.monthlyHistory ? Object.keys(firestoreData.monthlyHistory).length : 0,
+            })
+
             if (firestoreData && firestoreData.monthlyHistory && Object.keys(firestoreData.monthlyHistory).length > 0) {
-              console.log('Firestore data loaded and merged with localStorage')
+              console.log('✅ Firestore data loaded and merged with localStorage')
               // Actualizar React state con datos de Firestore
               const firestoreHistory: Record<string, MonthRecord> = {}
               for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
@@ -249,18 +259,22 @@ export default function Home() {
                   manualBudget: rec.manualBudget,
                 }
               }
-              console.log('[initializeApp] Updating state with Firestore data:', Object.keys(firestoreHistory).length, 'months')
+              console.log('[initializeApp] ✅ Updating React state with Firestore data:', Object.keys(firestoreHistory).length, 'months')
               setMonthlyHistory(firestoreHistory)
               if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
               if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
               if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
               if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
               if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
+            } else {
+              console.log('[initializeApp] ℹ️ Firestore has no data or is empty')
             }
           } catch (error) {
-            console.warn('Could not load from Firestore (offline?), continuing with localStorage:', error)
+            console.error('❌ Error loading from Firestore:', error)
             // Esto es OK - localStorage es el fallback
           }
+        } else {
+          console.log('[initializeApp] ℹ️ Skipping Firestore (isGuest:', isGuest, ', userId:', currentUserId, ')')
         }
       } catch (e) {
         // ignorar JSON malformado
@@ -337,7 +351,11 @@ export default function Home() {
   // Subscribe to Firestore updates and merge with local state
   // PHASE 2: Only subscribe if user is authenticated (NOT guest mode)
   useEffect(() => {
-    if (!hydrated || !userId || isGuest) return
+    console.log('[FS-SYNC] Checking subscription conditions:', { hydrated, userId, isGuest })
+    if (!hydrated || !userId || isGuest) {
+      console.log('[FS-SYNC] ℹ️ Skipping subscription (hydrated:', hydrated, ', userId:', userId, ', isGuest:', isGuest, ')')
+      return
+    }
 
     // Capture userId to ensure type safety in subscription
     const currentUserId = userId
@@ -345,8 +363,13 @@ export default function Home() {
     let unsubscribe: (() => void) | null = null
 
     try {
+      console.log('[FS-SYNC] 🔄 Setting up real-time subscription for userId:', currentUserId)
       // PHASE 2: Pass userId to subscribeToFirestore
       unsubscribe = subscribeToFirestore(currentUserId, (firestoreData: StoredData) => {
+        console.log('[FS-SYNC] 📨 Firestore update received:', {
+          hasData: !!firestoreData,
+          monthsCount: firestoreData?.monthlyHistory ? Object.keys(firestoreData.monthlyHistory).length : 0,
+        })
         // Firestore data was merged with localStorage in subscribeToFirestore
         // Update React state with the merged data
         if (firestoreData.monthlyHistory) {

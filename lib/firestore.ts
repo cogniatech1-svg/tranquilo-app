@@ -220,10 +220,16 @@ export function subscribeToFirestore(
 ): Unsubscribe {
   try {
     const docRef = doc(getDb(), 'users', userId, 'data', 'main')
+    console.log('[subscribeToFirestore] 👂 Listening to:', docRef.path)
 
     return onSnapshot(docRef, (snapshot) => {
+      console.log('[subscribeToFirestore] 📡 Snapshot received:', { exists: snapshot.exists(), path: snapshot.ref.path })
       if (snapshot.exists()) {
         const cloudData = snapshot.data() as StoredData
+        console.log('[subscribeToFirestore] ✅ Cloud data exists:', {
+          hasMonthlyHistory: !!cloudData.monthlyHistory,
+          months: cloudData.monthlyHistory ? Object.keys(cloudData.monthlyHistory).length : 0,
+        })
 
         // Validate that Firestore has real data
         if (
@@ -231,7 +237,11 @@ export function subscribeToFirestore(
           !cloudData.monthlyHistory ||
           Object.keys(cloudData.monthlyHistory).length === 0
         ) {
-          console.warn("Skipping Firestore overwrite: empty or invalid data")
+          console.warn("⚠️ Skipping Firestore overwrite: empty or invalid data", {
+            cloudData: !!cloudData,
+            hasMonthlyHistory: !!cloudData?.monthlyHistory,
+            monthCount: cloudData?.monthlyHistory ? Object.keys(cloudData.monthlyHistory).length : 0,
+          })
           return
         }
 
@@ -240,15 +250,26 @@ export function subscribeToFirestore(
         const localData = localStorage.getItem(storageKey)
         const localParsed = localData ? JSON.parse(localData) : null
 
+        console.log('[subscribeToFirestore] Merging data:', {
+          hasLocal: !!localParsed,
+          localMonths: localParsed?.monthlyHistory ? Object.keys(localParsed.monthlyHistory).length : 0,
+          cloudMonths: cloudData.monthlyHistory ? Object.keys(cloudData.monthlyHistory).length : 0,
+        })
+
         // Merge and call update callback
         const mergedData = localParsed
           ? mergeLocalAndCloud(localParsed, cloudData)
           : cloudData
 
+        console.log('[subscribeToFirestore] ✅ Merged data ready:', {
+          months: Object.keys(mergedData.monthlyHistory || {}).length,
+        })
+
         // Update localStorage with merged data
         localStorage.setItem(storageKey, JSON.stringify(mergedData))
 
         // Notify app of update
+        console.log('[subscribeToFirestore] 🔔 Calling onUpdate callback')
         onUpdate(mergedData)
       }
     })
