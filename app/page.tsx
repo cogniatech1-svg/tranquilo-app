@@ -76,7 +76,7 @@ export default function Home() {
   // Subscribe to Firebase auth state changes
   // This runs once on mount and keeps track of the current user
   useEffect(() => {
-    const unsubscribe = subscribeToAuthState(async (user) => {
+    const unsubscribe = subscribeToAuthState((user) => {
       console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
       if (user) {
         console.log('[AUTH] Setting userId:', user.uid)
@@ -86,35 +86,38 @@ export default function Home() {
         // ✅ MIGRATION: This is the CORRECT moment to migrate
         // Firebase has resolved the user UID, now migrate legacy data
         // CRITICAL: Wait for migration to complete before checking localStorage
-        await migrateLocalDataToUser(user.uid)
+        // Use IIFE to handle async without breaking callback signature
+        (async () => {
+          await migrateLocalDataToUser(user.uid)
 
-        // Check if user has data OR if they need recovery
-        const userKey = `${STORAGE_KEY}_${user.uid}`
-        const userData = localStorage.getItem(userKey)
-        let hasData = false
+          // Check if user has data OR if they need recovery
+          const userKey = `${STORAGE_KEY}_${user.uid}`
+          const userData = localStorage.getItem(userKey)
+          let hasData = false
 
-        if (userData) {
-          try {
-            const parsed = JSON.parse(userData)
-            const months = Object.keys(parsed.monthlyHistory || {})
-            hasData = months.length > 0
-          } catch {
-            // Invalid JSON
+          if (userData) {
+            try {
+              const parsed = JSON.parse(userData)
+              const months = Object.keys(parsed.monthlyHistory || {})
+              hasData = months.length > 0
+            } catch {
+              // Invalid JSON
+            }
           }
-        }
 
-        // User is authenticated - check if they've completed onboarding
-        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+          // User is authenticated - check if they've completed onboarding
+          const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
 
-        // If no data, show recovery screen (for CSV restoration)
-        if (!hasData && !hasOnboarded) {
-          console.log('[auth] No data detected, showing recovery screen')
-          setScreen('recovery')
-        } else if (hasOnboarded) {
-          setScreen('main')
-        } else {
-          setScreen('onboarding')
-        }
+          // If no data, show recovery screen (for CSV restoration)
+          if (!hasData && !hasOnboarded) {
+            console.log('[auth] No data detected, showing recovery screen')
+            setScreen('recovery')
+          } else if (hasOnboarded) {
+            setScreen('main')
+          } else {
+            setScreen('onboarding')
+          }
+        })()
       } else {
         // User is not authenticated
         setUserId(null)
