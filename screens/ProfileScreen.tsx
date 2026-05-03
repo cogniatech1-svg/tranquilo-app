@@ -143,8 +143,9 @@ export function ProfileScreen({
       })
 
       // CRITICAL: Migrate old structure (expenses array) to new structure (monthlyHistory)
-      if (data.expenses && data.expenses.length > 0 && (!data.monthlyHistory || Object.keys(data.monthlyHistory).length === 0)) {
-        console.log("[FORCE SYNC] 🔄 Detectada estructura antigua - migrando a monthlyHistory...")
+      // Always migrate if expenses array exists and has data, even if monthlyHistory exists
+      if (data.expenses && data.expenses.length > 0) {
+        console.log("[FORCE SYNC] 🔄 Detectada estructura antigua - migrando todos los gastos a monthlyHistory...")
         data = migrateToMonthlyHistory(data)
         console.log("[FORCE SYNC] ✅ Migración completada")
       }
