@@ -165,11 +165,20 @@ export function ProfileScreen({
       })
 
       // Force save to Firestore
-      await saveToFirestore(userId, data)
+      console.log("[FORCE SYNC] 📤 Llamando saveToFirestore...")
+      try {
+        await saveToFirestore(userId, data)
+        console.log("[FORCE SYNC] ✅ saveToFirestore completado sin errores")
+      } catch (saveError) {
+        console.error("[FORCE SYNC] ❌ ERROR en saveToFirestore:", saveError)
+        alert("❌ Error guardando en Firestore: " + String(saveError))
+        return
+      }
+
       alert("✅ Datos sincronizados a Firestore correctamente\n📊 Ahora abre el app en el celular")
       console.log("[FORCE SYNC] ✅ Sincronización completada")
     } catch (error) {
-      console.error("[FORCE SYNC] Error:", error)
+      console.error("[FORCE SYNC] Error general:", error)
       alert("❌ Error durante la sincronización: " + String(error))
     }
   }
