@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
-import type { ExtraIncome } from '../lib/types'
+import type { ExtraIncome, StoredData } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
+import { saveToFirestore } from '../lib/firestore'
 
 interface Props {
   config: CountryConfig
@@ -105,6 +106,46 @@ export function ProfileScreen({
     const newData = { ...profileData, avatarUrl: '/logo-ui.png' }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
+  }
+
+  const handleForceSyncToFirestore = async () => {
+    console.log("[FORCE SYNC] Forzando sincronización a Firestore")
+    alert("⏳ Sincronizando datos a Firestore...")
+
+    // Get userId from localStorage or current auth
+    const allKeys = Object.keys(localStorage)
+    const userKeys = allKeys.filter(k => k.startsWith('tranquilo_v1_'))
+
+    if (userKeys.length === 0) {
+      alert("❌ No estás logueado. Por favor, haz login primero.")
+      return
+    }
+
+    try {
+      // Extract userId from key (e.g., "tranquilo_v1_TCSRjh6kdIacmsf0mUcSWTJtfAj2")
+      const userId = userKeys[0].replace('tranquilo_v1_', '')
+
+      // Get current data from localStorage
+      const raw = localStorage.getItem(userKeys[0])
+      if (!raw) {
+        alert("❌ No hay datos en localStorage para sincronizar")
+        return
+      }
+
+      const data = JSON.parse(raw) as StoredData
+      console.log("[FORCE SYNC] Datos encontrados:", {
+        months: Object.keys(data.monthlyHistory || {}).length,
+        userId,
+      })
+
+      // Force save to Firestore
+      await saveToFirestore(userId, data)
+      alert("✅ Datos sincronizados a Firestore correctamente")
+      console.log("[FORCE SYNC] ✅ Sincronización completada")
+    } catch (error) {
+      console.error("[FORCE SYNC] Error:", error)
+      alert("❌ Error durante la sincronización: " + String(error))
+    }
   }
 
   const handleExportCSV = () => {
@@ -445,6 +486,7 @@ export function ProfileScreen({
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
         { label: 'Importar datos', value: 'Importar CSV', type: 'file-button' },
+        { label: 'Sincronizar a Firestore', value: 'Forzar Sincronización', type: 'button', handler: handleForceSyncToFirestore },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
