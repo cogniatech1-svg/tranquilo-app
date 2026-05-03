@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore'
 import { getDb } from './firebase'
 import { StoredData } from './types'
+import { normalizePocketNames } from './migrations'
 
 const STORAGE_KEY_BASE = 'tranquilo_v1'
 
@@ -116,19 +117,22 @@ function cleanUndefined(obj: any): any {
  */
 export async function saveToFirestore(userId: string, data: StoredData): Promise<void> {
   try {
+    // Normalize pocket names before saving
+    const normalizedData = normalizePocketNames(data)
+
     // Always save to localStorage first (immediate) - scoped to user
     const storageKey = getStorageKey(userId)
-    localStorage.setItem(storageKey, JSON.stringify(data))
+    localStorage.setItem(storageKey, JSON.stringify(normalizedData))
 
     console.log('[saveToFirestore] 📝 ANTES de cleanUndefined:', {
-      hasMonthlyHistory: !!data.monthlyHistory,
-      monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-      expenses: data.expenses?.length,
+      hasMonthlyHistory: !!normalizedData.monthlyHistory,
+      monthlyHistoryMonths: normalizedData.monthlyHistory ? Object.keys(normalizedData.monthlyHistory).length : 0,
+      expenses: normalizedData.expenses?.length,
     })
 
     // Then save to Firestore (background, non-blocking)
     // Remove undefined values first (Firestore doesn't accept them)
-    const cleanedData = cleanUndefined(data)
+    const cleanedData = cleanUndefined(normalizedData)
 
     console.log('[saveToFirestore] 🧹 DESPUÉS de cleanUndefined:', {
       hasMonthlyHistory: !!cleanedData.monthlyHistory,
