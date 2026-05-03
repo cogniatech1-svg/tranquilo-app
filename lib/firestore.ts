@@ -124,7 +124,9 @@ export async function saveToFirestore(userId: string, data: StoredData): Promise
     // Remove undefined values first (Firestore doesn't accept them)
     const cleanedData = cleanUndefined(data)
     const docRef = doc(getDb(), 'users', userId, 'data', 'main')
-    await setDoc(docRef, cleanedData, { merge: true })
+    // Use merge: false to fully replace the document (not just update fields)
+    // This ensures monthlyHistory with all months/expenses gets saved, not merged
+    await setDoc(docRef, cleanedData, { merge: false })
   } catch (error) {
     console.error('Error saving to Firestore:', error)
     // Data is safe in localStorage, Firestore error won't block the app
