@@ -965,13 +965,22 @@ export function ProfileScreen({
         }
       `}</style>
       
-      {/* Hidden file input for CSV import - accept any file on mobile */}
+      {/* CSV import file input - visible on mobile */}
       <input
         type="file"
         accept="*/*"
         onChange={handleImportCSV}
         data-import-csv
-        style={{ display: 'none' }}
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          opacity: 0,
+          width: '100px',
+          height: '100px',
+          cursor: 'pointer',
+          zIndex: 9999
+        }}
       />
 
       {/* Hidden file input for avatar upload */}
