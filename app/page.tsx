@@ -28,7 +28,7 @@ import {
 } from '../lib/utils'
 import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
 import { subscribeToAuthState, logOut as firebaseLogOut, migrateLocalDataToUser } from '../lib/auth'
-import { normalizePocketNames } from '../lib/migrations'
+import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import { DEFAULT_POCKETS } from '../lib/constants'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -579,7 +579,7 @@ export default function Home() {
       ...prev,
       [activeMonth]: {
         ...monthData,
-        pockets: monthData.pockets.map(p => p.id === id ? { ...p, name, budget, icon } : p),
+        pockets: monthData.pockets.map(p => p.id === id ? { ...p, name: capitalizeWords(name), budget, icon } : p),
       },
     }))
     return true
@@ -638,7 +638,7 @@ export default function Home() {
         ...prev,
         [activeMonth]: {
           ...monthData,
-          pockets: [...monthData.pockets, { id: Date.now().toString(), name, budget, icon }],
+          pockets: [...monthData.pockets, { id: Date.now().toString(), name: capitalizeWords(name), budget, icon }],
         },
       }
     })
