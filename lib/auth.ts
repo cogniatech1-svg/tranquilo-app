@@ -41,7 +41,15 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
     console.log("DATA LEGACY:", localStorage.getItem(STORAGE_KEY))
     console.log("DATA TO FIRESTORE:", cleanedData)
 
-    await setDoc(userDocRef, cleanedData, { merge: true })
+    if (
+      !cleanedData ||
+      (cleanedData.expenses?.length === 0 &&
+        cleanedData.monthlyIncome === 0)
+    ) {
+      console.warn("Skipping Firestore save: data is empty")
+    } else {
+      await setDoc(userDocRef, cleanedData, { merge: true })
+    }
 
     // Mark migration as complete
     localStorage.setItem(`${MIGRATION_FLAG}_${userId}`, 'true')
