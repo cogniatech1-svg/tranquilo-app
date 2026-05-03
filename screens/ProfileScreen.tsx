@@ -739,6 +739,7 @@ export function ProfileScreen({
           textAlign: 'center',
         }}>
           <button
+            
             onClick={async () => {
               if (onLogOut) {
                 await onLogOut()

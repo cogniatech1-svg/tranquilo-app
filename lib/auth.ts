@@ -29,11 +29,17 @@ export async function signUp(email: string, password: string): Promise<FirebaseU
 
     // Create user document in Firestore
     const userDocRef = doc(getDb(), 'users', userId, 'data', 'main')
-    const localData = localStorage.getItem(STORAGE_KEY)
+    const userKey = `tranquilo_v1_${userId}`
+    const localData = localStorage.getItem(userKey) || localStorage.getItem(STORAGE_KEY)
     const dataToMigrate: StoredData = localData ? JSON.parse(localData) : {}
 
     // Remove undefined values before saving
     const cleanedData = cleanUndefined(dataToMigrate)
+
+    console.log("USER KEY:", userKey)
+    console.log("DATA USER:", localStorage.getItem(userKey))
+    console.log("DATA LEGACY:", localStorage.getItem(STORAGE_KEY))
+    console.log("DATA TO FIRESTORE:", cleanedData)
 
     await setDoc(userDocRef, cleanedData, { merge: true })
 
@@ -70,7 +76,6 @@ export async function logOut(): Promise<void> {
   try {
     await signOut(getAuth_())
     // Clear user data from localStorage but keep config
-    localStorage.removeItem(STORAGE_KEY)
     const userId = getAuth_().currentUser?.uid
     if (userId) {
       localStorage.removeItem(`tranquilo_v1_${userId}`)
