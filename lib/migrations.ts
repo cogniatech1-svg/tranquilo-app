@@ -70,6 +70,38 @@ export function normalizePocketNames(data: StoredData): StoredData {
 }
 
 /**
+ * Extract YYYY-MM from date string
+ * Handles multiple formats:
+ * - DD/MM/YYYY (CSV import format)
+ * - YYYY-MM-DD (ISO format)
+ * - Any format with T prefix
+ */
+function getMonthFromDate(dateStr: string): string {
+  if (!dateStr) return '2026-04' // fallback
+
+  // Try DD/MM/YYYY format first (CSV format)
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('T')[0].split('/')
+    if (parts.length === 3) {
+      const day = parts[0]
+      const month = parts[1]
+      const year = parts[2]
+      // Handle both "2026" and "26" year formats
+      const fullYear = year.length === 2 ? `20${year}` : year
+      return `${fullYear}-${month}`
+    }
+  }
+
+  // Try YYYY-MM-DD format (ISO)
+  if (dateStr.includes('-')) {
+    return dateStr.slice(0, 7) // "YYYY-MM"
+  }
+
+  // Fallback
+  return '2026-04'
+}
+
+/**
  * Pure function to migrate flat expenses structure to monthlyHistory
  *
  * - Always rebuilds monthlyHistory from expenses if they exist
@@ -101,7 +133,7 @@ export function migrateToMonthlyHistory(data: StoredData): StoredData {
 
   // Group expenses by month
   for (const expense of data.expenses) {
-    const month = expense.date.slice(0, 7) // "YYYY-MM"
+    const month = getMonthFromDate(expense.date) // "YYYY-MM" with correct parsing
 
     // Initialize month record if needed
     if (!monthlyHistory[month]) {
