@@ -790,8 +790,8 @@ export default function Home() {
   }, [])
 
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-    if (!userId && !guestUserId) return
     const currentUserId = userId || guestUserId
+    if (!currentUserId) return
 
     // Mark onboarding as complete for this user
     localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
