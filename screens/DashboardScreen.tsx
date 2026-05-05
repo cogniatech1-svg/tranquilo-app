@@ -242,7 +242,7 @@ export function DashboardScreen({
                 style={{ backdropFilter: 'blur(4px)' }}
                 title="Sincronizar ahora"
               >
-                <Icon name="refresh" size={18} className={supabaseSyncing ? 'animate-spin' : ''} />
+                <Icon name="clock" size={18} className={supabaseSyncing ? 'animate-spin' : ''} />
               </button>
             )}
 

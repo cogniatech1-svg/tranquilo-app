@@ -280,6 +280,54 @@ export function BudgetScreen({
           </Card>
         )}
 
+        {/* ── 2. DISTRIBUCIÓN ────────────────────────────────────────────── */}
+        {hasBudget && (
+          <div
+            className="rounded-2xl overflow-hidden bg-white border border-slate-100"
+            style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
+          >
+            <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">distribución</p>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
+              {/* Asignado a bolsillos */}
+              <div className="px-3 py-3.5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Asignado</p>
+                <p className="text-sm font-bold tabular-nums leading-tight" style={{ color: DS.primary }}>
+                  {mm(totalPocketBudget)}
+                </p>
+                {assignedPct > 0 && (
+                  <p className="text-[9px] text-slate-400 mt-0.5">{assignedPct}%</p>
+                )}
+              </div>
+              {/* Sin asignar */}
+              <div className="px-3 py-3.5 text-center">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Sin asignar</p>
+                <p
+                  className="text-sm font-bold tabular-nums leading-tight"
+                  style={{ color: unassigned >= 0 ? '#16A34A' : '#EF4444' }}
+                >
+                  {unassigned >= 0
+                    ? mm(unassigned)
+                    : `−${mm(-unassigned)}`}
+                </p>
+              </div>
+            </div>
+            {/* Allocation bar */}
+            <div className="h-1 bg-slate-100 mx-4 mb-3 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min(100, assignedPct)}%`,
+                  background: assignedPct > 100
+                    ? '#EF4444'
+                    : 'linear-gradient(90deg, #0f766e, #14b8a6)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── 1.5b. BUDGET EDIT MODE ────────────────────────────────────── */}
         {totalIncome > 0 && editingSavings && (
           <Card className="p-5 space-y-4">
