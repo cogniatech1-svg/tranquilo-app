@@ -200,13 +200,14 @@ export function PocketCard({
               / {mm(pocket.budget)}
             </span>
           </div>
+          <ProgressBar ratio={ratio} thick={true} />
           {isOver ? (
-            <p className="text-xs font-semibold text-red-600 mt-1">
-              ❌ Exceso: {mm(excess)}
+            <p className="text-xs font-semibold text-red-600 mt-2">
+              Exceso: {mm(excess)}
             </p>
           ) : leftover > 0 ? (
-            <p className="text-xs font-semibold text-green-700 mt-1">
-              ✓ Disponible: {mm(leftover)}
+            <p className="text-xs font-semibold text-green-700 mt-2">
+              Disponible: {mm(leftover)}
             </p>
           ) : null}
         </>
