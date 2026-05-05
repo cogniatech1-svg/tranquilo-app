@@ -278,30 +278,36 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       }
     }
 
-    // 4. Load concept map
-    const { data: conceptData, error: conceptError } = await supabase
-      .from('concept_map')
-      .select('data')
-      .eq('user_id', userId)
-      .single()
+    // 4. Load concept map (optional - may not exist)
+    let conceptMap = {}
+    try {
+      const { data: conceptData } = await supabase
+        .from('concept_map')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
 
-    const conceptMap = conceptData?.data || {}
-
-    if (conceptError && conceptError.code !== 'PGRST116') {
-      console.error('[Supabase] Error loading concept map:', conceptError)
+      if (conceptData) {
+        conceptMap = conceptData.data || conceptData
+      }
+    } catch (e) {
+      // Concept map table may not exist - that's fine, optional feature
     }
 
-    // 5. Load learned category map
-    const { data: learnedData, error: learnedError } = await supabase
-      .from('learned_category_map')
-      .select('data')
-      .eq('user_id', userId)
-      .single()
+    // 5. Load learned category map (optional - may not exist)
+    let learnedCategoryMap = {}
+    try {
+      const { data: learnedData } = await supabase
+        .from('learned_category_map')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
 
-    const learnedCategoryMap = learnedData?.data || {}
-
-    if (learnedError && learnedError.code !== 'PGRST116') {
-      console.error('[Supabase] Error loading learned category map:', learnedError)
+      if (learnedData) {
+        learnedCategoryMap = learnedData.data || learnedData
+      }
+    } catch (e) {
+      // Learned category map table may not exist - that's fine, optional feature
     }
 
     // Reconstruct StoredData
