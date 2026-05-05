@@ -71,7 +71,7 @@ export default function RootLayout({
 
   function checkVersion() {
     fetch('/version.json?t=' + Date.now())
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
         if (lastVersion && lastVersion !== data.version) {
           localStorage.setItem('tranquilo_version', data.version);
@@ -80,11 +80,11 @@ export default function RootLayout({
           localStorage.setItem('tranquilo_version', data.version);
         }
       })
-      .catch(() => {});
+      .catch(() => { /* version check failed, ignore */ });
   }
 
+  // Only check version once on load
   checkVersion();
-  setInterval(checkVersion, 3000);
 })();
             `,
           }}
