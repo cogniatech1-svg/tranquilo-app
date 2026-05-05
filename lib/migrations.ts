@@ -1,4 +1,4 @@
-import { StoredData, MonthRecord } from './types'
+import { StoredData, MonthRecord, Pocket } from './types'
 import { DEFAULT_POCKETS } from './constants'
 
 /**
@@ -87,7 +87,7 @@ export function migrateToMonthlyHistory(data: StoredData): StoredData {
   const allPocketIds = [...new Set(data.expenses.map(e => e.pocketId).filter(Boolean))]
 
   // Build global pockets from data.pockets if they exist, otherwise create from IDs
-  const pocketMap: Record<string, { name: string; budget: number; icon: string }> = {}
+  const pocketMap: Record<string, Pocket> = {}
   for (const p of (data.pockets ?? [])) {
     pocketMap[p.id] = p
   }

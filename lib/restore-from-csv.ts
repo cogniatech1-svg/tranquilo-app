@@ -5,7 +5,6 @@
  */
 
 import { StoredData, Expense, ExtraIncome, MonthRecord } from './types'
-import { saveToFirestore } from './firestore'
 
 interface CSVRow {
   fecha: string
@@ -170,11 +169,11 @@ function convertCSVToAppData(rows: CSVRow[]): StoredData {
 
 /**
  * MAIN: Restore data from CSV backup
- * Always saves to guest storage key (tranquilo_v1)
- * Migration to user-scoped key happens during login
+ * Saves to user-scoped storage key if userId provided
+ * Otherwise saves to guest storage key (tranquilo_v1)
  * Only saves to localStorage (no Firestore)
  */
-export async function restoreFromCSV(csvText: string): Promise<void> {
+export async function restoreFromCSV(csvText: string, userId?: string): Promise<void> {
   console.log('[restore-csv] Starting restoration...')
 
   try {
@@ -186,14 +185,14 @@ export async function restoreFromCSV(csvText: string): Promise<void> {
     const appData = convertCSVToAppData(rows)
     console.log('[restore-csv] Converted to app format')
 
-    // Always save to guest storage key
-    const key = 'tranquilo_v1'
+    // Use user-scoped key if userId provided, otherwise guest key
+    const key = userId ? `tranquilo_v1_${userId}` : 'tranquilo_v1'
 
     // Save to localStorage - completely overwrites existing data
     localStorage.setItem(key, JSON.stringify(appData))
     console.log('[CSV RESTORE] SAVED:', key, appData)
 
-    console.log('[restore-csv] ✅ RESTORATION COMPLETE - 260+ transactions recovered')
+    console.log('[restore-csv] ✅ RESTORATION COMPLETE - transactions recovered')
   } catch (error) {
     console.error('[restore-csv] Error during restoration:', error)
     throw error

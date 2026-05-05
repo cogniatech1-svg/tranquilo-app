@@ -790,9 +790,11 @@ export default function Home() {
   }, [])
 
   const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-    if (!userId) return
+    if (!userId && !guestUserId) return
+    const currentUserId = userId || guestUserId
+
     // Mark onboarding as complete for this user
-    localStorage.setItem(`${ONBOARDING_FLAG}_${userId}`, 'true')
+    localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
 
     setCountryCode(code)
 
@@ -849,12 +851,12 @@ export default function Home() {
     }
 
     // Save to Supabase and localStorage
-    saveUserData(userId, initialData).catch(err => {
+    saveUserData(currentUserId, initialData).catch(err => {
       console.error('[onboarding] Error saving to Supabase:', err)
       // Continue even if Supabase save fails
     })
 
-    const storageKey = `${STORAGE_KEY}_${userId}`
+    const storageKey = `${STORAGE_KEY}_${currentUserId}`
     localStorage.setItem(storageKey, JSON.stringify(initialData))
 
     // Prefer April if it has data, otherwise current month
@@ -863,7 +865,7 @@ export default function Home() {
     console.log('[onboarding] Setting activeMonth to:', targetMonth)
 
     setScreen('main')
-  }, [userId])
+  }, [userId, guestUserId])
 
   // ── Show recovery screen for data restoration ──────────────────────────────
   if (screen === 'recovery' && userId) {

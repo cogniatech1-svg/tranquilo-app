@@ -145,16 +145,53 @@ function repairMonthRecord(record: any): MonthRecord {
   // Ensure all 8 pockets exist
   ensurePocketsComplete(record)
 
+  const repairedExpenses = repairExpenses(record.expenses ?? [])
+  const deduplicatedExpenses = deduplicateExpenses(repairedExpenses)
+
   return {
     income: typeof record.income === 'number' ? record.income : 0,
     savings: typeof record.savings === 'number' ? record.savings : 0,
-    expenses: repairExpenses(record.expenses ?? []),
+    expenses: deduplicatedExpenses,
     extraIncomes: Array.isArray(record.extraIncomes) ? record.extraIncomes : [],
     pockets: Array.isArray(record.pockets) && record.pockets.length > 0
       ? record.pockets
       : DEFAULT_POCKETS,
     manualBudget: record.manualBudget,
   }
+}
+
+/**
+ * Deduplicate expenses by (date, amount, concept)
+ * Removes exact duplicates while preserving first occurrence
+ * Normalizes concept to handle spacing and case differences
+ */
+function deduplicateExpenses(expenses: any[]): any[] {
+  if (!Array.isArray(expenses) || expenses.length === 0) return expenses
+
+  const seen = new Set<string>()
+  const deduplicated: any[] = []
+
+  for (const exp of expenses) {
+    // Normalize concept: trim, lowercase, remove extra spaces
+    const normalizedConcept = (exp.concept || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+
+    // Create a unique key from date + amount + normalized concept
+    const key = `${exp.date}|${exp.amount}|${normalizedConcept}`
+
+    if (!seen.has(key)) {
+      seen.add(key)
+      deduplicated.push(exp)
+    }
+  }
+
+  if (deduplicated.length < expenses.length) {
+    console.log(`[dataMigration] 🧹 Deduplication: ${expenses.length} → ${deduplicated.length} expenses (removed ${expenses.length - deduplicated.length} duplicates)`)
+  }
+
+  return deduplicated
 }
 
 /**
@@ -165,6 +202,7 @@ function repairMonthRecord(record: any): MonthRecord {
  * 2. Generic expense names ("Expense 1" instead of real names)
  * 3. Invalid data structures
  * 4. Missing required fields
+ * 5. DUPLICATE EXPENSES (same date + amount + concept)
  *
  * Called automatically during data initialization
  */

@@ -303,6 +303,38 @@ export function getCurrentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+/**
+ * Normalize malformed month keys to "YYYY-MM" format
+ * Examples:
+ * - "05/04/2" → "2026-04"
+ * - "27/04/2" → "2026-04"
+ * - "2026-04" → "2026-04" (already correct)
+ * - "04/2026" → "2026-04"
+ */
+export function normalizeMonthKey(m: string): string {
+  // Already in correct format
+  if (/^\d{4}-\d{2}$/.test(m)) return m
+
+  // Handle "DD/MM/2" format (corrupted: day/month/partial-year)
+  if (m.includes('/')) {
+    const parts = m.split('/')
+    if (parts.length === 3 && parts[2] === '2') {
+      // parts[0] = day, parts[1] = month, parts[2] = '2'
+      // Assume year is 2026
+      const mo = parts[1]
+      return `2026-${String(mo).padStart(2, '0')}`
+    }
+    if (parts.length === 2 && parts[1] === '2026') {
+      // "MM/2026" format
+      const mo = parts[0]
+      return `2026-${String(mo).padStart(2, '0')}`
+    }
+  }
+
+  // Fallback: return as-is
+  return m
+}
+
 export function getDaysInMonth(m: string): number {
   const [y, mo] = m.split('-').map(Number)
   return new Date(y, mo, 0).getDate()

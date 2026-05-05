@@ -101,3 +101,38 @@ git push
 ## Datos y privacidad
 
 Tranquilo no tiene backend ni base de datos. Todos los datos se guardan únicamente en el dispositivo del usuario mediante `localStorage`. No se envía ningún dato a servidores externos.
+
+---
+
+## Cambios Recientes (Mayo 2026)
+
+### Fix: Navegación de meses en Presupuesto
+**Problema:** El usuario no podía avanzar del mes de abril a mayo en la pestaña Presupuesto.
+
+**Causa raíz:** 
+- En `app/page.tsx` línea 453, la lógica de sincronización con Firestore estaba sobrescribiendo el estado React `currentMonth` con datos antiguos almacenados ("2026-04")
+- `currentMonth` debe SIEMPRE representar el mes actual (hoy), no un valor guardado
+- La lógica de navegación depende de: `canGoFwd = activeMonth < currentMonth`
+
+**Solución:**
+```typescript
+// Archivo: app/page.tsx, línea 453
+// ANTES (comportamiento incorrecto):
+if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
+
+// DESPUÉS (corregido):
+// NOTE: Do NOT overwrite currentMonth with Firestore data!
+// currentMonth should ALWAYS be today's actual month for correct month navigation
+// if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
+```
+
+**Resultado:**
+- ✅ `currentMonth` se mantiene siempre como el mes actual (2026-05 para 3 de mayo)
+- ✅ El usuario puede avanzar de abril a mayo
+- ✅ El usuario puede retroceder de mayo a abril (viendo todos los gastos de abril)
+- ✅ Mayo muestra bolsillos vacíos ($0 gastado) y listos para registrar gastos
+- ✅ Los datos de abril se conservan correctamente
+- ✅ La navegación funciona en ambas direcciones
+
+**Cambios de archivo:**
+- `lib/app/page.tsx` - 1 línea comentada + comentarios explicativos agregados

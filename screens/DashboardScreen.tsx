@@ -337,7 +337,6 @@ export function DashboardScreen({
                   spent={spentByPocket[p.id] ?? 0}
                   pocketIndex={i}
                   config={config}
-                  compact
                   isPrivacyMode={isPrivacyMode}
                 />
               </div>

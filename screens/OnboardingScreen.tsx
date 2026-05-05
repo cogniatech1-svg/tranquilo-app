@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { formatMoney } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
 import { parseAmount } from '../lib/utils'
+import { parseCSV, buildMonthRecordFromCSV } from '../lib/csvParser'
+import type { Expense, ExtraIncome, MonthRecord } from '../lib/types'
 
 // ── Shared input style ─────────────────────────────────────────────────────
 const inputCls = [
@@ -17,15 +19,18 @@ const inputCls = [
 
 interface Props {
   config: CountryConfig
-  onComplete: (countryCode: CountryCode, budget: number, income: number) => void
+  onComplete: (countryCode: CountryCode, budget: number, income: number, aprilData?: MonthRecord) => void
 }
 
 export function OnboardingScreen({ config, onComplete }: Props) {
   const [hydrated, setHydrated] = useState(false)
-  const [step, setStep] = useState<'income' | 'budget'>('income')
+  const [step, setStep] = useState<'income' | 'budget' | 'csv'>('income')
   const [incomeInput, setIncomeInput] = useState('')
   const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
+  const [csvLoading, setCsvLoading] = useState(false)
+  const [csvLoaded, setCsvLoaded] = useState(false)
+  const [aprilData, setAprilData] = useState<MonthRecord | undefined>()
 
   // Ensure component is hydrated before rendering to avoid splash screen
   useEffect(() => {
@@ -44,13 +49,49 @@ export function OnboardingScreen({ config, onComplete }: Props) {
     setStep('budget')
   }
 
-  const handleStart = () => {
+  const handleBudgetContinue = () => {
     const budget = parseAmount(budgetInput)
     if (budgetInput.trim() && !budget) {
       setError(`Ingresa un monto válido. Ej: ${config.defaultBudget.toLocaleString()}`)
       return
     }
-    onComplete(config.code, budget, parsedIncome)
+    setError('')
+    setStep('csv')
+  }
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setCsvLoading(true)
+    setError('')
+
+    try {
+      const content = await file.text()
+      const { expenses, extraIncomes } = parseCSV(content)
+
+      if (expenses.length === 0 && extraIncomes.length === 0) {
+        setError('No se encontraron datos en el archivo CSV')
+        setCsvLoading(false)
+        return
+      }
+
+      // Build April month record with CSV data
+      const aprilMonthRecord = buildMonthRecordFromCSV({ expenses, extraIncomes })
+      setAprilData(aprilMonthRecord)
+      setCsvLoaded(true)
+      setError('')
+    } catch (err) {
+      setError('Error al procesar el archivo. Verifica el formato CSV.')
+      console.error('[OnboardingScreen] CSV error:', err)
+    } finally {
+      setCsvLoading(false)
+    }
+  }
+
+  const handleStart = () => {
+    const budget = parseAmount(budgetInput)
+    onComplete(config.code, budget, parsedIncome, aprilData)
   }
 
   // Don't render until hydrated to prevent flash of logo-only screen
@@ -164,7 +205,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 placeholder={config.defaultBudget.toLocaleString()}
                 value={budgetInput}
                 onChange={e => { setBudgetInput(e.target.value); setError('') }}
-                onKeyDown={e => e.key === 'Enter' && handleStart()}
+                onKeyDown={e => e.key === 'Enter' && handleBudgetContinue()}
                 className={inputCls}
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)' }}
               />
@@ -181,14 +222,14 @@ export function OnboardingScreen({ config, onComplete }: Props) {
 
             <div className="space-y-3 pt-2">
               <button
-                onClick={handleStart}
+                onClick={handleBudgetContinue}
                 className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all"
                 style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
               >
-                Empezar →
+                Continuar →
               </button>
               <button
-                onClick={() => onComplete(config.code, 0, parsedIncome)}
+                onClick={() => { setStep('csv'); setError('') }}
                 className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin presupuesto
@@ -201,6 +242,66 @@ export function OnboardingScreen({ config, onComplete }: Props) {
             >
               ← Volver
             </button>
+          </div>
+        )}
+
+        {/* ── Step: CSV Import ── */}
+        {step === 'csv' && (
+          <div className="w-full space-y-5">
+            <div>
+              <p className="text-white/85 text-sm font-semibold">
+                Importar datos históricos
+              </p>
+              <p className="text-white/55 text-xs mt-1">
+                Carga un archivo CSV con tus gastos de abril (opcional)
+              </p>
+            </div>
+
+            <div>
+              <label
+                className="block w-full p-6 rounded-2xl border-2 border-dashed border-white/40 hover:border-white/60 cursor-pointer transition-colors text-center"
+              >
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  disabled={csvLoading}
+                  className="hidden"
+                />
+                <div className="space-y-2">
+                  <p className="text-white text-sm font-semibold">
+                    {csvLoading ? '⏳ Procesando...' : csvLoaded ? '✅ Archivo cargado' : '📄 Seleccionar CSV'}
+                  </p>
+                  {csvLoaded && aprilData && (
+                    <p className="text-white/70 text-xs">
+                      {aprilData.expenses.length} gasto{aprilData.expenses.length !== 1 ? 's' : ''}
+                      {aprilData.extraIncomes.length > 0 && ` + ${aprilData.extraIncomes.length} ingreso${aprilData.extraIncomes.length !== 1 ? 's' : ''}`}
+                    </p>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {error && (
+              <p className="text-red-300 text-xs font-medium">{error}</p>
+            )}
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={handleStart}
+                disabled={csvLoading}
+                className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all disabled:opacity-50"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
+              >
+                Empezar →
+              </button>
+              <button
+                onClick={() => { setStep('budget'); setError('') }}
+                className="text-white/55 text-xs hover:text-white/75 transition-colors"
+              >
+                ← Volver
+              </button>
+            </div>
           </div>
         )}
       </div>

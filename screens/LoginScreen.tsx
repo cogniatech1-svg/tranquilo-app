@@ -51,13 +51,13 @@ export function LoginScreen({ onLoginSuccess, onGuestMode }: LoginScreenProps) {
       await signUp(email, password)
       onLoginSuccess()
     } catch (err: any) {
-      const errorCode = err.code || ''
-      if (errorCode.includes('email-already-in-use')) {
+      const message = err.message || ''
+      if (message.includes('already registered')) {
         setError('Este email ya está registrado')
-      } else if (errorCode.includes('weak-password')) {
-        setError('Contraseña muy débil')
+      } else if (message.includes('password')) {
+        setError('Contraseña muy débil (mín 6 caracteres)')
       } else {
-        setError(`Error: ${err.message}`)
+        setError(`Error: ${message}`)
       }
     } finally {
       setLoading(false)
@@ -82,13 +82,13 @@ export function LoginScreen({ onLoginSuccess, onGuestMode }: LoginScreenProps) {
       await logIn(email, password)
       onLoginSuccess()
     } catch (err: any) {
-      const errorCode = err.code || ''
-      if (errorCode.includes('user-not-found')) {
+      const message = err.message || ''
+      if (message.includes('Invalid login credentials')) {
+        setError('Email o contraseña incorrectos')
+      } else if (message.includes('user')) {
         setError('Usuario no encontrado')
-      } else if (errorCode.includes('wrong-password')) {
-        setError('Contraseña incorrecta')
       } else {
-        setError(`Error: ${err.message}`)
+        setError(`Error: ${message}`)
       }
     } finally {
       setLoading(false)

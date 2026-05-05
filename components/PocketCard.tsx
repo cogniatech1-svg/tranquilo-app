@@ -188,17 +188,28 @@ export function PocketCard({
       </div>
 
       {pocket.budget > 0 ? (
-        <div className="flex items-baseline gap-1">
-          <span
-            className="text-base font-bold tabular-nums"
-            style={{ color: isOver ? '#EF4444' : '#0F172A' }}
-          >
-            {mm(spent)}
-          </span>
-          <span className="text-xs text-slate-400 tabular-nums">
-            / {mm(pocket.budget)}
-          </span>
-        </div>
+        <>
+          <div className="flex items-baseline gap-1 mb-2">
+            <span
+              className="text-base font-bold tabular-nums"
+              style={{ color: isOver ? '#EF4444' : '#0F172A' }}
+            >
+              {mm(spent)}
+            </span>
+            <span className="text-xs text-slate-400 tabular-nums">
+              / {mm(pocket.budget)}
+            </span>
+          </div>
+          {isOver ? (
+            <p className="text-xs font-semibold text-red-600 mt-1">
+              ❌ Exceso: {mm(excess)}
+            </p>
+          ) : leftover > 0 ? (
+            <p className="text-xs font-semibold text-green-700 mt-1">
+              ✓ Disponible: {mm(leftover)}
+            </p>
+          ) : null}
+        </>
       ) : (
         <>
           <p className="text-base font-bold text-slate-900 tabular-nums mb-2">
