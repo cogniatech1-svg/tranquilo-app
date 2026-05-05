@@ -639,7 +639,7 @@ export default function Home() {
     setCountryCode(code)
   }, [])
 
-  // ── CAMBIO DE MES: copiar configuración del mes anterior si el nuevo no existe ──
+  // ── CAMBIO DE MES: copiar bolsillos del mes anterior si el nuevo no existe ──
   const handleChangeMonth = useCallback((newMonth: string) => {
     setActiveMonth(newMonth)
 
@@ -652,31 +652,20 @@ export default function Home() {
     const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
     const previousMonth = sortedMonths.find(m => m < newMonth)
 
-    if (previousMonth && monthlyHistory[previousMonth]) {
-      const prev = monthlyHistory[previousMonth]
-      // Copiar income, savings y pockets (con sus presupuestos) del mes anterior
-      setMonthlyHistory(history => ({
-        ...history,
-        [newMonth]: {
-          income: prev.income ?? 0,
-          savings: prev.savings ?? 0,
-          expenses: [],
-          extraIncomes: [],
-          pockets: (prev.pockets ?? []).length > 0 ? prev.pockets : DEFAULT_POCKETS,
-        },
-      }))
-    } else {
-      setMonthlyHistory(history => ({
-        ...history,
-        [newMonth]: {
-          income: 0,
-          savings: 0,
-          expenses: [],
-          extraIncomes: [],
-          pockets: DEFAULT_POCKETS,
-        },
-      }))
-    }
+    const pockets = previousMonth && (monthlyHistory[previousMonth].pockets ?? []).length > 0
+      ? monthlyHistory[previousMonth].pockets
+      : DEFAULT_POCKETS
+
+    setMonthlyHistory(history => ({
+      ...history,
+      [newMonth]: {
+        income: 0,
+        savings: 0,
+        expenses: [],
+        extraIncomes: [],
+        pockets,
+      },
+    }))
   }, [monthlyHistory])
 
   const handleSetIncome = useCallback((newIncome: number) => {
