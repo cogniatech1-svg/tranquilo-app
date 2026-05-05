@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
-import type { ExtraIncome, StoredData } from '../lib/types'
+import type { ExtraIncome, StoredData, MonthRecord } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
 import { saveUserData } from '../lib/supabase'
 
@@ -14,6 +14,8 @@ interface Props {
   onTogglePrivacy?: () => void
   userEmail?: string
   onLogOut?: () => Promise<void>
+  userId?: string
+  onImportComplete?: (importedHistory: Record<string, MonthRecord>) => void
 }
 
 export function ProfileScreen({
@@ -23,6 +25,8 @@ export function ProfileScreen({
   onTogglePrivacy,
   userEmail = 'User',
   onLogOut,
+  userId,
+  onImportComplete,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -222,7 +226,7 @@ export function ProfileScreen({
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const csv = event.target?.result as string
         const lines = csv.trim().split('\n')
@@ -231,8 +235,13 @@ export function ProfileScreen({
           return
         }
 
-        const raw = localStorage.getItem('tranquilo_v1')
-        const data = raw ? JSON.parse(raw) : { expenses: [], extraIncomes: [], pockets: [] }
+        // Leer datos existentes desde la key del usuario (no la key global)
+        const storageKey = userId ? `tranquilo_v1_${userId}` : 'tranquilo_v1'
+        const raw = localStorage.getItem(storageKey)
+        const data: StoredData = raw ? JSON.parse(raw) : { monthlyHistory: {}, pockets: [] }
+
+        // Asegurar que monthlyHistory existe
+        if (!data.monthlyHistory) data.monthlyHistory = {}
 
         const pocketMap: Record<string, string> = {}
         for (const p of (data.pockets ?? [])) {
@@ -241,7 +250,6 @@ export function ProfileScreen({
 
         let importedCount = 0
 
-        // Skip header, process data rows
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim()
           if (!line) continue
@@ -249,34 +257,39 @@ export function ProfileScreen({
           const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').replace('""', '"'))
           if (parts.length < 4) continue
 
-          // Detect if CSV has 6 columns (with pocketId) or 5 columns (without)
-          // Column 4 is either pocketId (string like "transport") or monto (numeric)
           const isPocketIdColumn = isNaN(Number(parts[3]))
 
-          let fecha, tipo, categoria, pocketIdFromCsv, monto, descripcion
+          let fecha: string, tipo: string, categoria: string, pocketIdFromCsv: string | null, monto: string, descripcion: string
 
           if (isPocketIdColumn && parts.length >= 6) {
-            // 6-column format: [Fecha, Tipo, Categoría, pocketId, Monto, Descripción]
             [fecha, tipo, categoria, pocketIdFromCsv] = parts
             monto = parts[4]
             descripcion = parts.slice(5).join(',')
-            console.log('[CSV Import] 6-column detected:', { fecha, tipo, categoria, pocketIdFromCsv, monto, descripcion })
           } else {
-            // 5-column format: [Fecha, Tipo, Categoría, Monto, Descripción]
             [fecha, tipo, categoria, monto] = parts
             descripcion = parts.slice(4).join(',')
             pocketIdFromCsv = null
-            console.log('[CSV Import] 5-column format:', { fecha, tipo, categoria, monto, descripcion })
+          }
+
+          // Derivar la clave de mes (YYYY-MM) desde la fecha del CSV
+          const month = fecha.slice(0, 7)
+          if (!month || month.length !== 7) continue
+
+          // Inicializar el mes si no existe
+          if (!data.monthlyHistory[month]) {
+            data.monthlyHistory[month] = {
+              income: 0,
+              savings: 0,
+              expenses: [],
+              extraIncomes: [],
+              pockets: data.pockets ?? [],
+            }
           }
 
           if (tipo === 'gasto') {
-            // Use pocketId from CSV if available, otherwise map from categoria
             const pocketId = pocketIdFromCsv || pocketMap[categoria] || 'recreacion'
             const amount = parseInt(monto) || 0
-
-            console.log('[CSV Import] Adding expense:', { pocketId, amount, concept: descripcion })
-
-            data.expenses.push({
+            data.monthlyHistory[month].expenses.push({
               id: Date.now().toString() + Math.random(),
               date: fecha + 'T00:00:00',
               pocketId,
@@ -286,32 +299,37 @@ export function ProfileScreen({
             importedCount++
           } else if (tipo === 'ingreso') {
             const amount = parseInt(monto) || 0
-
-            console.log('[CSV Import] Adding income:', { amount, note: descripcion })
-
-            data.extraIncomes.push({
+            data.monthlyHistory[month].extraIncomes.push({
               id: Date.now().toString() + Math.random(),
               date: fecha + 'T00:00:00',
               amount,
-              note: descripcion,
+              concept: descripcion,
               category: 'extra' as const,
             })
             importedCount++
           }
         }
 
-        console.log('[CSV Import] Saving to localStorage:', {
-          totalExpenses: data.expenses?.length,
-          totalIncomes: data.extraIncomes?.length,
-          importedCount
-        })
+        // Guardar en localStorage con la key correcta
+        localStorage.setItem(storageKey, JSON.stringify(data))
 
-        localStorage.setItem('tranquilo_v1', JSON.stringify(data))
+        // Sincronizar a Supabase
+        if (userId) {
+          try {
+            await saveUserData(userId, data)
+            console.log('[CSV Import] ✅ Sincronizado a Supabase')
+          } catch (err) {
+            console.error('[CSV Import] Error al sincronizar a Supabase:', err)
+          }
+        }
+
+        // Notificar a page.tsx para actualizar el estado React
+        if (onImportComplete && data.monthlyHistory) {
+          onImportComplete(data.monthlyHistory)
+        }
+
         setImportMessage(`✅ ${importedCount} movimientos importados correctamente`)
-        setTimeout(() => {
-          setImportMessage('')
-          window.location.reload()
-        }, 2000)
+        setTimeout(() => setImportMessage(''), 3000)
       } catch (err) {
         console.error('[CSV Import] Error:', err)
         setImportMessage('❌ Error al importar. Verifica el formato del CSV')

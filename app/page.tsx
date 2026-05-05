@@ -357,62 +357,36 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [hydrated, userId, guestUserId, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
-  // ── Real-time sync from Firestore ──────────────────────────────────────────
-  // Subscribe to Firestore updates and merge with local state
-  // PHASE 2: Only subscribe if user is authenticated (NOT guest mode)
-  // SUPABASE SYNC (TODO: Implement Supabase real-time subscription)
-  // For now, app works with localStorage only. Real-time sync from Supabase will be added in Phase 3.
-  /*
+  // ── Real-time sync desde Supabase ────────────────────────────────────────────
   useEffect(() => {
-    console.log('[FS-SYNC] Checking subscription conditions:', { hydrated, userId, isGuest })
-    if (!hydrated || !userId || isGuest) {
-      console.log('[FS-SYNC] ℹ️ Skipping subscription (hydrated:', hydrated, ', userId:', userId, ', isGuest:', isGuest, ')')
-      return
-    }
+    if (!hydrated || !userId) return
 
-    // Capture userId to ensure type safety in subscription
     const currentUserId = userId
 
-    let unsubscribe: (() => void) | null = null
-
-    try {
-      console.log('[FS-SYNC] 🔄 Setting up real-time subscription for userId:', currentUserId)
-      // PHASE 2: Pass userId to subscribeToFirestore
-      unsubscribe = subscribeToFirestore(currentUserId, (firestoreData: StoredData) => {
-        console.log('[FS-SYNC] 📨 Firestore update received:', {
-          hasData: !!firestoreData,
-          monthsCount: firestoreData?.monthlyHistory ? Object.keys(firestoreData.monthlyHistory).length : 0,
-        })
-        // Firestore data was merged with localStorage in subscribeToFirestore
-        // Update React state with the merged data
-        if (firestoreData.monthlyHistory) {
-          const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
-            const rec = record as any
-            history[month] = {
-              income:       rec.income       ?? 0,
-              savings:      rec.savings      ?? 0,
-              expenses:     rec.expenses     ?? [],
-              extraIncomes: rec.extraIncomes ?? [],
-              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-              manualBudget: rec.manualBudget,
-            }
+    const unsubscribe = subscribeToUserData(currentUserId, (supabaseData: StoredData) => {
+      if (supabaseData.monthlyHistory && Object.keys(supabaseData.monthlyHistory).length > 0) {
+        const history: Record<string, MonthRecord> = {}
+        for (const [month, record] of Object.entries(supabaseData.monthlyHistory)) {
+          const rec = record as any
+          history[month] = {
+            income:       rec.income       ?? 0,
+            savings:      rec.savings      ?? 0,
+            expenses:     rec.expenses     ?? [],
+            extraIncomes: rec.extraIncomes ?? [],
+            pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+            manualBudget: rec.manualBudget,
           }
-          setMonthlyHistory(history)
         }
-        if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
-        if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
-        if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
-        // NOTE: Do NOT overwrite currentMonth with Firestore data!
-        // currentMonth should ALWAYS be today's actual month for correct month navigation
-        // if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
-        if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
-      })
-    } catch (error) {
-      console.warn('Could not subscribe to Firestore (offline?):', error)
-      // This is OK - app continues to work with localStorage
-    }
-  */
+        setMonthlyHistory(history)
+      }
+      if (supabaseData.conceptMap) setConceptMap(supabaseData.conceptMap)
+      if (supabaseData.learnedCategoryMap) setLearnedCategoryMap(supabaseData.learnedCategoryMap)
+      if (supabaseData.countryCode) setCountryCode(supabaseData.countryCode as CountryCode)
+      if (supabaseData.isPrivacyMode !== undefined) setIsPrivacyMode(supabaseData.isPrivacyMode)
+    })
+
+    return () => unsubscribe()
+  }, [hydrated, userId])
 
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -665,7 +639,7 @@ export default function Home() {
     setCountryCode(code)
   }, [])
 
-  // ── CAMBIO DE MES: copiar bolsillos del mes anterior si no existen ──────────
+  // ── CAMBIO DE MES: copiar configuración del mes anterior si el nuevo no existe ──
   const handleChangeMonth = useCallback((newMonth: string) => {
     setActiveMonth(newMonth)
 
@@ -674,42 +648,34 @@ export default function Home() {
       return
     }
 
-    // Si no existe, encontrar el mes anterior/más cercano con bolsillos
+    // Si no existe, encontrar el mes anterior/más cercano
     const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
     const previousMonth = sortedMonths.find(m => m < newMonth)
 
     if (previousMonth && monthlyHistory[previousMonth]) {
-      // Copiar los bolsillos del mes anterior al nuevo mes (pero con presupuesto = 0)
-      const previousPockets = monthlyHistory[previousMonth].pockets ?? []
-
-      setMonthlyHistory(prev => ({
-        ...prev,
+      const prev = monthlyHistory[previousMonth]
+      // Copiar income, savings y pockets (con sus presupuestos) del mes anterior
+      setMonthlyHistory(history => ({
+        ...history,
         [newMonth]: {
-          income: 0,
-          savings: 0,
+          income: prev.income ?? 0,
+          savings: prev.savings ?? 0,
           expenses: [],
           extraIncomes: [],
-          pockets: previousPockets.length > 0
-            ? previousPockets.map(p => ({ ...p, budget: 0 }))  // Copiar nombre e ícono, pero presupuesto = 0
-            : DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+          pockets: (prev.pockets ?? []).length > 0 ? prev.pockets : DEFAULT_POCKETS,
         },
       }))
-
-      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos del ${previousMonth} (presupuestos = 0)`)
     } else {
-      // Si no hay mes anterior, usar bolsillos por defecto con presupuesto = 0
-      setMonthlyHistory(prev => ({
-        ...prev,
+      setMonthlyHistory(history => ({
+        ...history,
         [newMonth]: {
           income: 0,
           savings: 0,
           expenses: [],
           extraIncomes: [],
-          pockets: DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+          pockets: DEFAULT_POCKETS,
         },
       }))
-
-      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos por defecto (presupuestos = 0)`)
     }
   }, [monthlyHistory])
 
@@ -1197,6 +1163,10 @@ export default function Home() {
             onTogglePrivacy={handleTogglePrivacy}
             userEmail={userId ? 'User' : 'Guest'}
             onLogOut={handleLogOut}
+            userId={userId || guestUserId || undefined}
+            onImportComplete={(importedHistory) => {
+              setMonthlyHistory(prev => ({ ...prev, ...importedHistory }))
+            }}
           />
         )}
       </div>
