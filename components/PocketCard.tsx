@@ -205,10 +205,6 @@ export function PocketCard({
             <p className="text-xs font-semibold text-red-600 mt-2">
               Exceso: {mm(excess)}
             </p>
-          ) : leftover > 0 ? (
-            <p className="text-xs font-semibold text-green-700 mt-2">
-              Disponible: {mm(leftover)}
-            </p>
           ) : null}
         </>
       ) : (
