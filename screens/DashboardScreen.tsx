@@ -9,6 +9,7 @@ import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
 import { capitalizeWords } from '../lib/migrations'
+import { useSupabaseData } from '../lib/useSupabaseData'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -29,6 +30,7 @@ interface Props {
   onAdd: () => void
   isPrivacyMode: boolean
   onTogglePrivacy: () => void
+  userId?: string | null  // Para sincronización Supabase Realtime
 }
 
 export function DashboardScreen({
@@ -43,10 +45,15 @@ export function DashboardScreen({
   onAdd,
   isPrivacyMode,
   onTogglePrivacy,
+  userId,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [syncMenuOpen, setSyncMenuOpen] = useState(false)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
+
+  // Hook para Supabase Realtime
+  const { lastSync, refresh: refreshFromSupabase, loading: supabaseSyncing } = useSupabaseData(userId || null)
 
   // USAR snapshot en lugar de cálculos locales
   const {
@@ -201,10 +208,44 @@ export function DashboardScreen({
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
-          <p className="text-[11px] text-white/70 font-medium">{dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-[11px] text-white/70 font-medium">{dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</p>
+
+            {/* Sync indicator */}
+            {userId && (
+              <div className="flex items-center gap-1.5">
+                {supabaseSyncing ? (
+                  <>
+                    <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full animate-pulse"></div>
+                    <p className="text-[9px] text-white/60 font-medium">Sincronizando...</p>
+                  </>
+                ) : lastSync ? (
+                  <>
+                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                    <p className="text-[9px] text-white/60 font-medium">
+                      {lastSync.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </>
+                ) : null}
+              </div>
+            )}
+          </div>
 
           {/* ☰ Menu button */}
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
+            {/* Refresh button (only show if authenticated) */}
+            {userId && (
+              <button
+                onClick={() => refreshFromSupabase()}
+                disabled={supabaseSyncing}
+                className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
+                style={{ backdropFilter: 'blur(4px)' }}
+                title="Sincronizar ahora"
+              >
+                <Icon name="refresh" size={18} className={supabaseSyncing ? 'animate-spin' : ''} />
+              </button>
+            )}
+
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"

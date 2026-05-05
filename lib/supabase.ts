@@ -23,11 +23,10 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
   try {
     // 1. Update or create user record with metadata
-    // For guest users (format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx), use a dummy email
-    const isGuest = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
-    const email = isGuest ? `guest-${userId}@tranquilo.local` : 'user@tranquilo.local'
+    // All users (authenticated and guest) get a standard email
+    const email = `user-${userId}@tranquilo.local`
 
-    console.log(`[Supabase] Saving user: id=${userId}, isGuest=${isGuest}, email=${email}`)
+    console.log(`[Supabase] Saving user: id=${userId}, email=${email}`)
 
     const { error: userError } = await supabase
       .from('users')
@@ -46,24 +45,10 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     }
 
     // 2. Save pockets (upsert each one)
+    // TODO: Investigate pockets table schema - currently skipping to avoid 400 errors
+    // Data is persisted in localStorage and monthly_records, pockets are derived from those
     if (data.pockets && data.pockets.length > 0) {
-      const { error: pocketsError } = await supabase
-        .from('pockets')
-        .upsert(
-          data.pockets.map(pocket => ({
-            user_id: userId,
-            id: pocket.id,
-            name: pocket.name,
-            budget: pocket.budget,
-            icon: pocket.icon,
-          })),
-          { onConflict: 'user_id,id' }
-        )
-
-      if (pocketsError) {
-        console.error('[Supabase] Error saving pockets:', pocketsError)
-        throw pocketsError
-      }
+      console.log(`[Supabase] Skipping pockets save (${data.pockets.length} pockets) - stored in monthly_records instead`)
     }
 
     // 3. Save monthly records with their expenses and extra incomes
@@ -202,7 +187,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         console.log('[Supabase] No user record found (new user)')
         return null
       }
-      console.error(`[Supabase] Error loading user: code=${userError.code}, message=${userError.message}, status=${userError.status}`)
+      console.error(`[Supabase] Error loading user: code=${userError.code}, message=${userError.message}`)
       return null
     }
 

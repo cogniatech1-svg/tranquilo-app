@@ -1161,6 +1161,7 @@ export default function Home() {
             onAdd={openAddSheet}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
+            userId={userId || guestUserId}
           />
         )}
         {activeTab === 'movimientos' && (
