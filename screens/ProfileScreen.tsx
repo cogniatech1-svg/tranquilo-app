@@ -5,7 +5,7 @@ import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome, StoredData } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
-import { saveToFirestore } from '../lib/firestore'
+import { saveUserData } from '../lib/supabase'
 
 interface Props {
   config: CountryConfig
@@ -108,11 +108,9 @@ export function ProfileScreen({
     setProfileData(newData)
   }
 
-  const handleForceSyncToFirestore = async () => {
-    console.log("[FORCE SYNC] Forzando sincronización a Firestore")
-    alert("⏳ Sincronizando datos a Firestore...")
+  const handleForceSyncToSupabase = async () => {
+    alert("⏳ Sincronizando datos a Supabase...")
 
-    // Get userId from localStorage or current auth
     const allKeys = Object.keys(localStorage)
     const userKeys = allKeys.filter(k => k.startsWith('tranquilo_v1_'))
 
@@ -122,11 +120,9 @@ export function ProfileScreen({
     }
 
     try {
-      // Extract userId from key (e.g., "tranquilo_v1_TCSRjh6kdIacmsf0mUcSWTJtfAj2")
       const userId = userKeys[0].replace('tranquilo_v1_', '')
-
-      // Get current data from localStorage
       const raw = localStorage.getItem(userKeys[0])
+
       if (!raw) {
         alert("❌ No hay datos en localStorage para sincronizar")
         return
@@ -134,51 +130,14 @@ export function ProfileScreen({
 
       let data = JSON.parse(raw) as StoredData
 
-      console.log("[FORCE SYNC] Datos encontrados (ANTES):", {
-        hasMonthlyHistory: !!data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0,
-        monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-        expenses: data.expenses?.length ?? 0,
-        extraIncomes: data.extraIncomes?.length ?? 0,
-        userId,
-      })
-
-      // CRITICAL: Migrate old structure (expenses array) to new structure (monthlyHistory)
-      // Always migrate if expenses array exists and has data, even if monthlyHistory exists
       if (data.expenses && data.expenses.length > 0) {
-        console.log("[FORCE SYNC] 🔄 Detectada estructura antigua - migrando todos los gastos a monthlyHistory...")
         data = migrateToMonthlyHistory(data)
-        console.log("[FORCE SYNC] ✅ Migración completada")
       }
 
-      console.log("[FORCE SYNC] Datos después de migración:", {
-        hasMonthlyHistory: !!data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0,
-        monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-      })
-
-      // Log the EXACT data being sent to Firestore
-      console.log("[FORCE SYNC] 📤 DATOS ENVIADOS A FIRESTORE:", {
-        monthlyHistory: data.monthlyHistory ? Object.entries(data.monthlyHistory).map(([m, r]: any) => ({ month: m, expenseCount: r.expenses?.length })) : 'NO EXISTE',
-        monthlyIncome: data.monthlyIncome,
-        monthlySavings: data.monthlySavings,
-        expenses: data.expenses?.length,
-        conceptMap: !!data.conceptMap ? Object.keys(data.conceptMap).length : 0,
-      })
-
-      // Force save to Firestore
-      console.log("[FORCE SYNC] 📤 Llamando saveToFirestore...")
-      try {
-        await saveToFirestore(userId, data)
-        console.log("[FORCE SYNC] ✅ saveToFirestore completado sin errores")
-      } catch (saveError) {
-        console.error("[FORCE SYNC] ❌ ERROR en saveToFirestore:", saveError)
-        alert("❌ Error guardando en Firestore: " + String(saveError))
-        return
-      }
-
-      alert("✅ Datos sincronizados a Firestore correctamente\n📊 Ahora abre el app en el celular")
-      console.log("[FORCE SYNC] ✅ Sincronización completada")
+      await saveUserData(userId, data)
+      alert("✅ Datos sincronizados a Supabase correctamente\n📊 Ahora abre el app en el celular")
     } catch (error) {
-      console.error("[FORCE SYNC] Error general:", error)
+      console.error("[FORCE SYNC] Error:", error)
       alert("❌ Error durante la sincronización: " + String(error))
     }
   }
@@ -394,7 +353,7 @@ export function ProfileScreen({
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
         { label: 'Importar datos', value: 'Importar CSV', type: 'file-button' },
-        { label: 'Sincronizar a Firestore', value: 'Forzar Sincronización', type: 'button', handler: handleForceSyncToFirestore },
+        { label: 'Sincronizar a Supabase', value: 'Forzar Sincronización', type: 'button', handler: handleForceSyncToSupabase },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
