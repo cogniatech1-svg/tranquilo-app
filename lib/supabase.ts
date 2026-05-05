@@ -23,20 +23,25 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
   try {
     // 1. Update or create user record with metadata
+    // For guest users (format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx), use a dummy email
+    const isGuest = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
+    const email = isGuest ? `guest-${userId}@tranquilo.local` : 'user@tranquilo.local'
+
+    console.log(`[Supabase] Saving user: id=${userId}, isGuest=${isGuest}, email=${email}`)
+
     const { error: userError } = await supabase
       .from('users')
       .upsert({
         id: userId,
+        email: email,
         monthly_income: data.monthlyIncome,
         monthly_savings: data.monthlySavings,
         country_code: data.countryCode,
         is_privacy_mode: data.isPrivacyMode,
-        current_month: data.currentMonth,
-        updated_at: new Date().toISOString(),
       })
 
     if (userError) {
-      console.error('[Supabase] Error updating user record:', userError)
+      console.error(`[Supabase] Error updating user record: code=${userError.code}, message=${userError.message}`)
       throw userError
     }
 
@@ -197,7 +202,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         console.log('[Supabase] No user record found (new user)')
         return null
       }
-      console.error('[Supabase] Error loading user:', userError)
+      console.error(`[Supabase] Error loading user: code=${userError.code}, message=${userError.message}, status=${userError.status}`)
       return null
     }
 
@@ -304,8 +309,8 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       monthlyHistory,
       monthlyIncome: userData?.monthly_income || 0,
       monthlySavings: userData?.monthly_savings || 0,
-      expenses: monthlyHistory[userData?.current_month || '']?.expenses || [],
-      extraIncomes: monthlyHistory[userData?.current_month || '']?.extraIncomes || [],
+      expenses: [],
+      extraIncomes: [],
       pockets: (pocketsData || []).map(p => ({
         id: p.id,
         name: p.name,
@@ -316,7 +321,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       learnedCategoryMap,
       countryCode: userData?.country_code || 'CO',
       isPrivacyMode: userData?.is_privacy_mode || false,
-      currentMonth: userData?.current_month,
+      currentMonth: undefined,
     }
 
     console.log('[Supabase] ✅ User data loaded from normalized schema')

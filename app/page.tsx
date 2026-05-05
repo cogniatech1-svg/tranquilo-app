@@ -102,7 +102,6 @@ export default function Home() {
         learnedCategoryMap: {},
         countryCode: 'CO',
         isPrivacyMode: false,
-        currentMonth: getCurrentMonth(),
       }).catch(err => {
         console.error('[handleAuth] Warning: Could not ensure user record:', err)
         // Don't fail auth just because of this - user data will be created on first save
@@ -124,8 +123,12 @@ export default function Home() {
 
       // Check if we have an existing guest ID in localStorage
       let guest = localStorage.getItem('guest_id')
-      if (!guest) {
-        // Generate a new guest ID
+
+      // Validate that guest ID is a valid UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+      const isValidUUID = guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
+
+      if (!guest || !isValidUUID) {
+        // Generate a new guest ID if missing or invalid
         guest = generateGuestUserId()
         localStorage.setItem('guest_id', guest)
         console.log('[handleAuth] Generated new guestUserId:', guest)
