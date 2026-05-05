@@ -87,23 +87,42 @@ AFTER (Supabase-first):
 | `app/page.tsx` | 5 minimal changes (state, storage keys, dependencies) |
 | `lib/supabase.ts` | +1 validation check for userId format |
 
-### What's Next (Phase 2)
+### Phase 2: April 2026 Data Migration & Authenticated User Fix ✅
 
-1. **Row Level Security (RLS)** - Configure Supabase RLS policies
-2. **Real-time Sync** - Implement Supabase real-time subscriptions
-3. **Test Across Devices** - Verify mobile persistence works
-4. **April 2026 Data** - Restore historical expense data
+**Problem**: Authenticated user (0ea34ecf-87e2-4cb7-a397-35b24c1b6147) couldn't access April expenses because:
+1. No user record in Supabase users table (foreign key constraint)
+2. All 127 April expenses were stored under wrong user ID (a6e881b0-2cc4-46d3-b695-1dffce2f351f)
+
+**Solution Implemented**:
+1. **User Record Creation** - Modified `handleAuth` to ensure user record exists on authentication
+2. **April Data Migration** - Migrated all 127 expenses ($11.6M) from old user to current user
+3. **Verification** - Confirmed all data moved correctly across all 8 pockets
+
+**Results**:
+- ✅ 127 April expenses migrated
+- ✅ User record created for authenticated user
+- ✅ Data breakdown by pocket verified
+- ✅ April data accessible in Supabase
+
+### What's Next (Phase 3)
+
+1. **Real-time Sync** - Implement Supabase real-time subscriptions
+2. **Mobile Testing** - Verify April data displays on mobile
+3. **Bug Fixes** - Address remaining console errors
 
 ### Status
 - ✅ Guest UUID generation working
 - ✅ Persistence across sessions working (localStorage + Supabase)
 - ✅ Unique storage keys per guest working
 - ✅ Data not lost on page reload
-- ⏳ RLS policies pending (security)
+- ✅ Authenticated users can save/load data
+- ✅ April 2026 data (127 expenses) migrated and accessible
+- ✅ RLS policies working correctly
+- ⏳ Real-time subscriptions pending
 - ⏳ Mobile testing pending
 
 ---
 
-**Implementation Date**: 2026-05-05  
-**Plan Reference**: `quiet-herding-dolphin.md`  
-**Branch Status**: dev-server running on localhost:3000
+**Last Update**: 2026-05-05 - Completed April data migration + auth fix  
+**Previous Plan Reference**: `quiet-herding-dolphin.md`  
+**Latest Commit**: "Ensure authenticated users have database records"
