@@ -25,11 +25,13 @@ import {
   extractConcept,
   parseAmount,
   getDefaultMonthRecord,
+  normalizeMonthKey,
 } from '../lib/utils'
-import { loadFromFirestore, saveToFirestore, subscribeToFirestore } from '../lib/firestore'
-import { subscribeToAuthState, logOut as firebaseLogOut, migrateLocalDataToUser } from '../lib/auth'
+import { onAuthStateChanged, logOut, generateGuestUserId } from '../lib/auth'
+import type { AuthUser } from '../lib/auth'
 import { repairStoredData, DEFAULT_POCKETS } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
+import { saveUserData, loadUserData, subscribeToUserData } from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -50,7 +52,7 @@ export default function Home() {
 
   const [hydrated,      setHydrated]      = useState(false)
   const [userId,        setUserId]        = useState<string | null>(null)
-  const [isGuest,       setIsGuest]       = useState(false)
+  const [guestUserId,   setGuestUserId]   = useState<string | null>(null)
   const [authLoading,   setAuthLoading]   = useState(true)
   const [screen,        setScreen]        = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
   const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
@@ -75,73 +77,54 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
-  // ── HANDLE AUTH: Separate async logic from Firebase callback ────────────────
-  // This function is async but Firebase callback stays synchronous
-  const handleAuth = useCallback(async (user: any) => {
+  // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
+  const handleAuth = useCallback((user: AuthUser | null) => {
     // Guard: only update state if component is still mounted
     if (!isMountedRef.current) return
 
     console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
 
     if (user) {
-      console.log('[AUTH] Setting userId:', user.uid)
-
-      // ✅ MIGRATION: This is the CORRECT moment to migrate
-      // Firebase has resolved the user UID, now migrate legacy data
-      await migrateLocalDataToUser(user.uid)
-
-      // Guard: check if still mounted after async operation
-      if (!isMountedRef.current) return
-
-      // Update state with userId and clear loading flag
+      // User is authenticated
       setUserId(user.uid)
       setAuthLoading(false)
 
-      // Check if user has data OR if they need recovery
-      const userKey = `${STORAGE_KEY}_${user.uid}`
-      const userData = localStorage.getItem(userKey)
-      let hasData = false
-
-      if (userData) {
-        try {
-          const parsed = JSON.parse(userData)
-          const months = Object.keys(parsed.monthlyHistory || {})
-          hasData = months.length > 0
-        } catch {
-          // Invalid JSON
-        }
-      }
-
-      // User is authenticated - check if they've completed onboarding
+      // Check if user has completed onboarding
       const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
 
-      // If no data, show recovery screen (for CSV restoration)
-      if (!hasData && !hasOnboarded) {
-        console.log('[auth] No data detected, showing recovery screen')
-        setScreen('recovery')
-      } else if (hasOnboarded) {
+      // Route to appropriate screen
+      if (hasOnboarded) {
         setScreen('main')
       } else {
         setScreen('onboarding')
       }
     } else {
-      // User is not authenticated
+      // User is not authenticated - set up guest mode
       setUserId(null)
       setAuthLoading(false)
+
+      // Check if we have an existing guest ID in localStorage
+      let guest = localStorage.getItem('guest_id')
+      if (!guest) {
+        // Generate a new guest ID
+        guest = generateGuestUserId()
+        localStorage.setItem('guest_id', guest)
+        console.log('[handleAuth] Generated new guestUserId:', guest)
+      } else {
+        console.log('[handleAuth] Using existing guestUserId:', guest)
+      }
+      setGuestUserId(guest)
       setScreen('login')
     }
   }, [])
 
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
-  // Subscribe to Firebase auth state changes - callback is synchronous
-  // All async logic is in handleAuth function
+  // Subscribe to Supabase auth state changes
   useEffect(() => {
     isMountedRef.current = true
 
-    const unsubscribe = subscribeToAuthState((user) => {
-      console.log('[subscribeToAuthState] Callback received user:', user ? `${user.email} (${user.uid})` : 'null')
-      // Synchronous callback: just call handleAuth, don't await
-      // This keeps the callback signature clean for Firebase
+    const unsubscribe = onAuthStateChanged((user) => {
+      console.log('[onAuthStateChanged] Callback received user:', user ? `${user.email} (${user.uid})` : 'null')
       handleAuth(user)
     })
 
@@ -185,31 +168,46 @@ export default function Home() {
     const currentUserId: string | null = userId
 
     const initializeApp = async () => {
-      // ⚠️ CRITICAL: Guard against undefined userId
-      if (!currentUserId && !isGuest) {
-        console.warn('[initializeApp] Exiting early: currentUserId not available yet')
+      // ⚠️ CRITICAL: Guard against undefined userId and guestUserId
+      if (!currentUserId && !guestUserId) {
+        console.warn('[initializeApp] Exiting early: currentUserId and guestUserId not available yet')
         return
       }
 
       try {
-        const storageKey = isGuest
-          ? STORAGE_KEY
-          : `${STORAGE_KEY}_${currentUserId}`;
+        const storageKey = currentUserId
+          ? `${STORAGE_KEY}_${currentUserId}`
+          : `${STORAGE_KEY}_${guestUserId}`;
 
         console.log('[initializeApp] 🚀 Starting initialization')
-        console.log('[initializeApp] isGuest:', isGuest, '| userId:', currentUserId, '| storageKey:', storageKey)
+        console.log('[initializeApp] userId:', currentUserId, '| guestUserId:', guestUserId, '| storageKey:', storageKey)
 
-        let raw = localStorage.getItem(storageKey);
-        console.log('[initializeApp] localStorage has data:', !!raw, '| size:', raw?.length ?? 0, 'bytes')
-
-        const aprilRestoredKey = isGuest ? APRIL_RESTORED_FLAG : `${APRIL_RESTORED_FLAG}_${currentUserId!}`
-        const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
-
-        // Parsear datos existentes (o partir de objeto vacío)
+        // ── LOAD FROM SUPABASE (authenticated and guest users) ─────────────────────
         let data: StoredData = {}
-        if (raw) {
-          try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
+        const loadUserId = currentUserId || guestUserId
+        if (loadUserId) {
+          console.log('[initializeApp] 📡 Attempting to load from Supabase...')
+          const supabaseData = await loadUserData(loadUserId)
+          if (supabaseData) {
+            data = supabaseData
+            console.log('[initializeApp] ✅ Data loaded from Supabase')
+          } else {
+            console.log('[initializeApp] ℹ️ No data in Supabase (new user)')
+          }
         }
+
+        // ── FALLBACK: Load from localStorage ────────────────────────────────
+        // If no Supabase data, try localStorage (for offline support or legacy data)
+        if (Object.keys(data).length === 0) {
+          const raw = localStorage.getItem(storageKey)
+          console.log('[initializeApp] localStorage has data:', !!raw, '| size:', raw?.length ?? 0, 'bytes')
+          if (raw) {
+            try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
+          }
+        }
+
+        const aprilRestoredKey = currentUserId ? `${APRIL_RESTORED_FLAG}_${currentUserId}` : `${APRIL_RESTORED_FLAG}_${guestUserId}`
+        const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // ── REPARAR DATOS CORRUPTOS (PHASE 2) ────────────────────────────────
         // Asegura que todos los 9 bolsillos estén presentes
@@ -219,7 +217,8 @@ export default function Home() {
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
-        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}${isGuest ? '' : `_${currentUserId}`}`) === 'true'
+        const onboardingKey = currentUserId ? `${ONBOARDING_FLAG}_${currentUserId}` : `${ONBOARDING_FLAG}_${guestUserId}`
+        const hasOnboarded = localStorage.getItem(onboardingKey) === 'true'
         const country      = (data.countryCode as CountryCode) ?? 'CO'
 
         console.log('[initializeApp] State loading:', {
@@ -237,10 +236,12 @@ export default function Home() {
           // Normalizar pocketNames (decodificar encoding issues y capitalizar)
           const normalizedData = normalizePocketNames(data)
 
+          // Normalizar keys de meses a formato YYYY-MM
           const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(normalizedData.monthlyHistory)) {
+          for (const [month, record] of Object.entries(normalizedData.monthlyHistory!)) {
+            const normalizedMonth = normalizeMonthKey(month)
             const rec = record as any
-            history[month] = {
+            history[normalizedMonth] = {
               income:       rec.income       ?? 0,
               savings:      rec.savings      ?? 0,
               expenses:     rec.expenses     ?? [],
@@ -252,24 +253,21 @@ export default function Home() {
           console.log('[initializeApp] Setting monthlyHistory with', Object.keys(history).length, 'months')
           setMonthlyHistory(history)
 
-          // Si hay datos, ir al mes con gastos (preferentemente abril)
+          // Si hay datos, preferir abril CON gastos, si no usar mes actual
           const availableMonths = Object.keys(history)
           if (availableMonths.length > 0) {
-            // Preferir abril CON gastos (en cualquier formato)
+            // Preferir abril CON gastos
             let targetMonth = availableMonths.find(m =>
-              (m.includes('04/2') || m === '2026-04') && history[m].expenses?.length > 0
+              m === '2026-04' && history[m].expenses?.length > 0
             )
-            // Si no hay abril con gastos, usar el primer mes CON gastos
+            // Si no hay abril con gastos, usar el mes actual
             if (!targetMonth) {
-              targetMonth = availableMonths.find(m => history[m].expenses?.length > 0)
-            }
-            // Si aún no hay mes con gastos, usar el primer mes
-            if (!targetMonth) {
-              targetMonth = availableMonths[0]
+              targetMonth = getCurrentMonth()
             }
             console.log('[initializeApp] Setting activeMonth to:', targetMonth, '| expenses:', history[targetMonth]?.expenses?.length)
             setActiveMonth(targetMonth)
-            setCurrentMonth(targetMonth)
+            // NOTE: currentMonth should ALWAYS be the actual current month (today), not activeMonth!
+            // activeMonth is what the user is viewing, currentMonth is what "today" is
           }
 
           if (hasOnboarded) setScreen('main')
@@ -277,51 +275,7 @@ export default function Home() {
           if (hasOnboarded) setScreen('main')
         }
 
-        // ── CARGAR DE FIRESTORE EN BACKGROUND (sin bloquear UI) ────────────────
-        // SOLO si NO es guest mode
-        // Merge con localStorage si hay datos en Firestore
-        // PHASE 2: Pass userId to loadFromFirestore
-        if (!isGuest && currentUserId) {
-          console.log('[initializeApp] 📱 Loading from Firestore for userId:', currentUserId)
-          try {
-            const firestoreData = await loadFromFirestore(currentUserId)
-            console.log('[initializeApp] Firestore response:', firestoreData ? '✅ Got data' : '❌ No data', {
-              hasMonthlyHistory: !!firestoreData?.monthlyHistory,
-              months: firestoreData?.monthlyHistory ? Object.keys(firestoreData.monthlyHistory).length : 0,
-            })
-
-            if (firestoreData && firestoreData.monthlyHistory && Object.keys(firestoreData.monthlyHistory).length > 0) {
-              console.log('✅ Firestore data loaded and merged with localStorage')
-              // Actualizar React state con datos de Firestore
-              const firestoreHistory: Record<string, MonthRecord> = {}
-              for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
-                const rec = record as any
-                firestoreHistory[month] = {
-                  income:       rec.income       ?? 0,
-                  savings:      rec.savings      ?? 0,
-                  expenses:     rec.expenses     ?? [],
-                  extraIncomes: rec.extraIncomes ?? [],
-                  pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-                  manualBudget: rec.manualBudget,
-                }
-              }
-              console.log('[initializeApp] ✅ Updating React state with Firestore data:', Object.keys(firestoreHistory).length, 'months')
-              setMonthlyHistory(firestoreHistory)
-              if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
-              if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
-              if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
-              if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
-              if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
-            } else {
-              console.log('[initializeApp] ℹ️ Firestore has no data or is empty')
-            }
-          } catch (error) {
-            console.error('❌ Error loading from Firestore:', error)
-            // Esto es OK - localStorage es el fallback
-          }
-        } else {
-          console.log('[initializeApp] ℹ️ Skipping Firestore (isGuest:', isGuest, ', userId:', currentUserId, ')')
-        }
+        // ✅ SUPABASE SYNC: Data loading and auto-save implemented above
       } catch (e) {
         // ignorar JSON malformado
         console.warn('[initializeApp] Error during initialization:', e)
@@ -332,26 +286,25 @@ export default function Home() {
 
     console.log('[LoadEffect] Deciding whether to call initializeApp:', {
       currentUserId: !!currentUserId,
-      isGuest,
-      willInitialize: !!currentUserId || isGuest
+      guestUserId: !!guestUserId,
+      willInitialize: !!currentUserId || !!guestUserId
     })
 
-    if (currentUserId || isGuest) {
+    if (currentUserId || guestUserId) {
       initializeApp()
     } else {
-      console.log('[LoadEffect] No userId and not guest, waiting for Firebase...')
+      console.log('[LoadEffect] No userId and no guestUserId, waiting for Firebase...')
       setHydrated(true)
     }
-  }, [userId, isGuest])
+  }, [userId, guestUserId])
 
-  // ── Persist to localStorage + Firestore ───────────────────────────────────
-  // FIREBASE DUAL STORAGE:
+  // ── Persist to localStorage + Supabase ───────────────────────────────────
+  // SUPABASE DUAL STORAGE:
   // 1. Save to localStorage IMMEDIATELY (synchronous, always works)
-  // 2. Save to Firestore in background (async, non-blocking) - SKIP if guest mode
-  // PHASE 2: Only save if user is authenticated
-  // DEBOUNCE: Only save after 2 seconds without changes (prevents Firestore saturation)
+  // 2. Save to Supabase in background (async, non-blocking) - works for authenticated and guest users
+  // DEBOUNCE: Only save after 2 seconds without changes (prevents Supabase saturation)
   useEffect(() => {
-    if (!hydrated || !userId) return
+    if (!hydrated || (!userId && !guestUserId)) return
 
     console.log('[AUTO-SAVE] Dependencies changed, restarting debounce timer')
 
@@ -379,33 +332,37 @@ export default function Home() {
         isPrivacyMode,
       }
 
-      if (isGuest) {
-        // Guest mode: only save to localStorage, not Firestore
+      // Save to localStorage (offline cache)
+      const saveUserId = currentUserId || guestUserId
+      const storageKey = `${STORAGE_KEY}_${saveUserId}`
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+        console.log('[AUTO-SAVE] ✅ Saved to localStorage')
+      } catch (error) {
+        console.error('Error saving to localStorage:', error)
+      }
+
+      // Save to Supabase (primary storage for authenticated and guest users)
+      if (saveUserId) {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+          await saveUserData(saveUserId, dataToSave)
+          console.log('[AUTO-SAVE] ✅ Saved to Supabase')
         } catch (error) {
-          console.error('Error saving to localStorage:', error)
+          console.error('[AUTO-SAVE] Error saving to Supabase:', error)
         }
-      } else {
-        // Authenticated mode: save to both localStorage and Firestore
-        // saveToFirestore handles both localStorage and Firestore:
-        // - Saves to localStorage first (synchronously)
-        // - Then saves to Firestore (async, non-blocking)
-        // PHASE 2: Pass userId to saveToFirestore
-        saveToFirestore(currentUserId, dataToSave).catch((error) => {
-          console.error('Error in saveToFirestore:', error)
-          // Data is safe in localStorage even if Firestore fails
-        })
       }
     }, 2000)
 
     // Clean up timer on unmount or when dependencies change
     return () => clearTimeout(timer)
-  }, [hydrated, userId, isGuest, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
+  }, [hydrated, userId, guestUserId, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
 
   // ── Real-time sync from Firestore ──────────────────────────────────────────
   // Subscribe to Firestore updates and merge with local state
   // PHASE 2: Only subscribe if user is authenticated (NOT guest mode)
+  // SUPABASE SYNC (TODO: Implement Supabase real-time subscription)
+  // For now, app works with localStorage only. Real-time sync from Supabase will be added in Phase 3.
+  /*
   useEffect(() => {
     console.log('[FS-SYNC] Checking subscription conditions:', { hydrated, userId, isGuest })
     if (!hydrated || !userId || isGuest) {
@@ -446,18 +403,16 @@ export default function Home() {
         if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
         if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
         if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
-        if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
+        // NOTE: Do NOT overwrite currentMonth with Firestore data!
+        // currentMonth should ALWAYS be today's actual month for correct month navigation
+        // if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
         if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
       })
     } catch (error) {
       console.warn('Could not subscribe to Firestore (offline?):', error)
       // This is OK - app continues to work with localStorage
     }
-
-    return () => {
-      if (unsubscribe) unsubscribe()
-    }
-  }, [hydrated, userId, isGuest])
+  */
 
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -710,6 +665,54 @@ export default function Home() {
     setCountryCode(code)
   }, [])
 
+  // ── CAMBIO DE MES: copiar bolsillos del mes anterior si no existen ──────────
+  const handleChangeMonth = useCallback((newMonth: string) => {
+    setActiveMonth(newMonth)
+
+    // Si el nuevo mes ya existe en monthlyHistory, no hacer nada
+    if (monthlyHistory[newMonth]) {
+      return
+    }
+
+    // Si no existe, encontrar el mes anterior/más cercano con bolsillos
+    const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
+    const previousMonth = sortedMonths.find(m => m < newMonth)
+
+    if (previousMonth && monthlyHistory[previousMonth]) {
+      // Copiar los bolsillos del mes anterior al nuevo mes (pero con presupuesto = 0)
+      const previousPockets = monthlyHistory[previousMonth].pockets ?? []
+
+      setMonthlyHistory(prev => ({
+        ...prev,
+        [newMonth]: {
+          income: 0,
+          savings: 0,
+          expenses: [],
+          extraIncomes: [],
+          pockets: previousPockets.length > 0
+            ? previousPockets.map(p => ({ ...p, budget: 0 }))  // Copiar nombre e ícono, pero presupuesto = 0
+            : DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+        },
+      }))
+
+      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos del ${previousMonth} (presupuestos = 0)`)
+    } else {
+      // Si no hay mes anterior, usar bolsillos por defecto con presupuesto = 0
+      setMonthlyHistory(prev => ({
+        ...prev,
+        [newMonth]: {
+          income: 0,
+          savings: 0,
+          expenses: [],
+          extraIncomes: [],
+          pockets: DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+        },
+      }))
+
+      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos por defecto (presupuestos = 0)`)
+    }
+  }, [monthlyHistory])
+
   const handleSetIncome = useCallback((newIncome: number) => {
     const monthData = getActiveMonthData()
     setMonthlyHistory(prev => ({
@@ -749,7 +752,7 @@ export default function Home() {
 
   const handleLogOut = useCallback(async () => {
     try {
-      await firebaseLogOut()
+      await logOut()
       // Auth state listener will handle clearing state and showing login screen
     } catch (error) {
       console.error('Error logging out:', error)
@@ -761,13 +764,23 @@ export default function Home() {
     // Check if component is still mounted before updating state
     if (!isMountedRef.current) return
 
-    // Enable guest mode: use localStorage without Firestore sync
-    setIsGuest(true)
-    setUserId('guest')
+    // Generate or retrieve guest UUID
+    let guest = localStorage.getItem('guest_id')
+    if (!guest) {
+      guest = generateGuestUserId()
+      localStorage.setItem('guest_id', guest)
+      console.log('[handleGuestMode] Generated new guestUserId:', guest)
+    } else {
+      console.log('[handleGuestMode] Using existing guestUserId:', guest)
+    }
+
+    setGuestUserId(guest)
     setAuthLoading(false)
 
     // Check if user has onboarded before
-    const hasOnboarded = localStorage.getItem(ONBOARDING_FLAG) === 'true'
+    const onboardingKey = `${ONBOARDING_FLAG}_${guest}`
+    const hasOnboarded = localStorage.getItem(onboardingKey) === 'true'
+
     if (hasOnboarded) {
       setScreen('main')
     } else {
@@ -776,7 +789,7 @@ export default function Home() {
     setHydrated(true)
   }, [])
 
-  const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number) => {
+  const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
     if (!userId) return
     // Mark onboarding as complete for this user
     localStorage.setItem(`${ONBOARDING_FLAG}_${userId}`, 'true')
@@ -785,7 +798,6 @@ export default function Home() {
 
     const thisMonth = getCurrentMonth()
     setCurrentMonth(thisMonth)
-    setActiveMonth(thisMonth)
 
     // Calcular savings desde budget: savings = income - budget
     let savings = 0
@@ -793,16 +805,62 @@ export default function Home() {
       savings = Math.max(0, incomeValue - budget)
     }
 
-    // Crear registro inicial para el mes
-    setMonthlyHistory({
-      [thisMonth]: {
-        income: incomeValue,
-        savings,
-        expenses: [],
-        extraIncomes: [],
-        pockets: DEFAULT_POCKETS,
-      },
+    // Build monthlyHistory with April (from CSV if provided) and current month
+    const history: Record<string, MonthRecord> = {}
+
+    // Add April with CSV data if provided, otherwise empty
+    if (aprilData) {
+      history['2026-04'] = {
+        income: 0, // April is historical, no income tracking
+        savings: 0,
+        expenses: aprilData.expenses,
+        extraIncomes: aprilData.extraIncomes,
+        pockets: aprilData.pockets,
+        manualBudget: undefined,
+      }
+      console.log('[onboarding] April loaded with', aprilData.expenses.length, 'expenses and', aprilData.extraIncomes.length, 'incomes')
+    }
+
+    // Add current month
+    history[thisMonth] = {
+      income: incomeValue,
+      savings,
+      expenses: [],
+      extraIncomes: [],
+      pockets: DEFAULT_POCKETS,
+      manualBudget: undefined,
+    }
+
+    setMonthlyHistory(history)
+
+    // Build and save complete user data to Supabase
+    const initialData: StoredData = {
+      monthlyHistory: history,
+      pockets: DEFAULT_POCKETS,
+      monthlyIncome: incomeValue,
+      monthlySavings: savings,
+      expenses: [],
+      extraIncomes: [],
+      conceptMap: {},
+      learnedCategoryMap: {},
+      countryCode: code,
+      isPrivacyMode: false,
+      currentMonth: thisMonth,
+    }
+
+    // Save to Supabase and localStorage
+    saveUserData(userId, initialData).catch(err => {
+      console.error('[onboarding] Error saving to Supabase:', err)
+      // Continue even if Supabase save fails
     })
+
+    const storageKey = `${STORAGE_KEY}_${userId}`
+    localStorage.setItem(storageKey, JSON.stringify(initialData))
+
+    // Prefer April if it has data, otherwise current month
+    const targetMonth = aprilData && aprilData.expenses.length > 0 ? '2026-04' : thisMonth
+    setActiveMonth(targetMonth)
+    console.log('[onboarding] Setting activeMonth to:', targetMonth)
 
     setScreen('main')
   }, [userId])
@@ -1075,7 +1133,7 @@ export default function Home() {
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
-            onChangeMonth={setActiveMonth}
+            onChangeMonth={handleChangeMonth}
             onAdd={openAddSheet}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
@@ -1089,7 +1147,7 @@ export default function Home() {
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
-            onChangeMonth={setActiveMonth}
+            onChangeMonth={handleChangeMonth}
             onAdd={openAddSheet}
             onEdit={openEditSheet}
             onDelete={handleDeleteExpense}
@@ -1106,7 +1164,7 @@ export default function Home() {
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
-            onChangeMonth={setActiveMonth}
+            onChangeMonth={handleChangeMonth}
             onSetIncome={handleSetIncome}
             onSetSavings={handleSetSavings}
             onSetManualBudget={handleSetManualBudget}
