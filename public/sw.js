@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((response) => {
+    caches.match(event.request).then((cachedResponse) => {
       return fetch(event.request).then((response) => {
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
         })
         return response
       }).catch(() => {
-        return response
+        return cachedResponse || new Response('Offline', { status: 503 })
       })
     })
   )
