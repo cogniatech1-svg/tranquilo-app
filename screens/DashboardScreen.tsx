@@ -215,17 +215,9 @@ export function DashboardScreen({
             {userId && (
               <div className="flex items-center gap-1.5">
                 {supabaseSyncing ? (
-                  <>
-                    <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full animate-pulse"></div>
-                    <p className="text-[9px] text-white/60 font-medium">Sincronizando...</p>
-                  </>
+                  <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full animate-pulse"></div>
                 ) : lastSync ? (
-                  <>
-                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                    <p className="text-[9px] text-white/60 font-medium">
-                      {lastSync.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </>
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
                 ) : null}
               </div>
             )}
