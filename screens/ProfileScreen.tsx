@@ -5,7 +5,7 @@ import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { ExtraIncome, StoredData } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
-import { saveToFirestore } from '../lib/firestore'
+import { saveUserData } from '../lib/supabase'
 
 interface Props {
   config: CountryConfig
@@ -109,8 +109,8 @@ export function ProfileScreen({
   }
 
   const handleForceSyncToFirestore = async () => {
-    console.log("[FORCE SYNC] Forzando sincronización a Firestore")
-    alert("⏳ Sincronizando datos a Firestore...")
+    console.log("[FORCE SYNC] Forzando sincronización a Supabase")
+    alert("⏳ Sincronizando datos a Supabase...")
 
     // Get userId from localStorage or current auth
     const allKeys = Object.keys(localStorage)
@@ -155,8 +155,8 @@ export function ProfileScreen({
         monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
       })
 
-      // Log the EXACT data being sent to Firestore
-      console.log("[FORCE SYNC] 📤 DATOS ENVIADOS A FIRESTORE:", {
+      // Log the EXACT data being sent to Supabase
+      console.log("[FORCE SYNC] 📤 DATOS ENVIADOS A SUPABASE:", {
         monthlyHistory: data.monthlyHistory ? Object.entries(data.monthlyHistory).map(([m, r]: any) => ({ month: m, expenseCount: r.expenses?.length })) : 'NO EXISTE',
         monthlyIncome: data.monthlyIncome,
         monthlySavings: data.monthlySavings,
@@ -164,18 +164,18 @@ export function ProfileScreen({
         conceptMap: !!data.conceptMap ? Object.keys(data.conceptMap).length : 0,
       })
 
-      // Force save to Firestore
-      console.log("[FORCE SYNC] 📤 Llamando saveToFirestore...")
+      // Force save to Supabase
+      console.log("[FORCE SYNC] 📤 Llamando saveUserData...")
       try {
-        await saveToFirestore(userId, data)
-        console.log("[FORCE SYNC] ✅ saveToFirestore completado sin errores")
+        await saveUserData(userId, data)
+        console.log("[FORCE SYNC] ✅ saveUserData completado sin errores")
       } catch (saveError) {
-        console.error("[FORCE SYNC] ❌ ERROR en saveToFirestore:", saveError)
-        alert("❌ Error guardando en Firestore: " + String(saveError))
+        console.error("[FORCE SYNC] ❌ ERROR en saveUserData:", saveError)
+        alert("❌ Error guardando en Supabase: " + String(saveError))
         return
       }
 
-      alert("✅ Datos sincronizados a Firestore correctamente\n📊 Ahora abre el app en el celular")
+      alert("✅ Datos sincronizados a Supabase correctamente\n📊 Ahora abre el app en el celular")
       console.log("[FORCE SYNC] ✅ Sincronización completada")
     } catch (error) {
       console.error("[FORCE SYNC] Error general:", error)
