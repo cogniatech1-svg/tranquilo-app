@@ -210,17 +210,6 @@ export function DashboardScreen({
         <div className="flex items-center justify-between mb-8 relative">
           <div className="flex flex-col gap-1">
             <p className="text-[11px] text-white/70 font-medium">{dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</p>
-
-            {/* Sync indicator */}
-            {userId && (
-              <div className="flex items-center gap-1.5">
-                {supabaseSyncing ? (
-                  <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full animate-pulse"></div>
-                ) : lastSync ? (
-                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                ) : null}
-              </div>
-            )}
           </div>
 
           {/* ☰ Menu button */}
