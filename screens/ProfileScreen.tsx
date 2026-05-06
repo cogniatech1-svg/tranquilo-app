@@ -394,7 +394,7 @@ export function ProfileScreen({
       content: [
         { label: 'Exportar datos', value: 'Descargar CSV', type: 'button', handler: handleExportCSV },
         { label: 'Importar datos', value: 'Importar CSV', type: 'file-button' },
-        { label: 'Sincronizar a Firestore', value: 'Forzar Sincronización', type: 'button', handler: handleForceSyncToFirestore },
+        { label: 'Sincronizar a Supabase', value: 'Forzar Sincronización', type: 'button', handler: handleForceSyncToFirestore },
         { label: 'Borrar todo', value: 'Eliminar datos', type: 'button-danger', handler: () => setConfirmClear(true) },
       ]
     },
