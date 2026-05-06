@@ -90,23 +90,6 @@ export default function Home() {
       setUserId(user.uid)
       setAuthLoading(false)
 
-      // Ensure user record exists in Supabase
-      saveUserData(user.uid, {
-        monthlyHistory: {},
-        monthlyIncome: 0,
-        monthlySavings: 0,
-        expenses: [],
-        extraIncomes: [],
-        pockets: [],
-        conceptMap: {},
-        learnedCategoryMap: {},
-        countryCode: 'CO',
-        isPrivacyMode: false,
-      }).catch(err => {
-        console.error('[handleAuth] Warning: Could not ensure user record:', err)
-        // Don't fail auth just because of this - user data will be created on first save
-      })
-
       // Check if user has completed onboarding
       const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
 
