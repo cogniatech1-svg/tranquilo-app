@@ -62,33 +62,7 @@ export default function RootLayout({
       <body className={`${geist.variable} antialiased`}>
         {children}
 
-        {/* ── Version check (force PWA update) ──────────────────────────────────────── */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-(function() {
-  let lastVersion = localStorage.getItem('tranquilo_version');
-
-  function checkVersion() {
-    fetch('/version.json?t=' + Date.now())
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        if (lastVersion && lastVersion !== data.version) {
-          localStorage.setItem('tranquilo_version', data.version);
-          window.location.reload();
-        } else if (!lastVersion) {
-          localStorage.setItem('tranquilo_version', data.version);
-        }
-      })
-      .catch(() => { /* version check failed, ignore */ });
-  }
-
-  // Only check version once on load
-  checkVersion();
-})();
-            `,
-          }}
-        />
+        {/* ── Version check disabled - causes errors with non-existent version.json ──────── */}
 
         {/* ── Service worker registration ───────────────────── */}
         <script
