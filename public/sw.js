@@ -23,6 +23,7 @@ self.addEventListener('activate', (event) => {
           if (cacheName !== CACHE_NAME) {
             return caches.delete(cacheName)
           }
+          return Promise.resolve()
         })
       )
     })
@@ -35,7 +36,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cachedResponse) => {
       return fetch(event.request).then((response) => {
         if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response
+          return response || new Response('Error', { status: 500 })
         }
         const responseToCache = response.clone()
         caches.open(CACHE_NAME).then((cache) => {
@@ -43,8 +44,13 @@ self.addEventListener('fetch', (event) => {
         })
         return response
       }).catch(() => {
-        return cachedResponse || new Response('Offline', { status: 503 })
+        if (cachedResponse) {
+          return cachedResponse
+        }
+        return new Response('Offline', { status: 503 })
       })
+    }).catch(() => {
+      return new Response('Service Worker Error', { status: 500 })
     })
   )
 })
