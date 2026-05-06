@@ -214,19 +214,6 @@ export function DashboardScreen({
 
           {/* ☰ Menu button */}
           <div className="relative flex items-center gap-2">
-            {/* Refresh button (only show if authenticated) */}
-            {userId && (
-              <button
-                onClick={() => refreshFromSupabase()}
-                disabled={supabaseSyncing}
-                className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
-                style={{ backdropFilter: 'blur(4px)' }}
-                title="Sincronizar ahora"
-              >
-                <Icon name="clock" size={18} className={supabaseSyncing ? 'animate-spin' : ''} />
-              </button>
-            )}
-
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
