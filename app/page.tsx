@@ -1004,11 +1004,11 @@ export default function Home() {
     if (!guest) {
       guest = generateGuestUserId()
       localStorage.setItem('guest_id', guest)
-    } else {
     }
 
+    // IMPORTANT: We must update all state synchronously here to avoid race conditions
+    // where OnboardingScreen renders before guestUserId is set
     setGuestUserId(guest)
-    setAuthLoading(false)
 
     // Check if user has onboarded before
     const onboardingKey = `${ONBOARDING_FLAG}_${guest}`
@@ -1017,16 +1017,41 @@ export default function Home() {
     if (hasOnboarded) {
       setScreen('main')
     } else {
+      // IMPORTANT: Only show onboarding AFTER guestUserId is committed to state
+      // But since setGuestUserId is async, we need to pass the guest ID to handlers
+      // that depend on it. The guest ID is now in localStorage and can be retrieved.
       setScreen('onboarding')
     }
+
+    setAuthLoading(false)
     setHydrated(true)
   }, [])
 
   const handleOnboardingComplete = useCallback(
     (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-      const currentUserId = userId || guestUserId
+      // Get current user ID from state, or fall back to localStorage if there's a race condition
+      let currentUserId = userId || guestUserId
+
+      // FALLBACK: If state hasn't updated yet due to React's async state batching,
+      // try to get guest ID from localStorage (set by handleGuestMode)
       if (!currentUserId) {
-        console.warn('[onboarding] No userId or guestUserId available')
+        const storedGuestId = localStorage.getItem('guest_id')
+        if (storedGuestId) {
+          console.warn(
+            '[onboarding] guestUserId not yet in React state, using fallback from localStorage'
+          )
+          currentUserId = storedGuestId
+        }
+      }
+
+      // ⚠️ CRITICAL: Do not proceed if no user identity is available
+      if (!currentUserId) {
+        console.error(
+          '[onboarding] CRITICAL: No userId or guestUserId available (checked state and localStorage). Cannot save onboarding data.'
+        )
+        console.error(
+          '[onboarding] This indicates a flow error: OnboardingScreen should not be shown until identity is established.'
+        )
         return
       }
 
@@ -1089,14 +1114,14 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      // currentUserId is guaranteed to be non-null here due to the guard above
-      const saveUserId: string = currentUserId
-      saveUserData(saveUserId, initialData).catch((err) => {
+      // At this point, currentUserId is guaranteed to be a non-null string
+      // because of the guard check above. We use the non-null assertion only after validation.
+      saveUserData(currentUserId, initialData).catch((err) => {
         console.error('[onboarding] Error saving to Supabase:', err)
-        // Continue even if Supabase save fails
+        // Continue even if Supabase save fails - localStorage is backup
       })
 
-      const storageKey = `${STORAGE_KEY}_${saveUserId}`
+      const storageKey = `${STORAGE_KEY}_${currentUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
 
       // Prefer April if it has data, otherwise current month
