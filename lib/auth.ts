@@ -129,3 +129,38 @@ export function generateGuestUserId(): string {
     return v.toString(16)
   })
 }
+
+/**
+ * Require a valid user ID (authenticated or guest)
+ * Guarantees to return a non-null string.
+ *
+ * Priority:
+ * 1. Currently authenticated user ID
+ * 2. Existing guest ID from localStorage
+ * 3. Generate new guest ID
+ */
+export async function requireUserId(): Promise<string> {
+  // 1. Usuario autenticado
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const authUserId = session?.user?.id
+
+  if (authUserId) {
+    return authUserId
+  }
+
+  // 2. Guest existente
+  const storedGuestId = localStorage.getItem('guest_id')
+
+  if (storedGuestId) {
+    return storedGuestId
+  }
+
+  // 3. Crear nuevo guest
+  const newGuestId = generateGuestUserId()
+
+  localStorage.setItem('guest_id', newGuestId)
+
+  return newGuestId
+}
