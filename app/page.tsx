@@ -53,6 +53,23 @@ const ONBOARDING_FLAG = 'hasOnboarded'
 const APRIL_RESTORED_FLAG = 'april2026_v1_restored'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER: Obtener ID de usuario garantizado (nunca null)
+// ─────────────────────────────────────────────────────────────────────────────
+// Esta función centraliza la lógica de obtener un ID válido.
+// Garantiza que siempre hay un ID (auth o guest), sin circulando `string | null`.
+function getValidUserId(userId: string | null, guestUserId: string | null): string | null {
+  if (userId) return userId
+  if (guestUserId) return guestUserId
+
+  // Fallback: intentar recuperar del localStorage
+  const storedGuest = localStorage.getItem('guest_id')
+  if (storedGuest) return storedGuest
+
+  // No hay ID disponible
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
@@ -1029,20 +1046,9 @@ export default function Home() {
 
   const handleOnboardingComplete = useCallback(
     (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-      // Get current user ID from state, or fall back to localStorage if there's a race condition
-      let currentUserId = userId || guestUserId
-
-      // FALLBACK: If state hasn't updated yet due to React's async state batching,
-      // try to get guest ID from localStorage (set by handleGuestMode)
-      if (!currentUserId) {
-        const storedGuestId = localStorage.getItem('guest_id')
-        if (storedGuestId) {
-          console.warn(
-            '[onboarding] guestUserId not yet in React state, using fallback from localStorage'
-          )
-          currentUserId = storedGuestId
-        }
-      }
+      // Use centralized helper to get valid user ID
+      // This function checks: userId → guestUserId → localStorage fallback
+      const currentUserId = getValidUserId(userId, guestUserId)
 
       // ⚠️ CRITICAL: Do not proceed if no user identity is available
       if (!currentUserId) {
