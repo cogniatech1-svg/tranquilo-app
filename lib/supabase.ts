@@ -23,24 +23,27 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
   try {
     // 1. Update or create user record with metadata
-    // All users (authenticated and guest) get a standard email
-    const email = `user-${userId}@tranquilo.local`
+    // For guests, use a placeholder email based on their UUID
+    // For authenticated users, use a placeholder based on their Supabase UID
+    // Both are unique and not exposed to the user
+    const isGuest = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    const userEmail = isGuest
+      ? `guest_${userId.substring(0, 8)}@tranquilo.local`
+      : `user_${userId.substring(0, 12)}@tranquilo.local`
 
-    console.log(`[Supabase] Saving user: id=${userId}, email=${email}`)
-
-    const { error: userError } = await supabase
-      .from('users')
-      .upsert({
-        id: userId,
-        email: email,
-        monthly_income: data.monthlyIncome,
-        monthly_savings: data.monthlySavings,
-        country_code: data.countryCode,
-        is_privacy_mode: data.isPrivacyMode,
-      })
+    const { error: userError } = await supabase.from('users').upsert({
+      id: userId,
+      email: userEmail,
+      monthly_income: data.monthlyIncome,
+      monthly_savings: data.monthlySavings,
+      country_code: data.countryCode,
+      is_privacy_mode: data.isPrivacyMode,
+    })
 
     if (userError) {
-      console.error(`[Supabase] Error updating user record: code=${userError.code}, message=${userError.message}`)
+      console.error(
+        `[Supabase] Error updating user record: code=${userError.code}, message=${userError.message}`
+      )
       throw userError
     }
 
@@ -48,42 +51,46 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     // TODO: Investigate pockets table schema - currently skipping to avoid 400 errors
     // Data is persisted in localStorage and monthly_records, pockets are derived from those
     if (data.pockets && data.pockets.length > 0) {
-      console.log(`[Supabase] Skipping pockets save (${data.pockets.length} pockets) - stored in monthly_records instead`)
     }
 
     // 3. Save monthly records with their expenses and extra incomes
     if (data.monthlyHistory) {
       for (const [monthKey, monthRecord] of Object.entries(data.monthlyHistory)) {
-      // Upsert monthly_records
-      const { error: monthError } = await supabase
-        .from('monthly_records')
-        .upsert({
-          user_id: userId,
-          month: monthKey,
-          income: monthRecord.income,
-          savings: monthRecord.savings,
-          manual_budget: monthRecord.manualBudget,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,month' })
+        // Upsert monthly_records
+        if (monthRecord.manualBudget !== undefined && monthRecord.manualBudget !== null) {
+          console.log(
+            `[Supabase] Saving manual budget for ${monthKey}: ${monthRecord.manualBudget}`
+          )
+        }
+        const { error: monthError } = await supabase.from('monthly_records').upsert(
+          {
+            user_id: userId,
+            month: monthKey,
+            income: monthRecord.income,
+            savings: monthRecord.savings,
+            manual_budget: monthRecord.manualBudget ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,month' }
+        )
 
-      if (monthError) {
-        console.error('[Supabase] Error saving monthly record:', monthError)
-        throw monthError
-      }
+        if (monthError) {
+          console.error(`[Supabase] Error saving monthly record for ${monthKey}:`, monthError)
+          if (monthError.message?.includes('manual_budget')) {
+            console.error(
+              `[Supabase] HINT: The 'manual_budget' column may not exist in the 'monthly_records' table. Please check Supabase schema.`
+            )
+          }
+          throw monthError
+        }
 
-      // Delete and recreate expenses for this month (simpler than tracking deletes)
-      await supabase
-        .from('expenses')
-        .delete()
-        .eq('user_id', userId)
-        .eq('month', monthKey)
+        // Delete and recreate expenses for this month (simpler than tracking deletes)
+        await supabase.from('expenses').delete().eq('user_id', userId).eq('month', monthKey)
 
-      // Save expenses
-      if (monthRecord.expenses && monthRecord.expenses.length > 0) {
-        const { error: expenseError } = await supabase
-          .from('expenses')
-          .insert(
-            monthRecord.expenses.map(expense => ({
+        // Save expenses
+        if (monthRecord.expenses && monthRecord.expenses.length > 0) {
+          const { error: expenseError } = await supabase.from('expenses').insert(
+            monthRecord.expenses.map((expense) => ({
               user_id: userId,
               id: expense.id,
               month: monthKey,
@@ -94,25 +101,19 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             }))
           )
 
-        if (expenseError) {
-          console.error('[Supabase] Error saving expenses:', expenseError)
-          throw expenseError
+          if (expenseError) {
+            console.error('[Supabase] Error saving expenses:', expenseError)
+            throw expenseError
+          }
         }
-      }
 
-      // Delete and recreate extra_incomes for this month
-      await supabase
-        .from('extra_incomes')
-        .delete()
-        .eq('user_id', userId)
-        .eq('month', monthKey)
+        // Delete and recreate extra_incomes for this month
+        await supabase.from('extra_incomes').delete().eq('user_id', userId).eq('month', monthKey)
 
-      // Save extra incomes
-      if (monthRecord.extraIncomes && monthRecord.extraIncomes.length > 0) {
-        const { error: incomeError } = await supabase
-          .from('extra_incomes')
-          .insert(
-            monthRecord.extraIncomes.map(income => ({
+        // Save extra incomes
+        if (monthRecord.extraIncomes && monthRecord.extraIncomes.length > 0) {
+          const { error: incomeError } = await supabase.from('extra_incomes').insert(
+            monthRecord.extraIncomes.map((income) => ({
               user_id: userId,
               id: income.id,
               month: monthKey,
@@ -122,23 +123,24 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             }))
           )
 
-        if (incomeError) {
-          console.error('[Supabase] Error saving extra incomes:', incomeError)
-          throw incomeError
+          if (incomeError) {
+            console.error('[Supabase] Error saving extra incomes:', incomeError)
+            throw incomeError
+          }
         }
       }
-    }
     }
 
     // 4. Save concept map
     if (data.conceptMap && Object.keys(data.conceptMap).length > 0) {
-      const { error: conceptError } = await supabase
-        .from('concept_map')
-        .upsert({
+      const { error: conceptError } = await supabase.from('concept_map').upsert(
+        {
           user_id: userId,
           data: data.conceptMap,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
+        },
+        { onConflict: 'user_id' }
+      )
 
       if (conceptError) {
         console.error('[Supabase] Error saving concept map:', conceptError)
@@ -148,21 +150,20 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
     // 5. Save learned category map
     if (data.learnedCategoryMap && Object.keys(data.learnedCategoryMap).length > 0) {
-      const { error: learnedError } = await supabase
-        .from('learned_category_map')
-        .upsert({
+      const { error: learnedError } = await supabase.from('learned_category_map').upsert(
+        {
           user_id: userId,
           data: data.learnedCategoryMap,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
+        },
+        { onConflict: 'user_id' }
+      )
 
       if (learnedError) {
         console.error('[Supabase] Error saving learned category map:', learnedError)
         throw learnedError
       }
     }
-
-    console.log('[Supabase] ✅ User data saved to normalized schema')
   } catch (error) {
     console.error('[Supabase] Failed to save user data:', error)
     // Don't throw - allow app to continue with localStorage fallback
@@ -184,10 +185,11 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
 
     if (userError) {
       if (userError.code === 'PGRST116') {
-        console.log('[Supabase] No user record found (new user)')
         return null
       }
-      console.error(`[Supabase] Error loading user: code=${userError.code}, message=${userError.message}`)
+      console.error(
+        `[Supabase] Error loading user: code=${userError.code}, message=${userError.message}`
+      )
       return null
     }
 
@@ -245,20 +247,25 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       monthlyHistory[month] = {
         income: monthRecord.income,
         savings: monthRecord.savings,
-        expenses: (expensesData || []).map(e => ({
+        expenses: (expensesData || []).map((e) => ({
           id: e.id,
           date: e.date,
           amount: e.amount,
           concept: e.concept,
           pocketId: e.pocket_id,
         })),
-        extraIncomes: (incomesData || []).map(i => ({
+        extraIncomes: (incomesData || []).map((i) => ({
           id: i.id,
           date: i.date,
           amount: i.amount,
           concept: i.concept,
         })),
-        pockets: [],
+        pockets: (pocketsData || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          budget: p.budget,
+          icon: p.icon,
+        })),
         manualBudget: monthRecord.manual_budget,
       }
     }
@@ -302,7 +309,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       monthlySavings: userData?.monthly_savings || 0,
       expenses: [],
       extraIncomes: [],
-      pockets: (pocketsData || []).map(p => ({
+      pockets: (pocketsData || []).map((p) => ({
         id: p.id,
         name: p.name,
         budget: p.budget,
@@ -315,7 +322,6 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       currentMonth: undefined,
     }
 
-    console.log('[Supabase] ✅ User data loaded from normalized schema')
     return storedData
   } catch (error) {
     console.error('[Supabase] Failed to load user data:', error)
@@ -331,8 +337,8 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
 export function subscribeToUserData(
   userId: string,
   callback: (data: StoredData) => void
-): (() => void) {
-  const channels: any[] = []
+): () => void {
+  const channels: ReturnType<typeof supabase.channel>[] = []
 
   // Subscribe to user metadata changes
   const userChannel = supabase
@@ -348,7 +354,6 @@ export function subscribeToUserData(
       async () => {
         const data = await loadUserData(userId)
         if (data) {
-          console.log('[Supabase] Real-time update received (users)')
           callback(data)
         }
       }
@@ -371,7 +376,6 @@ export function subscribeToUserData(
       async () => {
         const data = await loadUserData(userId)
         if (data) {
-          console.log('[Supabase] Real-time update received (pockets)')
           callback(data)
         }
       }
@@ -394,7 +398,6 @@ export function subscribeToUserData(
       async () => {
         const data = await loadUserData(userId)
         if (data) {
-          console.log('[Supabase] Real-time update received (expenses)')
           callback(data)
         }
       }
@@ -417,7 +420,6 @@ export function subscribeToUserData(
       async () => {
         const data = await loadUserData(userId)
         if (data) {
-          console.log('[Supabase] Real-time update received (extra_incomes)')
           callback(data)
         }
       }
@@ -427,6 +429,6 @@ export function subscribeToUserData(
   channels.push(incomeChannel)
 
   return () => {
-    channels.forEach(channel => channel.unsubscribe())
+    channels.forEach((channel) => channel.unsubscribe())
   }
 }

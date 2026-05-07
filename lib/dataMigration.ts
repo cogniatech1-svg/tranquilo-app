@@ -2,7 +2,7 @@ import type { StoredData, MonthRecord, Pocket } from './types'
 
 /**
  * DEFAULT_POCKETS: All 8 budget categories
- * This is the single source of truth for budget categories
+ * Used for onboarding and data repair with initial budget distribution
  */
 export const DEFAULT_POCKETS: Pocket[] = [
   { id: 'recreacion', name: 'Recreación', budget: 100000, icon: '🎮' },
@@ -14,6 +14,13 @@ export const DEFAULT_POCKETS: Pocket[] = [
   { id: 'capacitaciones', name: 'Capacitaciones', budget: 400000, icon: '📚' },
   { id: 'cuota-apartamento', name: 'Cuota Apartamento', budget: 650000, icon: '🏢' },
 ]
+
+/**
+ * Get default pockets structure WITHOUT budget assignments (for new months)
+ */
+export function getEmptyPocketsStructure(): Pocket[] {
+  return DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 }))
+}
 
 /**
  * Ensure all 8 pockets exist in a month record
@@ -34,6 +41,7 @@ function normalizePocketId(id: string): string {
     .replace(/--+/g, '-')
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ensurePocketsComplete(record: any): any {
   const existingPockets = record.pockets ?? []
 
@@ -51,12 +59,11 @@ function ensurePocketsComplete(record: any): any {
   for (const defaultPocket of DEFAULT_POCKETS) {
     if (!pocketMap.has(defaultPocket.id)) {
       pocketMap.set(defaultPocket.id, defaultPocket)
-      console.log(`[dataMigration] ✅ Added missing pocket: ${defaultPocket.id}`)
     }
   }
 
   // Convert map back to array and ensure order matches DEFAULT_POCKETS
-  const finalPockets = DEFAULT_POCKETS.map(dp => {
+  const finalPockets = DEFAULT_POCKETS.map((dp) => {
     const found = pocketMap.get(dp.id)
     return found ? found : dp
   })
@@ -64,7 +71,6 @@ function ensurePocketsComplete(record: any): any {
   const originalCount = existingPockets.length
   const finalCount = finalPockets.length
   if (originalCount !== finalCount) {
-    console.log(`[dataMigration] 📊 Pockets: ${originalCount} → ${finalCount} (added ${finalCount - originalCount})`)
   }
 
   record.pockets = finalPockets
@@ -99,11 +105,13 @@ function hasGenericExpenseName(concept: string): boolean {
  * If expenses have generic names, we can't fix them individually,
  * but we can at least ensure the structure is correct
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function repairExpenses(expenses: any[]): any[] {
   if (!Array.isArray(expenses)) return []
 
   let hadGenericNames = false
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const repaired = expenses.map((exp: any) => {
     if (!exp || typeof exp !== 'object') {
       console.warn('[dataMigration] Invalid expense object:', exp)
@@ -118,7 +126,7 @@ function repairExpenses(expenses: any[]): any[] {
 
     // Ensure expense has required fields
     return {
-      id: exp.id ?? `exp-${Date.now()}-${Math.random()}`,
+      id: exp.id ?? crypto.randomUUID(),
       date: exp.date ?? new Date().toLocaleDateString('es-CO'),
       amount: typeof exp.amount === 'number' ? exp.amount : 0,
       concept: exp.concept ?? 'Sin nombre',
@@ -137,6 +145,7 @@ function repairExpenses(expenses: any[]): any[] {
  * Validate and repair a month record
  * Ensures it has all required fields and all 8 pockets
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function repairMonthRecord(record: any): MonthRecord {
   if (!record || typeof record !== 'object') {
     record = {}
@@ -153,9 +162,8 @@ function repairMonthRecord(record: any): MonthRecord {
     savings: typeof record.savings === 'number' ? record.savings : 0,
     expenses: deduplicatedExpenses,
     extraIncomes: Array.isArray(record.extraIncomes) ? record.extraIncomes : [],
-    pockets: Array.isArray(record.pockets) && record.pockets.length > 0
-      ? record.pockets
-      : DEFAULT_POCKETS,
+    pockets:
+      Array.isArray(record.pockets) && record.pockets.length > 0 ? record.pockets : DEFAULT_POCKETS,
     manualBudget: record.manualBudget,
   }
 }
@@ -165,18 +173,17 @@ function repairMonthRecord(record: any): MonthRecord {
  * Removes exact duplicates while preserving first occurrence
  * Normalizes concept to handle spacing and case differences
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deduplicateExpenses(expenses: any[]): any[] {
   if (!Array.isArray(expenses) || expenses.length === 0) return expenses
 
   const seen = new Set<string>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deduplicated: any[] = []
 
   for (const exp of expenses) {
     // Normalize concept: trim, lowercase, remove extra spaces
-    const normalizedConcept = (exp.concept || '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
+    const normalizedConcept = (exp.concept || '').trim().toLowerCase().replace(/\s+/g, ' ')
 
     // Create a unique key from date + amount + normalized concept
     const key = `${exp.date}|${exp.amount}|${normalizedConcept}`
@@ -188,7 +195,6 @@ function deduplicateExpenses(expenses: any[]): any[] {
   }
 
   if (deduplicated.length < expenses.length) {
-    console.log(`[dataMigration] 🧹 Deduplication: ${expenses.length} → ${deduplicated.length} expenses (removed ${expenses.length - deduplicated.length} duplicates)`)
   }
 
   return deduplicated
@@ -206,6 +212,7 @@ function deduplicateExpenses(expenses: any[]): any[] {
  *
  * Called automatically during data initialization
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function repairStoredData(data: any): StoredData {
   if (!data || typeof data !== 'object') {
     console.warn('[dataMigration] No data to repair, returning empty structure')
@@ -217,20 +224,19 @@ export function repairStoredData(data: any): StoredData {
     }
   }
 
-  console.log('[dataMigration] Starting data repair...')
-
   // Repair monthlyHistory
   const repairedHistory: Record<string, MonthRecord> = {}
   if (data.monthlyHistory && typeof data.monthlyHistory === 'object') {
     for (const [month, record] of Object.entries(data.monthlyHistory)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       repairedHistory[month] = repairMonthRecord(record as any)
 
       // Check if month was repaired
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const originalPocketCount = (record as any).pockets?.length ?? 0
       const repairedPocketCount = repairedHistory[month].pockets.length
 
       if (originalPocketCount !== repairedPocketCount) {
-        console.log(`[dataMigration] ✅ Fixed ${month}: added ${repairedPocketCount - originalPocketCount} missing pockets`)
       }
     }
   }
@@ -239,9 +245,10 @@ export function repairStoredData(data: any): StoredData {
     monthlyHistory: repairedHistory,
     expenses: Array.isArray(data.expenses) ? data.expenses : [],
     extraIncomes: Array.isArray(data.extraIncomes) ? data.extraIncomes : [],
-    pockets: data.pockets && Array.isArray(data.pockets) && data.pockets.length > 0
-      ? data.pockets
-      : DEFAULT_POCKETS,
+    pockets:
+      data.pockets && Array.isArray(data.pockets) && data.pockets.length > 0
+        ? data.pockets
+        : DEFAULT_POCKETS,
     conceptMap: data.conceptMap ?? {},
     learnedCategoryMap: data.learnedCategoryMap ?? {},
     currentMonth: data.currentMonth ?? undefined,

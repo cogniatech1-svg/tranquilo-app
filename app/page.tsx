@@ -4,20 +4,29 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import { AddExpenseSheet } from '../components/AddExpenseSheet'
 import { BottomNavigation } from '../components/BottomNavigation'
+import { OfflineIndicator } from '../components/OfflineIndicator'
 
-import { DashboardScreen }     from '../screens/DashboardScreen'
-import { TransactionsScreen }  from '../screens/TransactionsScreen'
-import { BudgetScreen }        from '../screens/BudgetScreen'
+import { DashboardScreen } from '../screens/DashboardScreen'
+import { TransactionsScreen } from '../screens/TransactionsScreen'
+import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
-import { InsightsScreen }      from '../screens/InsightsScreen'
-import { ProfileScreen }       from '../screens/ProfileScreen'
-import { OnboardingScreen }    from '../screens/OnboardingScreen'
-import { LoginScreen }         from '../screens/LoginScreen'
-import { RecoveryScreen }      from '../screens/RecoveryScreen'
+import { InsightsScreen } from '../screens/InsightsScreen'
+import { ProfileScreen } from '../screens/ProfileScreen'
+import { OnboardingScreen } from '../screens/OnboardingScreen'
+import { LoginScreen } from '../screens/LoginScreen'
+import { RecoveryScreen } from '../screens/RecoveryScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
-import type { Expense, ExtraIncome, ExpensePayload, Pocket, StoredData, TabId, MonthRecord } from '../lib/types'
+import type {
+  Expense,
+  ExtraIncome,
+  ExpensePayload,
+  Pocket,
+  StoredData,
+  TabId,
+  MonthRecord,
+} from '../lib/types'
 import {
   getCurrentMonth,
   normalizePockets,
@@ -29,7 +38,7 @@ import {
 } from '../lib/utils'
 import { onAuthStateChanged, logOut, generateGuestUserId } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
-import { repairStoredData, DEFAULT_POCKETS } from '../lib/dataMigration'
+import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import { saveUserData, loadUserData, subscribeToUserData } from '../lib/supabase'
 
@@ -49,31 +58,35 @@ const APRIL_RESTORED_FLAG = 'april2026_v1_restored'
 export default function Home() {
   // Track if component is mounted to avoid state updates on unmounted components
   const isMountedRef = useRef(true)
+  // Track if data has been loaded from Supabase/localStorage successfully.
+  // Used to prevent auto-save from overwriting good data with empty data during initial load.
+  const dataLoadedRef = useRef(false)
 
-  const [hydrated,      setHydrated]      = useState(false)
-  const [userId,        setUserId]        = useState<string | null>(null)
-  const [guestUserId,   setGuestUserId]   = useState<string | null>(null)
-  const [authLoading,   setAuthLoading]   = useState(true)
-  const [screen,        setScreen]        = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
-  const [activeTab,     setActiveTab]     = useState<TabId>('inicio')
+  const [hydrated, setHydrated] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [guestUserId, setGuestUserId] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [screen, setScreen] = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
+  const [activeTab, setActiveTab] = useState<TabId>('inicio')
 
-  const [countryCode,   setCountryCode]   = useState<CountryCode>('CO')
+  const [countryCode, setCountryCode] = useState<CountryCode>('CO')
   // ── ÚNICA FUENTE DE VERDAD: monthlyHistory ────────────────────────────────
   // Contiene TODOS los datos financieros por mes
   // Estructura: monthlyHistory[month] = { income, savings, expenses, extraIncomes, pockets }
   const [monthlyHistory, setMonthlyHistory] = useState<Record<string, MonthRecord>>({})
 
-  const [conceptMap,    setConceptMap]    = useState<Record<string, string>>({})
-  const [currentMonth,  setCurrentMonth]  = useState<string>(getCurrentMonth)
+  const [conceptMap, setConceptMap] = useState<Record<string, string>>({})
+  const [currentMonth, setCurrentMonth] = useState<string>(getCurrentMonth)
 
-  const [activeMonth,          setActiveMonth]           = useState<string>(getCurrentMonth)
-  const [isPrivacyMode,        setIsPrivacyMode]         = useState(false)
-  const [learnedCategoryMap,   setLearnedCategoryMap]    = useState<Record<string, string>>({})
+  const [activeMonth, setActiveMonth] = useState<string>(getCurrentMonth)
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false)
+  const [learnedCategoryMap, setLearnedCategoryMap] = useState<Record<string, string>>({})
   // Force Vercel rebuild
 
-  const [sheetOpen,        setSheetOpen]        = useState(false)
-  const [editingExpense,   setEditingExpense]   = useState<Expense | null>(null)
-  const [editingIncome,    setEditingIncome]    = useState<ExtraIncome | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [editingIncome, setEditingIncome] = useState<ExtraIncome | null>(null)
   const [defaultSheetType, setDefaultSheetType] = useState<'income' | 'expense' | null>(null)
 
   const config: CountryConfig = COUNTRIES[countryCode]
@@ -83,44 +96,36 @@ export default function Home() {
     // Guard: only update state if component is still mounted
     if (!isMountedRef.current) return
 
-    console.log('[AUTH] Auth state changed:', user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in')
+    console.log(
+      '[AUTH] Auth state changed:',
+      user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in'
+    )
 
+    // Store authenticated user state if present
     if (user) {
-      // User is authenticated
       setUserId(user.uid)
-      setAuthLoading(false)
-
-      // Check if user has completed onboarding
-      const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-
-      // Route to appropriate screen
-      if (hasOnboarded) {
-        setScreen('main')
-      } else {
-        setScreen('onboarding')
-      }
+      setUserEmail(user.email)
     } else {
-      // User is not authenticated - set up guest mode
       setUserId(null)
-      setAuthLoading(false)
+      setUserEmail(null)
 
-      // Check if we have an existing guest ID in localStorage
+      // Generate guest ID for unauthenticated users
       let guest = localStorage.getItem('guest_id')
-
-      // Validate that guest ID is a valid UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-      const isValidUUID = guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
+      const isValidUUID =
+        guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
 
       if (!guest || !isValidUUID) {
-        // Generate a new guest ID if missing or invalid
         guest = generateGuestUserId()
         localStorage.setItem('guest_id', guest)
-        console.log('[handleAuth] Generated new guestUserId:', guest)
-      } else {
-        console.log('[handleAuth] Using existing guestUserId:', guest)
       }
       setGuestUserId(guest)
-      setScreen('login')
     }
+
+    setAuthLoading(false)
+
+    // ALWAYS show login screen first (let user choose between account or guest)
+    // This prevents auto-login without user consent
+    setScreen('login')
   }, [])
 
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
@@ -129,7 +134,10 @@ export default function Home() {
     isMountedRef.current = true
 
     const unsubscribe = onAuthStateChanged((user) => {
-      console.log('[onAuthStateChanged] Callback received user:', user ? `${user.email} (${user.uid})` : 'null')
+      console.log(
+        '[onAuthStateChanged] Callback received user:',
+        user ? `${user.email} (${user.uid})` : 'null'
+      )
       handleAuth(user)
     })
 
@@ -141,7 +149,30 @@ export default function Home() {
 
   // ── HELPER: Obtener datos del mes activo (SIEMPRE usa este helper) ──────────
   const getActiveMonthData = useCallback(() => {
-    return monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+    if (monthlyHistory[activeMonth]) {
+      return monthlyHistory[activeMonth]
+    }
+
+    // Si el mes no existe, heredar estructura de pockets del mes anterior
+    // pero SIN presupuestos asignados (budget = 0)
+    const availableMonths = Object.keys(monthlyHistory).sort()
+    const previousMonth = availableMonths.reverse().find((m) => m < activeMonth)
+
+    const previousData = previousMonth ? monthlyHistory[previousMonth] : null
+    const defaultRecord = getDefaultMonthRecord()
+
+    // Si hay mes anterior, heredar la estructura de pockets (nombres, íconos)
+    // pero sin presupuestos asignados. Si no hay mes anterior, usar estructura vacía.
+    const prevPockets = previousData?.pockets
+    const pocketsToUse =
+      prevPockets && prevPockets.length > 0
+        ? prevPockets.map((p) => ({ ...p, budget: 0 }))
+        : getEmptyPocketsStructure()
+
+    return {
+      ...defaultRecord,
+      pockets: pocketsToUse,
+    }
   }, [monthlyHistory, activeMonth])
 
   // ── RESET: Limpiar datos corruptos y forzar onboarding ────────────────────
@@ -175,56 +206,59 @@ export default function Home() {
     const initializeApp = async () => {
       // ⚠️ CRITICAL: Guard against undefined userId and guestUserId
       if (!currentUserId && !guestUserId) {
-        console.warn('[initializeApp] Exiting early: currentUserId and guestUserId not available yet')
+        console.warn(
+          '[initializeApp] Exiting early: currentUserId and guestUserId not available yet'
+        )
         return
       }
 
       try {
         const storageKey = currentUserId
           ? `${STORAGE_KEY}_${currentUserId}`
-          : `${STORAGE_KEY}_${guestUserId}`;
+          : `${STORAGE_KEY}_${guestUserId}`
 
-        console.log('[initializeApp] 🚀 Starting initialization')
-        console.log('[initializeApp] userId:', currentUserId, '| guestUserId:', guestUserId, '| storageKey:', storageKey)
-
-        // ── LOAD FROM SUPABASE (authenticated and guest users) ─────────────────────
+        // ── LOAD FROM SUPABASE (fuente de verdad) ─────────────────────────────
         let data: StoredData = {}
         const loadUserId = currentUserId || guestUserId
         if (loadUserId) {
-          console.log('[initializeApp] 📡 Attempting to load from Supabase...')
           const supabaseData = await loadUserData(loadUserId)
           if (supabaseData) {
             data = supabaseData
-            console.log('[initializeApp] ✅ Data loaded from Supabase')
+            console.log('[initializeApp] ✅ Loaded from Supabase')
           } else {
             console.log('[initializeApp] ℹ️ No data in Supabase (new user)')
           }
         }
 
         // ── FALLBACK: Load from localStorage ────────────────────────────────
-        // If no Supabase data, try localStorage (for offline support or legacy data)
         if (Object.keys(data).length === 0) {
           const raw = localStorage.getItem(storageKey)
-          console.log('[initializeApp] localStorage has data:', !!raw, '| size:', raw?.length ?? 0, 'bytes')
           if (raw) {
-            try { data = JSON.parse(raw) as StoredData } catch { /* JSON inválido */ }
+            try {
+              data = JSON.parse(raw) as StoredData
+            } catch {
+              /* JSON inválido */
+            }
           }
         }
 
-        const aprilRestoredKey = currentUserId ? `${APRIL_RESTORED_FLAG}_${currentUserId}` : `${APRIL_RESTORED_FLAG}_${guestUserId}`
+        const aprilRestoredKey = currentUserId
+          ? `${APRIL_RESTORED_FLAG}_${currentUserId}`
+          : `${APRIL_RESTORED_FLAG}_${guestUserId}`
         const aprilRestored = localStorage.getItem(aprilRestoredKey) === 'true'
 
         // ── REPARAR DATOS CORRUPTOS (PHASE 2) ────────────────────────────────
         // Asegura que todos los 9 bolsillos estén presentes
         // Detecta y reporta gastos con nombres genéricos ("Expense 1", etc)
-        console.log('[initializeApp] 🔧 Repairing corrupted data...')
         data = repairStoredData(data)
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
-        const onboardingKey = currentUserId ? `${ONBOARDING_FLAG}_${currentUserId}` : `${ONBOARDING_FLAG}_${guestUserId}`
+        const onboardingKey = currentUserId
+          ? `${ONBOARDING_FLAG}_${currentUserId}`
+          : `${ONBOARDING_FLAG}_${guestUserId}`
         const hasOnboarded = localStorage.getItem(onboardingKey) === 'true'
-        const country      = (data.countryCode as CountryCode) ?? 'CO'
+        const country = (data.countryCode as CountryCode) ?? 'CO'
 
         console.log('[initializeApp] State loading:', {
           hasOnboarded,
@@ -245,31 +279,36 @@ export default function Home() {
           const history: Record<string, MonthRecord> = {}
           for (const [month, record] of Object.entries(normalizedData.monthlyHistory!)) {
             const normalizedMonth = normalizeMonthKey(month)
-            const rec = record as any
+            const rec = record as MonthRecord
             history[normalizedMonth] = {
-              income:       rec.income       ?? 0,
-              savings:      rec.savings      ?? 0,
-              expenses:     rec.expenses     ?? [],
+              income: rec.income ?? 0,
+              savings: rec.savings ?? 0,
+              expenses: rec.expenses ?? [],
               extraIncomes: rec.extraIncomes ?? [],
-              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
+              pockets: rec.pockets ?? DEFAULT_POCKETS,
               manualBudget: rec.manualBudget,
             }
           }
-          console.log('[initializeApp] Setting monthlyHistory with', Object.keys(history).length, 'months')
+          console.log(
+            '[initializeApp] Setting monthlyHistory with',
+            Object.keys(history).length,
+            'months'
+          )
           setMonthlyHistory(history)
+          // Mark data as loaded (we have actual data from Supabase/localStorage)
+          dataLoadedRef.current = true
 
           // Si hay datos, preferir abril CON gastos, si no usar mes actual
           const availableMonths = Object.keys(history)
           if (availableMonths.length > 0) {
             // Preferir abril CON gastos
-            let targetMonth = availableMonths.find(m =>
-              m === '2026-04' && history[m].expenses?.length > 0
+            let targetMonth = availableMonths.find(
+              (m) => m === '2026-04' && history[m].expenses?.length > 0
             )
             // Si no hay abril con gastos, usar el mes actual
             if (!targetMonth) {
               targetMonth = getCurrentMonth()
             }
-            console.log('[initializeApp] Setting activeMonth to:', targetMonth, '| expenses:', history[targetMonth]?.expenses?.length)
             setActiveMonth(targetMonth)
             // NOTE: currentMonth should ALWAYS be the actual current month (today), not activeMonth!
             // activeMonth is what the user is viewing, currentMonth is what "today" is
@@ -285,20 +324,25 @@ export default function Home() {
         // ignorar JSON malformado
         console.warn('[initializeApp] Error during initialization:', e)
       }
-      console.log('[initializeApp] Hydration complete, currentUserId:', currentUserId)
       setHydrated(true)
     }
 
     console.log('[LoadEffect] Deciding whether to call initializeApp:', {
       currentUserId: !!currentUserId,
       guestUserId: !!guestUserId,
-      willInitialize: !!currentUserId || !!guestUserId
+      willInitialize: !!currentUserId || !!guestUserId,
     })
 
     if (currentUserId || guestUserId) {
-      initializeApp()
+      // Only initialize once. Subsequent auth state changes (token refresh)
+      // should NOT reload data from Supabase, which would overwrite unsaved local changes.
+      if (!dataLoadedRef.current) {
+        initializeApp()
+      } else {
+        console.log('[LoadEffect] Skipping reload — data already loaded, preserving local state')
+        setHydrated(true)
+      }
     } else {
-      console.log('[LoadEffect] No userId and no guestUserId, waiting for Firebase...')
       setHydrated(true)
     }
   }, [userId, guestUserId])
@@ -311,15 +355,44 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated || (!userId && !guestUserId)) return
 
-    console.log('[AUTO-SAVE] Dependencies changed, restarting debounce timer')
+    // CRITICAL: Don't save if onboarding hasn't finished (prevents wiping good data
+    // with empty state during initial load or auth state changes)
+    const currentSaveUserId = userId || guestUserId
+    if (!currentSaveUserId) return
+    const onboardingDone =
+      localStorage.getItem(`${ONBOARDING_FLAG}_${currentSaveUserId}`) === 'true'
+
+    // Skip save entirely if user hasn't onboarded yet (prevents empty rows in Supabase)
+    if (!onboardingDone) {
+      console.log('[AUTO-SAVE] Skipping: user has not onboarded yet')
+      return
+    }
+
+    // If user has onboarded but monthlyHistory is empty, this means the load failed
+    // or hasn't finished — don't overwrite Supabase with empty data
+    if (Object.keys(monthlyHistory).length === 0) {
+      console.warn(
+        '[AUTO-SAVE] Skipping save: monthlyHistory empty after onboarding (race condition)'
+      )
+      return
+    }
+
+    // Final guard: only save if data has been loaded (or set by onboarding completion)
+    if (!dataLoadedRef.current) {
+      console.warn('[AUTO-SAVE] Skipping save: data not yet loaded')
+      return
+    }
 
     // Capture userId to ensure type safety in async operations
     const currentUserId = userId
 
     // Set up debounce timer - wait 2 seconds before saving
     const timer = setTimeout(async () => {
-      console.log('[AUTO-SAVE] 🔔 2-second debounce fired, executing save')
       const activeData = getActiveMonthData()
+      console.log(
+        `[AUTO-SAVE] Saving data for month ${activeMonth}. ManualBudget:`,
+        activeData.manualBudget
+      )
       const dataToSave: StoredData = {
         // Datos del mes actual (para backward compatibility)
         monthlyIncome: activeData.income,
@@ -337,12 +410,14 @@ export default function Home() {
         isPrivacyMode,
       }
 
+      console.log(`[AUTO-SAVE] Full monthlyHistory[${activeMonth}]:`, monthlyHistory[activeMonth])
+
       // Save to localStorage (offline cache)
       const saveUserId = currentUserId || guestUserId
       const storageKey = `${STORAGE_KEY}_${saveUserId}`
       try {
         localStorage.setItem(storageKey, JSON.stringify(dataToSave))
-        console.log('[AUTO-SAVE] ✅ Saved to localStorage')
+        console.log(`[AUTO-SAVE] ✅ Saved to localStorage for userId: ${saveUserId}`)
       } catch (error) {
         console.error('Error saving to localStorage:', error)
       }
@@ -350,75 +425,130 @@ export default function Home() {
       // Save to Supabase (primary storage for authenticated and guest users)
       if (saveUserId) {
         try {
+          console.log(`[AUTO-SAVE] Saving to Supabase for userId: ${saveUserId}`)
           await saveUserData(saveUserId, dataToSave)
-          console.log('[AUTO-SAVE] ✅ Saved to Supabase')
+          console.log(`[AUTO-SAVE] ✅ Saved to Supabase successfully`)
         } catch (error) {
-          console.error('[AUTO-SAVE] Error saving to Supabase:', error)
+          console.error('[AUTO-SAVE] ❌ Error saving to Supabase:', error)
         }
       }
     }, 2000)
 
     // Clean up timer on unmount or when dependencies change
     return () => clearTimeout(timer)
-  }, [hydrated, userId, guestUserId, monthlyHistory, conceptMap, learnedCategoryMap, currentMonth, countryCode, isPrivacyMode, getActiveMonthData])
+  }, [
+    hydrated,
+    userId,
+    guestUserId,
+    monthlyHistory,
+    conceptMap,
+    learnedCategoryMap,
+    currentMonth,
+    countryCode,
+    isPrivacyMode,
+    activeMonth,
+  ])
 
-  // ── Real-time sync from Firestore ──────────────────────────────────────────
-  // Subscribe to Firestore updates and merge with local state
-  // PHASE 2: Only subscribe if user is authenticated (NOT guest mode)
-  // SUPABASE SYNC (TODO: Implement Supabase real-time subscription)
-  // For now, app works with localStorage only. Real-time sync from Supabase will be added in Phase 3.
-  /*
+  // ── Guardar inmediatamente cuando el usuario sale de la app ───────────────
+  // En mobile: cuando presiona Home, cambia de app, o bloquea la pantalla
+  // Evita perder datos si la app se cierra antes del debounce de 2 segundos
   useEffect(() => {
-    console.log('[FS-SYNC] Checking subscription conditions:', { hydrated, userId, isGuest })
-    if (!hydrated || !userId || isGuest) {
-      console.log('[FS-SYNC] ℹ️ Skipping subscription (hydrated:', hydrated, ', userId:', userId, ', isGuest:', isGuest, ')')
-      return
-    }
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden' && dataLoadedRef.current) {
+        const saveUserId = userId || guestUserId
+        if (!saveUserId) return
 
-    // Capture userId to ensure type safety in subscription
-    const currentUserId = userId
+        const onboardingDone = localStorage.getItem(`${ONBOARDING_FLAG}_${saveUserId}`) === 'true'
+        if (!onboardingDone || Object.keys(monthlyHistory).length === 0) return
 
-    let unsubscribe: (() => void) | null = null
-
-    try {
-      console.log('[FS-SYNC] 🔄 Setting up real-time subscription for userId:', currentUserId)
-      // PHASE 2: Pass userId to subscribeToFirestore
-      unsubscribe = subscribeToFirestore(currentUserId, (firestoreData: StoredData) => {
-        console.log('[FS-SYNC] 📨 Firestore update received:', {
-          hasData: !!firestoreData,
-          monthsCount: firestoreData?.monthlyHistory ? Object.keys(firestoreData.monthlyHistory).length : 0,
-        })
-        // Firestore data was merged with localStorage in subscribeToFirestore
-        // Update React state with the merged data
-        if (firestoreData.monthlyHistory) {
-          const history: Record<string, MonthRecord> = {}
-          for (const [month, record] of Object.entries(firestoreData.monthlyHistory)) {
-            const rec = record as any
-            history[month] = {
-              income:       rec.income       ?? 0,
-              savings:      rec.savings      ?? 0,
-              expenses:     rec.expenses     ?? [],
-              extraIncomes: rec.extraIncomes ?? [],
-              pockets:      rec.pockets      ?? DEFAULT_POCKETS,
-              manualBudget: rec.manualBudget,
-            }
-          }
-          setMonthlyHistory(history)
+        const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+        const dataToSave: StoredData = {
+          monthlyIncome: activeData.income,
+          monthlySavings: activeData.savings,
+          expenses: activeData.expenses,
+          extraIncomes: activeData.extraIncomes,
+          pockets: activeData.pockets,
+          monthlyHistory,
+          conceptMap,
+          learnedCategoryMap,
+          currentMonth,
+          countryCode,
+          isPrivacyMode,
         }
-        if (firestoreData.conceptMap) setConceptMap(firestoreData.conceptMap)
-        if (firestoreData.learnedCategoryMap) setLearnedCategoryMap(firestoreData.learnedCategoryMap)
-        if (firestoreData.countryCode) setCountryCode(firestoreData.countryCode as CountryCode)
-        // NOTE: Do NOT overwrite currentMonth with Firestore data!
-        // currentMonth should ALWAYS be today's actual month for correct month navigation
-        // if (firestoreData.currentMonth) setCurrentMonth(firestoreData.currentMonth)
-        if (firestoreData.isPrivacyMode !== undefined) setIsPrivacyMode(firestoreData.isPrivacyMode)
-      })
-    } catch (error) {
-      console.warn('Could not subscribe to Firestore (offline?):', error)
-      // This is OK - app continues to work with localStorage
-    }
-  */
 
+        const storageKey = `${STORAGE_KEY}_${saveUserId}`
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+        } catch {
+          /* ignore */
+        }
+
+        try {
+          console.log('[VISIBILITY] App ocultada, guardando en Supabase inmediatamente...')
+          await saveUserData(saveUserId, dataToSave)
+          console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir')
+        } catch (e) {
+          console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [
+    userId,
+    guestUserId,
+    monthlyHistory,
+    conceptMap,
+    learnedCategoryMap,
+    currentMonth,
+    countryCode,
+    isPrivacyMode,
+    activeMonth,
+  ])
+
+  // ── Guardar en Supabase inmediatamente (para acciones críticas) ──────────
+  const saveNow = useCallback(
+    async (updatedHistory: Record<string, MonthRecord>) => {
+      const saveUserId = userId || guestUserId
+      if (!saveUserId || !dataLoadedRef.current) return
+
+      const activeData = updatedHistory[activeMonth] ?? getDefaultMonthRecord()
+      const dataToSave: StoredData = {
+        monthlyIncome: activeData.income,
+        monthlySavings: activeData.savings,
+        expenses: activeData.expenses,
+        extraIncomes: activeData.extraIncomes,
+        pockets: activeData.pockets,
+        monthlyHistory: updatedHistory,
+        conceptMap,
+        learnedCategoryMap,
+        currentMonth,
+        countryCode,
+        isPrivacyMode,
+      }
+
+      const storageKey = `${STORAGE_KEY}_${saveUserId}`
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+
+      try {
+        await saveUserData(saveUserId, dataToSave)
+        console.log('[SAVE-NOW] ✅ Guardado inmediato exitoso')
+      } catch (e) {
+        console.error('[SAVE-NOW] ❌ Error en guardado inmediato:', e)
+      }
+    },
+    [
+      userId,
+      guestUserId,
+      activeMonth,
+      conceptMap,
+      learnedCategoryMap,
+      currentMonth,
+      countryCode,
+      isPrivacyMode,
+    ]
+  )
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const isViewingPast = activeMonth !== currentMonth
@@ -434,14 +564,14 @@ export default function Home() {
   const manualBudget = monthData.manualBudget
 
   const spentByPocket = useMemo(() => {
-    const acc: Record<string, number> = Object.fromEntries(pockets.map(p => [p.id, 0]))
+    const acc: Record<string, number> = Object.fromEntries(pockets.map((p) => [p.id, 0]))
     for (const e of expenses) if (e.pocketId in acc) acc[e.pocketId] += e.amount
     return acc
   }, [expenses, pockets])
 
   const extraIncomeTotal = useMemo(
     () => extraIncomes.reduce((s: number, e: ExtraIncome) => s + e.amount, 0),
-    [extraIncomes],
+    [extraIncomes]
   )
 
   // totalIncome = income (base) + extraIncomes (adicionales)
@@ -451,204 +581,280 @@ export default function Home() {
   // FINANCIALENGINE: Calcula snapshot a partir de monthlyHistory[activeMonth]
   // ════════════════════════════════════════════════════════════════════════════
   const snapshot = useMemo(
-    () => calculateFinancialSnapshot({
-      expenses,
-      extraIncomes,
-      pockets,
-      monthlyIncome: income,
-      monthlySavings: savings,
-      currentMonth: activeMonth,
-      manualBudget,
-    }),
-    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget],
+    () =>
+      calculateFinancialSnapshot({
+        expenses,
+        extraIncomes,
+        pockets,
+        monthlyIncome: income,
+        monthlySavings: savings,
+        currentMonth: activeMonth,
+        manualBudget,
+      }),
+    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget]
   )
 
   // ── Sheet handlers ─────────────────────────────────────────────────────────
-  const openAddSheet        = useCallback(() => { setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
-  const openEditSheet       = useCallback((e: Expense) => { setEditingExpense(e); setEditingIncome(null); setDefaultSheetType(null); setSheetOpen(true) }, [])
-  const openEditIncomeSheet = useCallback((i: ExtraIncome) => { setEditingIncome(i); setEditingExpense(null); setDefaultSheetType('income'); setSheetOpen(true) }, [])
-  const closeSheet          = useCallback(() => { setSheetOpen(false); setEditingExpense(null); setEditingIncome(null); setDefaultSheetType(null) }, [])
+  const openAddSheet = useCallback(() => {
+    setEditingExpense(null)
+    setEditingIncome(null)
+    setDefaultSheetType(null)
+    setSheetOpen(true)
+  }, [])
+  const openEditSheet = useCallback((e: Expense) => {
+    setEditingExpense(e)
+    setEditingIncome(null)
+    setDefaultSheetType(null)
+    setSheetOpen(true)
+  }, [])
+  const openEditIncomeSheet = useCallback((i: ExtraIncome) => {
+    setEditingIncome(i)
+    setEditingExpense(null)
+    setDefaultSheetType('income')
+    setSheetOpen(true)
+  }, [])
+  const closeSheet = useCallback(() => {
+    setSheetOpen(false)
+    setEditingExpense(null)
+    setEditingIncome(null)
+    setDefaultSheetType(null)
+  }, [])
 
   // ── Data handlers ──────────────────────────────────────────────────────────
-  const handleSaveExpense = useCallback((payload: ExpensePayload) => {
-    const { id, ...rest } = payload
+  const handleSaveExpense = useCallback(
+    (payload: ExpensePayload) => {
+      const { id, ...rest } = payload
 
-    setMonthlyHistory(prev => {
-      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
-      const newExpenses = id
-        ? monthData.expenses.map(e => e.id === id ? { ...e, ...rest } : e)
-        : [...monthData.expenses, { id: Date.now().toString(), ...rest }]
+      setMonthlyHistory((prev) => {
+        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+        const newExpenses = id
+          ? monthData.expenses.map((e) => (e.id === id ? { ...e, ...rest } : e))
+          : [...monthData.expenses, { id: Date.now().toString(), ...rest }]
 
-      return {
-        ...prev,
-        [activeMonth]: {
-          ...monthData,
-          expenses: newExpenses,
-        },
-      }
-    })
-
-    const key = normalizeKey(rest.concept)
-    if (key && key !== 'gasto') {
-      setConceptMap(prev => ({ ...prev, [key]: rest.pocketId }))
-    }
-  }, [activeMonth])
-
-  const handleDeleteExpense = useCallback((id: string) => {
-    setMonthlyHistory(prev => {
-      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
-      return {
-        ...prev,
-        [activeMonth]: {
-          ...monthData,
-          expenses: monthData.expenses.filter(e => e.id !== id),
-        },
-      }
-    })
-  }, [activeMonth])
-
-  const handleSwitchExpenseToIncome = useCallback((expenseId: string, amount: number, note: string, date: string) => {
-    setMonthlyHistory(prev => {
-      const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
-      return {
-        ...prev,
-        [activeMonth]: {
-          ...monthData,
-          expenses: monthData.expenses.filter(e => e.id !== expenseId),
-          extraIncomes: [...monthData.extraIncomes, {
-            id: Date.now().toString(),
-            amount,
-            concept: note,
-            date,
-            category: 'extra' as const,
-          }],
-        },
-      }
-    })
-  }, [activeMonth])
-
-  const handleEditPocket = useCallback((id: string, name: string, budget: number, icon?: string) => {
-    const monthData = getActiveMonthData()
-    const budget_available = snapshot.budget
-
-    // VALIDACIÓN: sum(pockets) <= presupuesto
-    const otherPockets = monthData.pockets.filter(p => p.id !== id)
-    const sumWithoutThis = otherPockets.reduce((s, p) => s + p.budget, 0)
-    const totalIfEdited = sumWithoutThis + budget
-
-    if (totalIfEdited > budget_available) {
-      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`)
-      return false
-    }
-
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        pockets: monthData.pockets.map(p => p.id === id ? { ...p, name: capitalizeWords(name), budget, icon } : p),
-      },
-    }))
-    return true
-  }, [activeMonth, getActiveMonthData, snapshot.budget])
-
-  const handleDeletePocket = useCallback((id: string) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        pockets: monthData.pockets.filter(p => p.id !== id),
-        expenses: monthData.expenses.filter(e => e.pocketId !== id),
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
-
-  const handleAddPocket = useCallback((name: string, budget: number, icon?: string) => {
-    console.log("[ADD POCKET] called", { name, budget, activeMonth })
-    const budget_available = snapshot.budget
-
-    setMonthlyHistory(prev => {
-      console.log("[ADD POCKET] prev state", prev)
-      // 1. Asegurar que el mes actual existe en monthlyHistory
-      if (!prev[activeMonth]) {
-        prev = {
+        const updated = {
           ...prev,
           [activeMonth]: {
-            income: 0,
-            savings: 0,
-            expenses: [],
-            extraIncomes: [],
-            pockets: [],
-            manualBudget: undefined,
+            ...monthData,
+            expenses: newExpenses,
           },
         }
+        saveNow(updated)
+        return updated
+      })
+
+      const key = normalizeKey(rest.concept)
+      if (key && key !== 'gasto') {
+        setConceptMap((prev) => ({ ...prev, [key]: rest.pocketId }))
+      }
+    },
+    [activeMonth, saveNow]
+  )
+
+  const handleDeleteExpense = useCallback(
+    (id: string) => {
+      setMonthlyHistory((prev) => {
+        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            expenses: monthData.expenses.filter((e) => e.id !== id),
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
+    },
+    [activeMonth, saveNow]
+  )
+
+  const handleSwitchExpenseToIncome = useCallback(
+    (expenseId: string, amount: number, note: string, date: string) => {
+      setMonthlyHistory((prev) => {
+        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+        return {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            expenses: monthData.expenses.filter((e) => e.id !== expenseId),
+            extraIncomes: [
+              ...monthData.extraIncomes,
+              {
+                id: Date.now().toString(),
+                amount,
+                concept: note,
+                date,
+                category: 'extra' as const,
+              },
+            ],
+          },
+        }
+      })
+    },
+    [activeMonth]
+  )
+
+  const handleEditPocket = useCallback(
+    (id: string, name: string, budget: number, icon?: string) => {
+      const monthData = getActiveMonthData()
+      const budget_available = snapshot.budget
+
+      // VALIDACIÓN: sum(pockets) <= presupuesto
+      const otherPockets = monthData.pockets.filter((p) => p.id !== id)
+      const sumWithoutThis = otherPockets.reduce((s, p) => s + p.budget, 0)
+      const totalIfEdited = sumWithoutThis + budget
+
+      if (totalIfEdited > budget_available) {
+        alert(
+          `❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`
+        )
+        return false
       }
 
-      const monthData = prev[activeMonth]
-
-      // 2. VALIDACIÓN: sum(pockets) <= presupuesto
-      const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
-      const totalIfAdded = currentTotal + budget
-
-      // TEMP: deshabilitar validación de presupuesto para permitir crear bolsillos
-      // if (totalIfAdded > budget_available) {
-      //   return prev
-      // }
-
-      // 3. Agregar nuevo pocket a monthlyHistory[activeMonth].pockets
-      console.log("[ADD POCKET] new pockets", [
-        ...monthData.pockets,
-        { id: "test", name, budget, icon }
-      ])
-      return {
+      setMonthlyHistory((prev) => ({
         ...prev,
         [activeMonth]: {
           ...monthData,
-          pockets: [...monthData.pockets, { id: Date.now().toString(), name: capitalizeWords(name), budget, icon }],
+          pockets: monthData.pockets.map((p) =>
+            p.id === id ? { ...p, name: capitalizeWords(name), budget, icon } : p
+          ),
         },
-      }
-    })
-    console.log("[ADD POCKET] setMonthlyHistory executed")
-  }, [activeMonth, snapshot.budget])
+      }))
+      return true
+    },
+    [activeMonth, getActiveMonthData, snapshot.budget]
+  )
 
-  const handleAddExtraIncome = useCallback((amount: number, note: string) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        extraIncomes: [...monthData.extraIncomes, {
-          id: Date.now().toString(),
-          amount,
-          concept: note,
-          date: new Date().toISOString(),
-          category: 'extra' as const,
-        }],
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
+  const handleDeletePocket = useCallback(
+    (id: string) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => ({
+        ...prev,
+        [activeMonth]: {
+          ...monthData,
+          pockets: monthData.pockets.filter((p) => p.id !== id),
+          expenses: monthData.expenses.filter((e) => e.pocketId !== id),
+        },
+      }))
+    },
+    [activeMonth, getActiveMonthData]
+  )
 
-  const handleDeleteExtraIncome = useCallback((id: string) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        extraIncomes: monthData.extraIncomes.filter(e => e.id !== id),
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
+  const handleAddPocket = useCallback(
+    (name: string, budget: number, icon?: string) => {
+      const budget_available = snapshot.budget
 
-  const handleUpdateExtraIncome = useCallback((id: string, amount: number, note: string, date: string) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        extraIncomes: monthData.extraIncomes.map(e => e.id === id ? { ...e, amount, concept: note, date } : e),
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
+      setMonthlyHistory((prev) => {
+        // 1. Asegurar que el mes actual existe en monthlyHistory
+        if (!prev[activeMonth]) {
+          prev = {
+            ...prev,
+            [activeMonth]: {
+              income: 0,
+              savings: 0,
+              expenses: [],
+              extraIncomes: [],
+              pockets: [],
+              manualBudget: undefined,
+            },
+          }
+        }
+
+        const monthData = prev[activeMonth]
+
+        // 2. VALIDACIÓN: sum(pockets) <= presupuesto
+        const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
+        const totalIfAdded = currentTotal + budget
+
+        // TEMP: deshabilitar validación de presupuesto para permitir crear bolsillos
+        // if (totalIfAdded > budget_available) {
+        //   return prev
+        // }
+
+        // 3. Agregar nuevo pocket a monthlyHistory[activeMonth].pockets
+        console.log('[ADD POCKET] new pockets', [
+          ...monthData.pockets,
+          { id: 'test', name, budget, icon },
+        ])
+        return {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            pockets: [
+              ...monthData.pockets,
+              { id: Date.now().toString(), name: capitalizeWords(name), budget, icon },
+            ],
+          },
+        }
+      })
+    },
+    [activeMonth, snapshot.budget]
+  )
+
+  const handleAddExtraIncome = useCallback(
+    (amount: number, note: string) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            extraIncomes: [
+              ...monthData.extraIncomes,
+              {
+                id: Date.now().toString(),
+                amount,
+                concept: note,
+                date: new Date().toISOString(),
+                category: 'extra' as const,
+              },
+            ],
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
+    },
+    [activeMonth, getActiveMonthData, saveNow]
+  )
+
+  const handleDeleteExtraIncome = useCallback(
+    (id: string) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            extraIncomes: monthData.extraIncomes.filter((e) => e.id !== id),
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
+    },
+    [activeMonth, getActiveMonthData, saveNow]
+  )
+
+  const handleUpdateExtraIncome = useCallback(
+    (id: string, amount: number, note: string, date: string) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            extraIncomes: monthData.extraIncomes.map((e) =>
+              e.id === id ? { ...e, amount, concept: note, date } : e
+            ),
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
+    },
+    [activeMonth, getActiveMonthData, saveNow]
+  )
 
   const handleClearData = useCallback(() => {
     if (!userId) return
@@ -671,88 +877,112 @@ export default function Home() {
   }, [])
 
   // ── CAMBIO DE MES: copiar bolsillos del mes anterior si no existen ──────────
-  const handleChangeMonth = useCallback((newMonth: string) => {
-    setActiveMonth(newMonth)
+  const handleChangeMonth = useCallback(
+    (newMonth: string) => {
+      setActiveMonth(newMonth)
 
-    // Si el nuevo mes ya existe en monthlyHistory, no hacer nada
-    if (monthlyHistory[newMonth]) {
-      return
-    }
+      // Si el nuevo mes ya existe en monthlyHistory, no hacer nada
+      if (monthlyHistory[newMonth]) {
+        return
+      }
 
-    // Si no existe, encontrar el mes anterior/más cercano con bolsillos
-    const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
-    const previousMonth = sortedMonths.find(m => m < newMonth)
+      // Si no existe, encontrar el mes anterior/más cercano con bolsillos
+      const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
+      const previousMonth = sortedMonths.find((m) => m < newMonth)
 
-    if (previousMonth && monthlyHistory[previousMonth]) {
-      // Copiar los bolsillos del mes anterior al nuevo mes (pero con presupuesto = 0)
-      const previousPockets = monthlyHistory[previousMonth].pockets ?? []
+      if (previousMonth && monthlyHistory[previousMonth]) {
+        // Copiar los bolsillos del mes anterior al nuevo mes (pero con presupuesto = 0)
+        const previousPockets = monthlyHistory[previousMonth].pockets ?? []
 
-      setMonthlyHistory(prev => ({
+        setMonthlyHistory((prev) => ({
+          ...prev,
+          [newMonth]: {
+            income: 0,
+            savings: 0,
+            expenses: [],
+            extraIncomes: [],
+            pockets:
+              previousPockets.length > 0
+                ? previousPockets.map((p) => ({ ...p, budget: 0 })) // Copiar nombre e ícono, pero presupuesto = 0
+                : DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 })),
+          },
+        }))
+
+        console.log(
+          `[handleChangeMonth] Creado ${newMonth} con bolsillos del ${previousMonth} (presupuestos = 0)`
+        )
+      } else {
+        // Si no hay mes anterior, usar bolsillos por defecto con presupuesto = 0
+        setMonthlyHistory((prev) => ({
+          ...prev,
+          [newMonth]: {
+            income: 0,
+            savings: 0,
+            expenses: [],
+            extraIncomes: [],
+            pockets: DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 })),
+          },
+        }))
+
+        console.log(
+          `[handleChangeMonth] Creado ${newMonth} con bolsillos por defecto (presupuestos = 0)`
+        )
+      }
+    },
+    [monthlyHistory]
+  )
+
+  const handleSetIncome = useCallback(
+    (newIncome: number) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => ({
         ...prev,
-        [newMonth]: {
-          income: 0,
-          savings: 0,
-          expenses: [],
-          extraIncomes: [],
-          pockets: previousPockets.length > 0
-            ? previousPockets.map(p => ({ ...p, budget: 0 }))  // Copiar nombre e ícono, pero presupuesto = 0
-            : DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+        [activeMonth]: {
+          ...monthData,
+          income: newIncome,
         },
       }))
+    },
+    [activeMonth, getActiveMonthData]
+  )
 
-      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos del ${previousMonth} (presupuestos = 0)`)
-    } else {
-      // Si no hay mes anterior, usar bolsillos por defecto con presupuesto = 0
-      setMonthlyHistory(prev => ({
+  const handleSetSavings = useCallback(
+    (newSavings: number) => {
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => ({
         ...prev,
-        [newMonth]: {
-          income: 0,
-          savings: 0,
-          expenses: [],
-          extraIncomes: [],
-          pockets: DEFAULT_POCKETS.map(p => ({ ...p, budget: 0 })),
+        [activeMonth]: {
+          ...monthData,
+          savings: newSavings,
         },
       }))
+    },
+    [activeMonth, getActiveMonthData]
+  )
 
-      console.log(`[handleChangeMonth] Creado ${newMonth} con bolsillos por defecto (presupuestos = 0)`)
-    }
-  }, [monthlyHistory])
-
-  const handleSetIncome = useCallback((newIncome: number) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        income: newIncome,
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
-
-  const handleSetSavings = useCallback((newSavings: number) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        savings: newSavings,
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
-
-  const handleSetManualBudget = useCallback((newBudget: number) => {
-    const monthData = getActiveMonthData()
-    setMonthlyHistory(prev => ({
-      ...prev,
-      [activeMonth]: {
-        ...monthData,
-        manualBudget: newBudget > 0 ? newBudget : undefined,
-      },
-    }))
-  }, [activeMonth, getActiveMonthData])
+  const handleSetManualBudget = useCallback(
+    (newBudget: number) => {
+      console.log(
+        `[BUDGET] handleSetManualBudget called: month=${activeMonth}, newBudget=${newBudget}`
+      )
+      const monthData = getActiveMonthData()
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            manualBudget: newBudget > 0 ? newBudget : undefined,
+          },
+        }
+        console.log(`[BUDGET] monthlyHistory updated:`, updated[activeMonth])
+        return updated
+      })
+    },
+    [activeMonth, getActiveMonthData]
+  )
 
   const handleTogglePrivacy = useCallback(() => {
-    setIsPrivacyMode(prev => !prev)
+    setIsPrivacyMode((prev) => !prev)
   }, [])
 
   const handleLogOut = useCallback(async () => {
@@ -774,9 +1004,7 @@ export default function Home() {
     if (!guest) {
       guest = generateGuestUserId()
       localStorage.setItem('guest_id', guest)
-      console.log('[handleGuestMode] Generated new guestUserId:', guest)
     } else {
-      console.log('[handleGuestMode] Using existing guestUserId:', guest)
     }
 
     setGuestUserId(guest)
@@ -794,83 +1022,86 @@ export default function Home() {
     setHydrated(true)
   }, [])
 
-  const handleOnboardingComplete = useCallback((code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-    const currentUserId = userId || guestUserId
-    if (!currentUserId) return
+  const handleOnboardingComplete = useCallback(
+    (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
+      const currentUserId = userId || guestUserId
+      if (!currentUserId) return
 
-    // Mark onboarding as complete for this user
-    localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
+      // Mark onboarding as complete for this user
+      localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
 
-    setCountryCode(code)
+      setCountryCode(code)
 
-    const thisMonth = getCurrentMonth()
-    setCurrentMonth(thisMonth)
+      const thisMonth = getCurrentMonth()
+      setCurrentMonth(thisMonth)
 
-    // Calcular savings desde budget: savings = income - budget
-    let savings = 0
-    if (incomeValue > 0 && budget > 0) {
-      savings = Math.max(0, incomeValue - budget)
-    }
+      // Calcular savings desde budget: savings = income - budget
+      let savings = 0
+      if (incomeValue > 0 && budget > 0) {
+        savings = Math.max(0, incomeValue - budget)
+      }
 
-    // Build monthlyHistory with April (from CSV if provided) and current month
-    const history: Record<string, MonthRecord> = {}
+      // Build monthlyHistory with April (from CSV if provided) and current month
+      const history: Record<string, MonthRecord> = {}
 
-    // Add April with CSV data if provided, otherwise empty
-    if (aprilData) {
-      history['2026-04'] = {
-        income: 0, // April is historical, no income tracking
-        savings: 0,
-        expenses: aprilData.expenses,
-        extraIncomes: aprilData.extraIncomes,
-        pockets: aprilData.pockets,
+      // Add April with CSV data if provided, otherwise empty
+      if (aprilData) {
+        history['2026-04'] = {
+          income: 0, // April is historical, no income tracking
+          savings: 0,
+          expenses: aprilData.expenses,
+          extraIncomes: aprilData.extraIncomes,
+          pockets: aprilData.pockets,
+          manualBudget: undefined,
+        }
+      }
+
+      // Add current month
+      history[thisMonth] = {
+        income: incomeValue,
+        savings,
+        expenses: [],
+        extraIncomes: [],
+        pockets: DEFAULT_POCKETS,
         manualBudget: undefined,
       }
-      console.log('[onboarding] April loaded with', aprilData.expenses.length, 'expenses and', aprilData.extraIncomes.length, 'incomes')
-    }
 
-    // Add current month
-    history[thisMonth] = {
-      income: incomeValue,
-      savings,
-      expenses: [],
-      extraIncomes: [],
-      pockets: DEFAULT_POCKETS,
-      manualBudget: undefined,
-    }
+      setMonthlyHistory(history)
+      // Mark data as loaded so auto-save will work and avoid race conditions
+      dataLoadedRef.current = true
 
-    setMonthlyHistory(history)
+      // Build and save complete user data to Supabase
+      const initialData: StoredData = {
+        monthlyHistory: history,
+        pockets: DEFAULT_POCKETS,
+        monthlyIncome: incomeValue,
+        monthlySavings: savings,
+        expenses: [],
+        extraIncomes: [],
+        conceptMap: {},
+        learnedCategoryMap: {},
+        countryCode: code,
+        isPrivacyMode: false,
+        currentMonth: thisMonth,
+      }
 
-    // Build and save complete user data to Supabase
-    const initialData: StoredData = {
-      monthlyHistory: history,
-      pockets: DEFAULT_POCKETS,
-      monthlyIncome: incomeValue,
-      monthlySavings: savings,
-      expenses: [],
-      extraIncomes: [],
-      conceptMap: {},
-      learnedCategoryMap: {},
-      countryCode: code,
-      isPrivacyMode: false,
-      currentMonth: thisMonth,
-    }
+      // Save to Supabase and localStorage
+      saveUserData(currentUserId, initialData).catch((err) => {
+        console.error('[onboarding] Error saving to Supabase:', err)
+        // Continue even if Supabase save fails
+      })
 
-    // Save to Supabase and localStorage
-    saveUserData(currentUserId, initialData).catch(err => {
-      console.error('[onboarding] Error saving to Supabase:', err)
-      // Continue even if Supabase save fails
-    })
+      const storageKey = `${STORAGE_KEY}_${currentUserId}`
+      localStorage.setItem(storageKey, JSON.stringify(initialData))
 
-    const storageKey = `${STORAGE_KEY}_${currentUserId}`
-    localStorage.setItem(storageKey, JSON.stringify(initialData))
+      // Prefer April if it has data, otherwise current month
+      const targetMonth = aprilData && aprilData.expenses.length > 0 ? '2026-04' : thisMonth
+      setActiveMonth(targetMonth)
 
-    // Prefer April if it has data, otherwise current month
-    const targetMonth = aprilData && aprilData.expenses.length > 0 ? '2026-04' : thisMonth
-    setActiveMonth(targetMonth)
-    console.log('[onboarding] Setting activeMonth to:', targetMonth)
-
-    setScreen('main')
-  }, [userId, guestUserId])
+      setScreen('main')
+    },
+    [userId, guestUserId]
+  )
 
   // ── Show recovery screen for data restoration ──────────────────────────────
   if (screen === 'recovery' && userId) {
@@ -886,225 +1117,276 @@ export default function Home() {
     )
   }
 
-  // ── Show login screen if not authenticated ────────────────────────────────
+  // ── Show login screen ────────────────────────────────────────────────────
   if (screen === 'login') {
+    // Determine if user needs to complete onboarding after login
+    const proceedAfterLogin = () => {
+      if (userId) {
+        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${userId}`) === 'true'
+        setScreen(hasOnboarded ? 'main' : 'onboarding')
+      }
+    }
+
     return (
       <LoginScreen
-        onLoginSuccess={() => {
-          // Auth state listener will handle setting screen to 'onboarding' or 'main'
-        }}
+        authenticatedEmail={userEmail || undefined}
+        onLoginSuccess={proceedAfterLogin}
         onGuestMode={handleGuestMode}
+        onLogOut={() => {
+          setUserId(null)
+          setUserEmail(null)
+          setScreen('login')
+        }}
       />
     )
   }
 
   // ── Wait for hydration ─────────────────────────────────────────────────────
-  if (!hydrated) return (
-    <div style={{
-      background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Decorative circles */}
-      <div style={{
-        position: 'absolute',
-        top: '-50%',
-        right: '-10%',
-        width: '300px',
-        height: '300px',
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.05)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '-30%',
-        left: '-5%',
-        width: '200px',
-        height: '200px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(103,232,249,.10) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Logo */}
-      <div style={{
-        width: '80px',
-        height: '80px',
-        borderRadius: '24px',
-        background: 'rgba(255,255,255,0.15)',
-        border: '2px solid rgba(255,255,255,0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: '40px',
-        position: 'relative',
-        zIndex: 10,
-        overflow: 'hidden',
-      }}>
-        <img
-          src="/logo-ui.png"
-          alt="Tranquilo"
+  if (!hydrated)
+    return (
+      <div
+        style={{
+          background: 'linear-gradient(160deg, #042F2E 0%, #0D6259 60%, #0891B2 100%)',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Decorative circles */}
+        <div
           style={{
-            width: '60px',
-            height: '60px',
-            objectFit: 'contain',
+            position: 'absolute',
+            top: '-50%',
+            right: '-10%',
+            width: '300px',
+            height: '300px',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+            pointerEvents: 'none',
           }}
         />
-      </div>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '-30%',
+            left: '-5%',
+            width: '200px',
+            height: '200px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(103,232,249,.10) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
 
-      {/* Skeleton loaders */}
-      <div style={{
-        width: '100%',
-        maxWidth: '380px',
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        {/* Header skeleton */}
-        <div style={{
-          background: 'rgba(255,255,255,0.08)',
-          borderRadius: '16px',
-          padding: '24px',
-          marginBottom: '24px',
-        }}>
-          {/* Avatar + Name */}
-          <div style={{
+        {/* Logo */}
+        <div
+          style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.15)',
+            border: '2px solid rgba(255,255,255,0.3)',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            marginBottom: '20px',
-          }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.12)',
-              animation: 'pulse 2s infinite',
-            }} />
-            <div style={{ flex: 1 }}>
-              <div style={{
-                height: '16px',
-                background: 'rgba(255,255,255,0.12)',
-                borderRadius: '8px',
-                marginBottom: '8px',
-                animation: 'pulse 2s infinite',
-              }} />
-              <div style={{
-                height: '12px',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '6px',
-                width: '70%',
-                animation: 'pulse 2s infinite',
-              }} />
-            </div>
-          </div>
-
-          {/* Badge skeleton */}
-          <div style={{
-            height: '28px',
-            background: 'rgba(255,255,255,0.12)',
-            borderRadius: '12px',
-            width: '140px',
-            marginBottom: '16px',
-            animation: 'pulse 2s infinite',
-          }} />
-
-          {/* Health indicator skeleton */}
-          <div style={{
-            height: '40px',
-            background: 'rgba(255,255,255,0.12)',
-            borderRadius: '12px',
-            marginBottom: '16px',
-            animation: 'pulse 2s infinite',
-          }} />
-
-          {/* 4 Metrics skeleton */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-          }}>
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                style={{
-                  height: '70px',
-                  background: 'rgba(255,255,255,0.08)',
-                  borderRadius: '10px',
-                  animation: `pulse 2s infinite`,
-                  animationDelay: `${i * 0.1}s`,
-                }}
-              />
-            ))}
-          </div>
+            justifyContent: 'center',
+            marginBottom: '40px',
+            position: 'relative',
+            zIndex: 10,
+            overflow: 'hidden',
+          }}
+        >
+          <img
+            src="/logo-ui.png"
+            alt="Tranquilo"
+            style={{
+              width: '60px',
+              height: '60px',
+              objectFit: 'contain',
+            }}
+          />
         </div>
 
-        {/* Content skeleton */}
-        {[1, 2, 3].map((section) => (
-          <div key={section} style={{ marginBottom: '20px' }}>
-            {/* Section header */}
-            <div style={{
-              height: '12px',
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: '6px',
-              width: '100px',
-              marginBottom: '12px',
-              animation: 'pulse 2s infinite',
-            }} />
-
-            {/* Card skeleton */}
-            <div style={{
+        {/* Skeleton loaders */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '380px',
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          {/* Header skeleton */}
+          <div
+            style={{
               background: 'rgba(255,255,255,0.08)',
-              borderRadius: '12px',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}>
-              <div style={{
-                height: '14px',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px',
+            }}
+          >
+            {/* Avatar + Name */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+              }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.12)',
+                  animation: 'pulse 2s infinite',
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    height: '16px',
+                    background: 'rgba(255,255,255,0.12)',
+                    borderRadius: '8px',
+                    marginBottom: '8px',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    height: '12px',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '6px',
+                    width: '70%',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Badge skeleton */}
+            <div
+              style={{
+                height: '28px',
                 background: 'rgba(255,255,255,0.12)',
-                borderRadius: '6px',
-                width: '60%',
+                borderRadius: '12px',
+                width: '140px',
+                marginBottom: '16px',
                 animation: 'pulse 2s infinite',
-              }} />
-              <div style={{
-                height: '12px',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '6px',
+              }}
+            />
+
+            {/* Health indicator skeleton */}
+            <div
+              style={{
+                height: '40px',
+                background: 'rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+                marginBottom: '16px',
                 animation: 'pulse 2s infinite',
-              }} />
-              <div style={{
-                height: '12px',
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '6px',
-                width: '80%',
-                animation: 'pulse 2s infinite',
-              }} />
+              }}
+            />
+
+            {/* 4 Metrics skeleton */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px',
+              }}
+            >
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: '70px',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '10px',
+                    animation: `pulse 2s infinite`,
+                    animationDelay: `${i * 0.1}s`,
+                  }}
+                />
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Loading text */}
-      <div style={{
-        position: 'absolute',
-        bottom: '40px',
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: '12px',
-        textAlign: 'center',
-      }}>
-        <p>Tranquilo</p>
-        <p style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7 }}>Cargando...</p>
-      </div>
+          {/* Content skeleton */}
+          {[1, 2, 3].map((section) => (
+            <div key={section} style={{ marginBottom: '20px' }}>
+              {/* Section header */}
+              <div
+                style={{
+                  height: '12px',
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  width: '100px',
+                  marginBottom: '12px',
+                  animation: 'pulse 2s infinite',
+                }}
+              />
 
-      <style>{`
+              {/* Card skeleton */}
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div
+                  style={{
+                    height: '14px',
+                    background: 'rgba(255,255,255,0.12)',
+                    borderRadius: '6px',
+                    width: '60%',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    height: '12px',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '6px',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+                <div
+                  style={{
+                    height: '12px',
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: '6px',
+                    width: '80%',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Loading text */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '40px',
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '12px',
+            textAlign: 'center',
+          }}
+        >
+          <p>Tranquilo</p>
+          <p style={{ fontSize: '10px', marginTop: '4px', opacity: 0.7 }}>Cargando...</p>
+        </div>
+
+        <style>{`
         @keyframes pulse {
           0%, 100% {
             opacity: 0.6;
@@ -1114,17 +1396,12 @@ export default function Home() {
           }
         }
       `}</style>
-    </div>
-  )
+      </div>
+    )
 
   // ── Onboarding ────────────────────────────────────────────────────────────
   if (screen === 'onboarding') {
-    return (
-      <OnboardingScreen
-        config={config}
-        onComplete={handleOnboardingComplete}
-      />
-    )
+    return <OnboardingScreen config={config} onComplete={handleOnboardingComplete} />
   }
 
   // ── Main app ──────────────────────────────────────────────────────────────
@@ -1225,6 +1502,8 @@ export default function Home() {
         onSwitchToIncome={handleSwitchExpenseToIncome}
         onClose={closeSheet}
       />
+
+      <OfflineIndicator />
     </div>
   )
 }
