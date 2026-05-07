@@ -1025,7 +1025,10 @@ export default function Home() {
   const handleOnboardingComplete = useCallback(
     (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
       const currentUserId = userId || guestUserId
-      if (!currentUserId) return
+      if (!currentUserId) {
+        console.warn('[onboarding] No userId or guestUserId available')
+        return
+      }
 
       // Mark onboarding as complete for this user
       localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
@@ -1086,12 +1089,14 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      saveUserData(currentUserId as string, initialData).catch((err) => {
+      // currentUserId is guaranteed to be non-null here due to the guard above
+      const saveUserId: string = currentUserId
+      saveUserData(saveUserId, initialData).catch((err) => {
         console.error('[onboarding] Error saving to Supabase:', err)
         // Continue even if Supabase save fails
       })
 
-      const storageKey = `${STORAGE_KEY}_${currentUserId}`
+      const storageKey = `${STORAGE_KEY}_${saveUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
 
       // Prefer April if it has data, otherwise current month
