@@ -1046,22 +1046,12 @@ export default function Home() {
 
       // ⚠️ CRITICAL: Do not proceed if no user identity is available
       if (!currentUserId) {
-        console.error(
-          '[onboarding] CRITICAL: No userId or guestUserId available (checked state and localStorage). Cannot save onboarding data.'
-        )
-        console.error(
-          '[onboarding] This indicates a flow error: OnboardingScreen should not be shown until identity is established.'
-        )
+        console.error('[onboarding] No currentUserId available')
         return
       }
 
-      // At this point, currentUserId is guaranteed to be non-null due to the guard above
-      // But TypeScript's type narrowing doesn't always recognize this, so we create
-      // an explicitly typed variable for type safety
-      const safeUserId: string = currentUserId
-
       // Mark onboarding as complete for this user
-      localStorage.setItem(`${ONBOARDING_FLAG}_${safeUserId}`, 'true')
+      localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
 
       setCountryCode(code)
 
@@ -1119,13 +1109,11 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      // Using safeUserId which is guaranteed to be a non-null string
-      saveUserData(safeUserId, initialData).catch((err) => {
+      saveUserData(currentUserId, initialData).catch((err) => {
         console.error('[onboarding] Error saving to Supabase:', err)
-        // Continue even if Supabase save fails - localStorage is backup
       })
 
-      const storageKey = `${STORAGE_KEY}_${safeUserId}`
+      const storageKey = `${STORAGE_KEY}_${currentUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
 
       // Prefer April if it has data, otherwise current month
