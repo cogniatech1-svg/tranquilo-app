@@ -527,8 +527,15 @@ export default function Home() {
   // ── Guardar en Supabase inmediatamente (para acciones críticas) ──────────
   const saveNow = useCallback(
     async (updatedHistory: Record<string, MonthRecord>) => {
-      const saveUserId = userId || guestUserId
-      if (!saveUserId || !dataLoadedRef.current) return
+      // requireUserId() GARANTIZA un string válido (auth, guest existente, o nuevo guest)
+      // Esto resuelve race conditions donde userId/guestUserId aún no están en el estado React
+      const saveUserId = await requireUserId()
+
+      // Solo el guard de dataLoadedRef sigue siendo relevante (evita guardar antes de cargar)
+      if (!dataLoadedRef.current) {
+        console.warn('[SAVE-NOW] Skipping: data not yet loaded')
+        return
+      }
 
       const activeData = updatedHistory[activeMonth] ?? getDefaultMonthRecord()
       const dataToSave: StoredData = {
@@ -550,7 +557,7 @@ export default function Home() {
 
       try {
         await saveUserData(saveUserId, dataToSave)
-        console.log('[SAVE-NOW] ✅ Guardado inmediato exitoso')
+        console.log('[SAVE-NOW] ✅ Guardado inmediato exitoso para userId:', saveUserId)
       } catch (e) {
         console.error('[SAVE-NOW] ❌ Error en guardado inmediato:', e)
       }
