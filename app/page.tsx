@@ -99,7 +99,7 @@ export default function Home() {
   const [activeMonth, setActiveMonth] = useState<string>(getCurrentMonth)
   const [isPrivacyMode, setIsPrivacyMode] = useState(false)
   const [learnedCategoryMap, setLearnedCategoryMap] = useState<Record<string, string>>({})
-  // Force Vercel rebuild
+  // Force Vercel rebuild - cache invalidation marker v2
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
