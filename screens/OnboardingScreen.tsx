@@ -19,12 +19,17 @@ const inputCls = [
 
 interface Props {
   config: CountryConfig
-  onComplete: (countryCode: CountryCode, budget: number, income: number, aprilData?: MonthRecord) => void
+  onComplete: (
+    countryCode: CountryCode,
+    budget: number,
+    income: number,
+    aprilData?: MonthRecord
+  ) => void
 }
 
 export function OnboardingScreen({ config, onComplete }: Props) {
   const [hydrated, setHydrated] = useState(false)
-  const [step, setStep] = useState<'income' | 'budget' | 'csv'>('income')
+  const [step, setStep] = useState<'income' | 'budget' | 'csv' | 'confirm'>('income')
   const [incomeInput, setIncomeInput] = useState('')
   const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
@@ -34,6 +39,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
 
   // Ensure component is hydrated before rendering to avoid splash screen
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true)
   }, [])
 
@@ -89,7 +95,11 @@ export function OnboardingScreen({ config, onComplete }: Props) {
     }
   }
 
-  const handleStart = () => {
+  const handleReviewStart = () => {
+    setStep('confirm')
+  }
+
+  const handleConfirmStart = () => {
     const budget = parseAmount(budgetInput)
     onComplete(config.code, budget, parsedIncome, aprilData)
   }
@@ -110,7 +120,6 @@ export function OnboardingScreen({ config, onComplete }: Props) {
       <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-cyan-300/[0.06] -translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16 text-center max-w-sm mx-auto w-full">
-
         {/* ── Logo ── */}
         <div
           className="w-20 h-20 rounded-3xl flex items-center justify-center mb-8"
@@ -137,9 +146,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
         {/* ── Step: Income ── */}
         {step === 'income' && (
           <div className="w-full space-y-5">
-            <p className="text-white/85 text-sm font-semibold">
-              ¿Cuánto recibes al mes?
-            </p>
+            <p className="text-white/85 text-sm font-semibold">¿Cuánto recibes al mes?</p>
 
             <div>
               <input
@@ -148,10 +155,15 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 inputMode="numeric"
                 placeholder={config.defaultBudget.toLocaleString()}
                 value={incomeInput}
-                onChange={e => { setIncomeInput(e.target.value); setError('') }}
-                onKeyDown={e => e.key === 'Enter' && handleIncomeContinue()}
+                onChange={(e) => {
+                  setIncomeInput(e.target.value)
+                  setError('')
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleIncomeContinue()}
                 className={inputCls}
-                style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)' }}
+                style={{
+                  boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)',
+                }}
               />
               {incomeInput && parsedIncome > 0 && (
                 <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
@@ -160,9 +172,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
               )}
             </div>
 
-            {error && (
-              <p className="text-red-300 text-xs font-medium">{error}</p>
-            )}
+            {error && <p className="text-red-300 text-xs font-medium">{error}</p>}
 
             <div className="space-y-3 pt-2">
               {/* Primary CTA — white fills max contrast on any dark bg */}
@@ -174,7 +184,10 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 Continuar →
               </button>
               <button
-                onClick={() => { setError(''); setStep('budget') }}
+                onClick={() => {
+                  setError('')
+                  setStep('budget')
+                }}
                 className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin ingresos
@@ -204,10 +217,15 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 inputMode="numeric"
                 placeholder={config.defaultBudget.toLocaleString()}
                 value={budgetInput}
-                onChange={e => { setBudgetInput(e.target.value); setError('') }}
-                onKeyDown={e => e.key === 'Enter' && handleBudgetContinue()}
+                onChange={(e) => {
+                  setBudgetInput(e.target.value)
+                  setError('')
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleBudgetContinue()}
                 className={inputCls}
-                style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)' }}
+                style={{
+                  boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.10)',
+                }}
               />
               {budgetInput && parsedBudget > 0 && (
                 <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
@@ -216,9 +234,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
               )}
             </div>
 
-            {error && (
-              <p className="text-red-300 text-xs font-medium">{error}</p>
-            )}
+            {error && <p className="text-red-300 text-xs font-medium">{error}</p>}
 
             <div className="space-y-3 pt-2">
               <button
@@ -229,7 +245,10 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 Continuar →
               </button>
               <button
-                onClick={() => { setStep('csv'); setError('') }}
+                onClick={() => {
+                  setStep('csv')
+                  setError('')
+                }}
                 className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin presupuesto
@@ -237,7 +256,10 @@ export function OnboardingScreen({ config, onComplete }: Props) {
             </div>
 
             <button
-              onClick={() => { setStep('income'); setError('') }}
+              onClick={() => {
+                setStep('income')
+                setError('')
+              }}
               className="text-white/55 text-xs hover:text-white/75 transition-colors"
             >
               ← Volver
@@ -249,18 +271,14 @@ export function OnboardingScreen({ config, onComplete }: Props) {
         {step === 'csv' && (
           <div className="w-full space-y-5">
             <div>
-              <p className="text-white/85 text-sm font-semibold">
-                Importar datos históricos
-              </p>
+              <p className="text-white/85 text-sm font-semibold">Importar datos históricos</p>
               <p className="text-white/55 text-xs mt-1">
                 Carga un archivo CSV con tus gastos de abril (opcional)
               </p>
             </div>
 
             <div>
-              <label
-                className="block w-full p-6 rounded-2xl border-2 border-dashed border-white/40 hover:border-white/60 cursor-pointer transition-colors text-center"
-              >
+              <label className="block w-full p-6 rounded-2xl border-2 border-dashed border-white/40 hover:border-white/60 cursor-pointer transition-colors text-center">
                 <input
                   type="file"
                   accept=".csv"
@@ -270,33 +288,105 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 />
                 <div className="space-y-2">
                   <p className="text-white text-sm font-semibold">
-                    {csvLoading ? '⏳ Procesando...' : csvLoaded ? '✅ Archivo cargado' : '📄 Seleccionar CSV'}
+                    {csvLoading
+                      ? '⏳ Procesando...'
+                      : csvLoaded
+                        ? '✅ Archivo cargado'
+                        : '📄 Seleccionar CSV'}
                   </p>
                   {csvLoaded && aprilData && (
                     <p className="text-white/70 text-xs">
                       {aprilData.expenses.length} gasto{aprilData.expenses.length !== 1 ? 's' : ''}
-                      {aprilData.extraIncomes.length > 0 && ` + ${aprilData.extraIncomes.length} ingreso${aprilData.extraIncomes.length !== 1 ? 's' : ''}`}
+                      {aprilData.extraIncomes.length > 0 &&
+                        ` + ${aprilData.extraIncomes.length} ingreso${aprilData.extraIncomes.length !== 1 ? 's' : ''}`}
                     </p>
                   )}
                 </div>
               </label>
             </div>
 
-            {error && (
-              <p className="text-red-300 text-xs font-medium">{error}</p>
-            )}
+            {error && <p className="text-red-300 text-xs font-medium">{error}</p>}
 
             <div className="space-y-3 pt-2">
               <button
-                onClick={handleStart}
+                onClick={handleReviewStart}
                 disabled={csvLoading}
                 className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all disabled:opacity-50"
                 style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
               >
-                Empezar →
+                Revisar y empezar →
               </button>
               <button
-                onClick={() => { setStep('budget'); setError('') }}
+                onClick={() => {
+                  setStep('budget')
+                  setError('')
+                }}
+                className="text-white/55 text-xs hover:text-white/75 transition-colors"
+              >
+                ← Volver
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: Confirmation ── */}
+        {step === 'confirm' && (
+          <div className="w-full space-y-5">
+            <div>
+              <p className="text-white/85 text-sm font-semibold">Revisar configuración</p>
+              <p className="text-white/55 text-xs mt-1">
+                Verifica que todo sea correcto antes de empezar
+              </p>
+            </div>
+
+            <div className="space-y-3 bg-white/10 rounded-2xl p-4">
+              <div className="flex justify-between items-start">
+                <span className="text-white/70 text-xs">Ingresos mensuales:</span>
+                <span className="text-white font-semibold tabular-nums">
+                  {parsedIncome > 0 ? formatMoney(parsedIncome, config) : '(sin ingresos)'}
+                </span>
+              </div>
+              <div className="flex justify-between items-start">
+                <span className="text-white/70 text-xs">Presupuesto:</span>
+                <span className="text-white font-semibold tabular-nums">
+                  {parsedBudget > 0 ? formatMoney(parsedBudget, config) : '(sin presupuesto)'}
+                </span>
+              </div>
+              {aprilData &&
+                (aprilData.expenses.length > 0 || aprilData.extraIncomes.length > 0) && (
+                  <>
+                    <div className="border-t border-white/20 pt-3 mt-3">
+                      <p className="text-white/60 text-xs mb-2">Datos a importar:</p>
+                      {aprilData.expenses.length > 0 && (
+                        <div className="text-white/70 text-xs">
+                          📊 {aprilData.expenses.length} gasto
+                          {aprilData.expenses.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                      {aprilData.extraIncomes.length > 0 && (
+                        <div className="text-white/70 text-xs">
+                          💰 {aprilData.extraIncomes.length} ingreso
+                          {aprilData.extraIncomes.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={handleConfirmStart}
+                className="w-full py-4 text-base font-bold rounded-2xl text-[#0A5C57] bg-white active:scale-[0.97] transition-all"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}
+              >
+                Confirmar y empezar ✓
+              </button>
+              <button
+                onClick={() => {
+                  setStep('csv')
+                  setError('')
+                }}
                 className="text-white/55 text-xs hover:text-white/75 transition-colors"
               >
                 ← Volver

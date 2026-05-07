@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { restoreFromBackup } from '../lib/utils'
-import type { Expense, ExtraIncome, Pocket } from '../lib/types'
+import { restoreFromBackup, parseAmount } from '../lib/utils'
+import type { Expense, ExtraIncome, MonthRecord, Pocket } from '../lib/types'
 import { DS } from '../lib/config'
 
 interface DataRestoreScreenProps {
-  onRestore: (month: string, monthRecord: any) => void
+  onRestore: (month: string, monthRecord: MonthRecord) => void
   onClose: () => void
 }
 
@@ -19,15 +19,15 @@ export function DataRestoreScreen({ onRestore, onClose }: DataRestoreScreenProps
     pocketJson: '[]',
     expenseJson: '[]',
   })
-  const [restoration, setRestoration] = useState<any>(null)
+  const [restoration, setRestoration] = useState<ReturnType<typeof restoreFromBackup> | null>(null)
   const [error, setError] = useState('')
 
   const handleValidate = () => {
     try {
       setError('')
 
-      const income = parseFloat(formData.income)
-      const savings = parseFloat(formData.savings)
+      const income = parseAmount(formData.income)
+      const savings = parseAmount(formData.savings)
       const pockets = JSON.parse(formData.pocketJson) as Pocket[]
       const expenses = JSON.parse(formData.expenseJson) as Expense[]
 
@@ -119,15 +119,12 @@ export function DataRestoreScreen({ onRestore, onClose }: DataRestoreScreenProps
                 className="w-full p-3 border rounded font-mono text-sm h-24"
               />
               <p className="text-xs mt-1 opacity-70">
-                Formato: {`[{"id":"string","concept":"string","amount":numero,"pocketId":"string","date":"YYYY-MM-DD"}]`}
+                Formato:{' '}
+                {`[{"id":"string","concept":"string","amount":numero,"pocketId":"string","date":"YYYY-MM-DD"}]`}
               </p>
             </div>
 
-            {error && (
-              <div className="p-4 bg-red-100 text-red-800 rounded">
-                ❌ {error}
-              </div>
-            )}
+            {error && <div className="p-4 bg-red-100 text-red-800 rounded">❌ {error}</div>}
 
             <button
               onClick={handleValidate}
@@ -141,7 +138,10 @@ export function DataRestoreScreen({ onRestore, onClose }: DataRestoreScreenProps
 
         {step === 'review' && restoration && (
           <div className="space-y-6">
-            <div className="p-4 rounded" style={{ background: restoration.report.valid ? '#e8f5e9' : '#fff3e0' }}>
+            <div
+              className="p-4 rounded"
+              style={{ background: restoration.report.valid ? '#e8f5e9' : '#fff3e0' }}
+            >
               <h2 className="font-bold mb-3">
                 {restoration.report.valid ? '✅ Datos Válidos' : '⚠️  Datos con Ajustes'}
               </h2>

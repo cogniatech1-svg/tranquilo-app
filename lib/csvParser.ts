@@ -1,5 +1,6 @@
 import type { Expense, ExtraIncome, MonthRecord } from './types'
 import { DEFAULT_POCKETS } from './dataMigration'
+import { parseAmount } from './utils'
 
 interface CSVRow {
   fecha: string
@@ -32,12 +33,12 @@ export function parseCSV(csvContent: string): {
 
     const [fecha, tipo, categoria, pocketId, monto, descripcion] = fields
 
-    const amount = parseFloat(monto.replace(/[^\d.-]/g, '')) || 0
+    const amount = parseAmount(monto)
     if (amount <= 0) continue
 
     if (tipo.toLowerCase() === 'gasto') {
       expenses.push({
-        id: `csv-${Date.now()}-${Math.random()}`,
+        id: crypto.randomUUID(),
         date: fecha,
         amount,
         concept: descripcion || categoria,
@@ -45,7 +46,7 @@ export function parseCSV(csvContent: string): {
       })
     } else if (tipo.toLowerCase() === 'ingreso') {
       extraIncomes.push({
-        id: `csv-${Date.now()}-${Math.random()}`,
+        id: crypto.randomUUID(),
         date: fecha,
         amount,
         concept: descripcion || categoria,
@@ -57,10 +58,6 @@ export function parseCSV(csvContent: string): {
   // Deduplicate by (date, amount, concept)
   const uniqueExpenses = deduplicateExpenses(expenses)
   const uniqueIncomes = deduplicateIncomes(extraIncomes)
-
-  console.log(
-    `[csvParser] Parsed ${uniqueExpenses.length} expenses, ${uniqueIncomes.length} incomes`,
-  )
 
   return {
     expenses: uniqueExpenses,
@@ -109,12 +106,6 @@ function deduplicateExpenses(expenses: Expense[]): Expense[] {
     }
   }
 
-  if (result.length < expenses.length) {
-    console.log(
-      `[csvParser] Deduped expenses: ${expenses.length} → ${result.length}`,
-    )
-  }
-
   return result
 }
 
@@ -132,12 +123,6 @@ function deduplicateIncomes(incomes: ExtraIncome[]): ExtraIncome[] {
       seen.add(key)
       result.push(inc)
     }
-  }
-
-  if (result.length < incomes.length) {
-    console.log(
-      `[csvParser] Deduped incomes: ${incomes.length} → ${result.length}`,
-    )
   }
 
   return result

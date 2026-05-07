@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { saveInitializedUserData, markOnboardingComplete } from './initializeUserData'
 
 export interface AuthUser {
   uid: string
@@ -36,15 +35,6 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
   if (insertError) {
     console.error('Error creating user profile:', insertError)
   }
-
-  // Initialize user data with 8 pockets + 5M income
-  // This preconfigures the user's financial data
-  saveInitializedUserData(userId, 5000000)
-
-  // Mark onboarding as complete so user goes to main app
-  markOnboardingComplete(userId)
-
-  console.log('[signUp] ✅ User created and data initialized:', userId)
 
   return {
     uid: userId,
@@ -109,9 +99,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  * Subscribe to auth state changes
  * Returns unsubscribe function
  */
-export function onAuthStateChanged(
-  callback: (user: AuthUser | null) => void,
-): () => void {
+export function onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (event, session) => {
