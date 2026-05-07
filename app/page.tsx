@@ -36,7 +36,7 @@ import {
   getDefaultMonthRecord,
   normalizeMonthKey,
 } from '../lib/utils'
-import { onAuthStateChanged, logOut, generateGuestUserId } from '../lib/auth'
+import { onAuthStateChanged, logOut, generateGuestUserId, requireUserId } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
 import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
@@ -1045,16 +1045,9 @@ export default function Home() {
   }, [])
 
   const handleOnboardingComplete = useCallback(
-    (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
-      // Use centralized helper to get valid user ID
-      // This function checks: userId → guestUserId → localStorage fallback
-      const currentUserId = getValidUserId(userId, guestUserId)
-
-      // ⚠️ CRITICAL: Do not proceed if no user identity is available
-      if (!currentUserId) {
-        console.error('[onboarding] No currentUserId available')
-        return
-      }
+    async (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
+      // requireUserId() GARANTIZA un string válido (auth, guest existente, o nuevo guest)
+      const currentUserId: string = await requireUserId()
 
       // Mark onboarding as complete for this user
       localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
