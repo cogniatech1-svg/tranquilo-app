@@ -1086,7 +1086,7 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      saveUserData(currentUserId, initialData).catch((err) => {
+      saveUserData(currentUserId as string, initialData).catch((err) => {
         console.error('[onboarding] Error saving to Supabase:', err)
         // Continue even if Supabase save fails
       })
