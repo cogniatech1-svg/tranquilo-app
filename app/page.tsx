@@ -1055,8 +1055,13 @@ export default function Home() {
         return
       }
 
+      // At this point, currentUserId is guaranteed to be non-null due to the guard above
+      // But TypeScript's type narrowing doesn't always recognize this, so we create
+      // an explicitly typed variable for type safety
+      const safeUserId: string = currentUserId
+
       // Mark onboarding as complete for this user
-      localStorage.setItem(`${ONBOARDING_FLAG}_${currentUserId}`, 'true')
+      localStorage.setItem(`${ONBOARDING_FLAG}_${safeUserId}`, 'true')
 
       setCountryCode(code)
 
@@ -1114,14 +1119,13 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      // At this point, currentUserId is guaranteed to be a non-null string
-      // because of the guard check above. We use the non-null assertion only after validation.
-      saveUserData(currentUserId, initialData).catch((err) => {
+      // Using safeUserId which is guaranteed to be a non-null string
+      saveUserData(safeUserId, initialData).catch((err) => {
         console.error('[onboarding] Error saving to Supabase:', err)
         // Continue even if Supabase save fails - localStorage is backup
       })
 
-      const storageKey = `${STORAGE_KEY}_${currentUserId}`
+      const storageKey = `${STORAGE_KEY}_${safeUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
 
       // Prefer April if it has data, otherwise current month
