@@ -248,11 +248,18 @@ export default function Home() {
         }
 
         // ── FALLBACK: Load from localStorage ────────────────────────────────
-        if (Object.keys(data).length === 0) {
+        // Use localStorage when Supabase has no monthly history.
+        // NOTE: loadUserData() returns a StoredData object even for new users
+        // (with empty monthlyHistory: {}), so Object.keys(data).length is NEVER 0
+        // after a successful Supabase fetch. We must check monthlyHistory specifically.
+        const hasSupabaseHistory =
+          data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0
+        if (!hasSupabaseHistory) {
           const raw = localStorage.getItem(storageKey)
           if (raw) {
             try {
               data = JSON.parse(raw) as StoredData
+              console.log('[initializeApp] ✅ Loaded from localStorage (Supabase had no history)')
             } catch {
               /* JSON inválido */
             }
@@ -302,7 +309,7 @@ export default function Home() {
               savings: rec.savings ?? 0,
               expenses: rec.expenses ?? [],
               extraIncomes: rec.extraIncomes ?? [],
-              pockets: rec.pockets ?? DEFAULT_POCKETS,
+              pockets: rec.pockets && rec.pockets.length > 0 ? rec.pockets : DEFAULT_POCKETS,
               manualBudget: rec.manualBudget,
             }
           }
