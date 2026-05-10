@@ -38,6 +38,7 @@ import {
 } from '../lib/utils'
 import { onAuthStateChanged, logOut, generateGuestUserId, requireUserId } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
+import type { AuthChangeEvent } from '@supabase/supabase-js'
 import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import { saveUserData, loadUserData, subscribeToUserData } from '../lib/supabase'
@@ -118,12 +119,12 @@ export default function Home() {
   const config: CountryConfig = COUNTRIES[countryCode]
 
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
-  const handleAuth = useCallback((user: AuthUser | null) => {
+  const handleAuth = useCallback((event: AuthChangeEvent, user: AuthUser | null) => {
     // Guard: only update state if component is still mounted
     if (!isMountedRef.current) return
 
     console.log(
-      '[AUTH] Auth state changed:',
+      `[AUTH] Auth event=${event}:`,
       user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in'
     )
 
@@ -149,9 +150,24 @@ export default function Home() {
 
     setAuthLoading(false)
 
-    // ALWAYS show login screen first (let user choose between account or guest)
-    // This prevents auto-login without user consent
-    setScreen('login')
+    // Single source of truth for auth-driven navigation.
+    setScreen((prev) => {
+      switch (event) {
+        case 'SIGNED_OUT':
+          return 'login'
+        case 'SIGNED_IN': {
+          if (!user) return 'login'
+          const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+          return hasOnboarded ? 'main' : 'onboarding'
+        }
+        case 'TOKEN_REFRESHED':
+        case 'INITIAL_SESSION':
+          // Non-destructive events must not force redirects.
+          return prev
+        default:
+          return prev
+      }
+    })
   }, [])
 
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
@@ -159,12 +175,12 @@ export default function Home() {
   useEffect(() => {
     isMountedRef.current = true
 
-    const unsubscribe = onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged((event, user) => {
       console.log(
-        '[onAuthStateChanged] Callback received user:',
+        `[onAuthStateChanged] event=${event}, user=`,
         user ? `${user.email} (${user.uid})` : 'null'
       )
-      handleAuth(user)
+      handleAuth(event, user)
     })
 
     return () => {
@@ -1172,24 +1188,12 @@ export default function Home() {
 
   // ── Show login screen ────────────────────────────────────────────────────
   if (screen === 'login') {
-    // Determine if user needs to complete onboarding after login
-    const proceedAfterLogin = () => {
-      if (userId) {
-        const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${userId}`) === 'true'
-        setScreen(hasOnboarded ? 'main' : 'onboarding')
-      }
-    }
-
     return (
       <LoginScreen
         authenticatedEmail={userEmail || undefined}
-        onLoginSuccess={proceedAfterLogin}
+        onLoginSuccess={() => {}}
         onGuestMode={handleGuestMode}
-        onLogOut={() => {
-          setUserId(null)
-          setUserEmail(null)
-          setScreen('login')
-        }}
+        onLogOut={() => {}}
       />
     )
   }

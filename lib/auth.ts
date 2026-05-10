@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import type { AuthChangeEvent } from '@supabase/supabase-js'
 
 export interface AuthUser {
   uid: string
@@ -99,17 +100,19 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  * Subscribe to auth state changes
  * Returns unsubscribe function
  */
-export function onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
+export function onAuthStateChanged(
+  callback: (event: AuthChangeEvent, user: AuthUser | null) => void
+): () => void {
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (session?.user) {
-      callback({
+      callback(event, {
         uid: session.user.id,
         email: session.user.email || '',
       })
     } else {
-      callback(null)
+      callback(event, null)
     }
   })
 
