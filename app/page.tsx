@@ -41,7 +41,13 @@ import type { AuthUser } from '../lib/auth'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
 import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
-import { saveUserData, loadUserData, subscribeToUserData, saveProfileData } from '../lib/supabase'
+import {
+  saveUserData,
+  loadUserData,
+  subscribeToUserData,
+  saveProfileData,
+  validateDataPersistence,
+} from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -113,6 +119,11 @@ export default function Home() {
   const [isPrivacyMode, setIsPrivacyMode] = useState(false)
   const [learnedCategoryMap, setLearnedCategoryMap] = useState<Record<string, string>>({})
   // Force Vercel rebuild - cache invalidation marker v2
+
+  // ── SYNC ERROR TRACKING ────────────────────────────────────────────────────
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -512,6 +523,7 @@ export default function Home() {
 
       // Save to Supabase (primary storage for authenticated and guest users)
       if (saveUserId) {
+        setIsSyncing(true)
         try {
           console.log(`[AUTO-SAVE] 🔷 Guardando a Supabase para userId: ${saveUserId}`, {
             monthlyHistoryMonths: Object.keys(dataToSave.monthlyHistory || {}).length,
@@ -519,8 +531,21 @@ export default function Home() {
           })
           await saveUserData(saveUserId, dataToSave)
           console.log(`[AUTO-SAVE] ✅ Supabase guardado exitosamente`)
+
+          // Validate that data was actually persisted
+          const isPersisted = await validateDataPersistence(saveUserId)
+          if (!isPersisted) {
+            throw new Error('Datos no se guardaron correctamente en Supabase (validación falló)')
+          }
+
+          setSyncError(null)
+          setLastSyncTime(Date.now())
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error)
           console.error('[AUTO-SAVE] ❌ Error guardando a Supabase:', error)
+          setSyncError(`Error de sincronización: ${errorMsg}`)
+        } finally {
+          setIsSyncing(false)
         }
       }
     }, 2000)
@@ -581,8 +606,21 @@ export default function Home() {
           })
           await saveUserData(saveUserId, dataToSave)
           console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir de la app')
+
+          // Validate that data was persisted
+          const isPersisted = await validateDataPersistence(saveUserId)
+          if (!isPersisted) {
+            console.error('[VISIBILITY] ⚠️ Validación falló - datos pueden no estar guardados')
+          } else {
+            console.log('[VISIBILITY] ✅ Datos validados en Supabase')
+          }
+
+          setSyncError(null)
+          setLastSyncTime(Date.now())
         } catch (e) {
+          const errorMsg = e instanceof Error ? e.message : String(e)
           console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
+          setSyncError(`Error crítico al salir: ${errorMsg}`)
         }
       }
     }
@@ -1533,6 +1571,34 @@ export default function Home() {
   // ── Main app ──────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen" style={{ background: DS.bg }}>
+      {/* Sync Error Banner */}
+      {syncError && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-500 text-white px-4 py-2 text-sm flex items-center justify-between">
+          <span>❌ {syncError}</span>
+          <button
+            onClick={() => setSyncError(null)}
+            className="text-white/80 hover:text-white font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Syncing Indicator */}
+      {isSyncing && (
+        <div className="fixed bottom-20 right-4 z-40 bg-blue-500 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+          <span className="inline-block w-2 h-2 bg-white rounded-full animate-pulse" />
+          Sincronizando...
+        </div>
+      )}
+
+      {/* Last Sync Time */}
+      {lastSyncTime && !syncError && (
+        <div className="fixed bottom-20 left-4 z-40 text-xs text-slate-500">
+          ✓ Sync: {new Date(lastSyncTime).toLocaleTimeString()}
+        </div>
+      )}
+
       <div className="max-w-md mx-auto pb-24 min-h-screen">
         {activeTab === 'inicio' && (
           <DashboardScreen

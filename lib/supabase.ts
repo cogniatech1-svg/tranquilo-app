@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { StoredData, MonthRecord, Expense, ExtraIncome, Pocket, UserProfile } from './types'
+import type { StoredData, MonthRecord, UserProfile } from './types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -283,7 +283,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       if (conceptData) {
         conceptMap = conceptData.data || conceptData
       }
-    } catch (e) {
+    } catch {
       // Concept map table may not exist - that's fine, optional feature
     }
 
@@ -299,7 +299,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       if (learnedData) {
         learnedCategoryMap = learnedData.data || learnedData
       }
-    } catch (e) {
+    } catch {
       // Learned category map table may not exist - that's fine, optional feature
     }
 
@@ -473,4 +473,38 @@ export async function saveProfileData(userId: string, profile: UserProfile): Pro
   }
 
   console.log('[Supabase] ✅ Profile saved successfully')
+}
+
+/**
+ * Validate that data was actually saved to Supabase by loading it back
+ */
+export async function validateDataPersistence(userId: string): Promise<boolean> {
+  try {
+    console.log('[Supabase] 🔷 Validating data persistence for userId:', userId)
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, monthly_income, monthly_savings, updated_at')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('[Supabase] ❌ Validation failed - user not found:', error)
+      return false
+    }
+
+    if (!data) {
+      console.error('[Supabase] ❌ Validation failed - no user data returned')
+      return false
+    }
+
+    console.log('[Supabase] ✅ Validation successful - data exists in Supabase:', {
+      userId,
+      updatedAt: data.updated_at,
+      monthlyIncome: data.monthly_income,
+    })
+    return true
+  } catch (e) {
+    console.error('[Supabase] ❌ Validation error:', e)
+    return false
+  }
 }
