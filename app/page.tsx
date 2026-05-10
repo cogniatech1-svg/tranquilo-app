@@ -69,6 +69,13 @@ function getValidUserId(userId: string | null, guestUserId: string | null): stri
   return null
 }
 
+function createEntityId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +85,8 @@ export default function Home() {
   // Track if data has been loaded from Supabase/localStorage successfully.
   // Used to prevent auto-save from overwriting good data with empty data during initial load.
   const dataLoadedRef = useRef(false)
+  // Guards against stale async initializeApp runs overwriting fresh state.
+  const loadRunIdRef = useRef(0)
 
   const [hydrated, setHydrated] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -220,6 +229,7 @@ export default function Home() {
     // Capture userId to maintain type narrowing across async boundary
     const currentUserId: string | null = userId
 
+    const runId = ++loadRunIdRef.current
     const initializeApp = async () => {
       // ⚠️ CRITICAL: Guard against undefined userId and guestUserId
       if (!currentUserId && !guestUserId) {
@@ -296,6 +306,12 @@ export default function Home() {
         if (data.isPrivacyMode) setIsPrivacyMode(true)
 
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
+          // Ignore stale load runs or late loads after data is already initialized.
+          if (loadRunIdRef.current !== runId || dataLoadedRef.current) {
+            console.warn('[initializeApp] Skipping stale load to avoid state overwrite')
+            setHydrated(true)
+            return
+          }
           // Normalizar pocketNames (decodificar encoding issues y capitalizar)
           const normalizedData = normalizePocketNames(data)
 
@@ -660,7 +676,7 @@ export default function Home() {
         const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
         const newExpenses = id
           ? monthData.expenses.map((e) => (e.id === id ? { ...e, ...rest } : e))
-          : [...monthData.expenses, { id: Date.now().toString(), ...rest }]
+          : [...monthData.expenses, { id: createEntityId(), ...rest }]
 
         const updated = {
           ...prev,
@@ -703,7 +719,7 @@ export default function Home() {
     (expenseId: string, amount: number, note: string, date: string) => {
       setMonthlyHistory((prev) => {
         const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
-        return {
+        const updated = {
           ...prev,
           [activeMonth]: {
             ...monthData,
@@ -711,7 +727,7 @@ export default function Home() {
             extraIncomes: [
               ...monthData.extraIncomes,
               {
-                id: Date.now().toString(),
+                id: createEntityId(),
                 amount,
                 concept: note,
                 date,
@@ -720,9 +736,11 @@ export default function Home() {
             ],
           },
         }
+        saveNow(updated)
+        return updated
       })
     },
-    [activeMonth]
+    [activeMonth, saveNow]
   )
 
   const handleEditPocket = useCallback(
@@ -813,7 +831,7 @@ export default function Home() {
             ...monthData,
             pockets: [
               ...monthData.pockets,
-              { id: Date.now().toString(), name: capitalizeWords(name), budget, icon },
+              { id: createEntityId(), name: capitalizeWords(name), budget, icon },
             ],
           },
         }
@@ -833,7 +851,7 @@ export default function Home() {
             extraIncomes: [
               ...monthData.extraIncomes,
               {
-                id: Date.now().toString(),
+                id: createEntityId(),
                 amount,
                 concept: note,
                 date: new Date().toISOString(),
