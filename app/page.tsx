@@ -354,14 +354,32 @@ export default function Home() {
         setConceptMap(data.conceptMap ?? {})
         setLearnedCategoryMap(data.learnedCategoryMap ?? {})
         if (data.isPrivacyMode) setIsPrivacyMode(true)
+
+        // ── RESTAURAR PERFIL: Prioridad Supabase > localStorage ──────────
         if (data.profile) {
-          console.log('[initializeApp] 🔵 Setting profileData from loaded data:', {
+          console.log('[initializeApp] ✅ Perfil cargado de Supabase:', {
             nombre: data.profile.nombre,
             email: data.profile.email,
+            telefono: data.profile.telefono,
+            pais: data.profile.pais,
           })
           setProfileData(data.profile)
+          // Guardar en localStorage para fallback offline
+          localStorage.setItem('tranquilo_profile', JSON.stringify(data.profile))
         } else {
-          console.log('[initializeApp] ⚠️ No profile data found in loaded data')
+          // Si no hay en Supabase, intentar restaurar desde localStorage
+          const savedProfile = localStorage.getItem('tranquilo_profile')
+          if (savedProfile) {
+            try {
+              const profile = JSON.parse(savedProfile)
+              console.log('[initializeApp] ✅ Perfil restaurado de localStorage')
+              setProfileData(profile)
+            } catch {
+              console.log('[initializeApp] ⚠️ localStorage profile corrupto')
+            }
+          } else {
+            console.log('[initializeApp] ⚠️ Sin perfil guardado')
+          }
         }
 
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
