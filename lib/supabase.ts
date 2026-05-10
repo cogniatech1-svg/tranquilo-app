@@ -324,6 +324,21 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       profile: userData?.profile_data ?? undefined,
     }
 
+    console.log('[Supabase] 🔵 loadUserData completed:', {
+      userId,
+      hasProfile: !!storedData.profile,
+      profileData: storedData.profile
+        ? {
+            nombre: storedData.profile.nombre,
+            email: storedData.profile.email,
+            telefono: storedData.profile.telefono,
+            pais: storedData.profile.pais,
+            avatarUrl: storedData.profile.avatarUrl ? '(image)' : '(none)',
+          }
+        : null,
+      monthsLoaded: Object.keys(monthlyHistory).length,
+    })
+
     return storedData
   } catch (error) {
     console.error('[Supabase] Failed to load user data:', error)
@@ -439,10 +454,23 @@ export function subscribeToUserData(
  * Save only the user profile — does NOT touch expenses, incomes, or any other table.
  */
 export async function saveProfileData(userId: string, profile: UserProfile): Promise<void> {
+  console.log('[Supabase] 🔵 saveProfileData called:', {
+    userId,
+    profileData: {
+      nombre: profile.nombre,
+      email: profile.email,
+      telefono: profile.telefono,
+      pais: profile.pais,
+      avatarUrl: profile.avatarUrl ? '(image)' : '(none)',
+    },
+  })
+
   const { error } = await supabase.from('users').update({ profile_data: profile }).eq('id', userId)
 
   if (error) {
-    console.error('[Supabase] Error saving profile:', error)
+    console.error('[Supabase] ❌ Error saving profile:', error)
     throw error
   }
+
+  console.log('[Supabase] ✅ Profile saved successfully')
 }

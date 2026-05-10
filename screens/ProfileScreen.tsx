@@ -54,8 +54,15 @@ export function ProfileScreen({
 
   // Actualizar cuando lleguen datos de Supabase (carga asíncrona)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (profileDataProp) setProfileData(profileDataProp)
+    if (profileDataProp) {
+      console.log('[ProfileScreen] 🔵 Received profileDataProp from parent:', {
+        nombre: profileDataProp.nombre,
+        email: profileDataProp.email,
+        pais: profileDataProp.pais,
+      })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProfileData(profileDataProp)
+    }
   }, [profileDataProp])
 
   const [editingProfile, setEditingProfile] = useState(false)
@@ -81,10 +88,16 @@ export function ProfileScreen({
 
   // Save profile to localStorage + Supabase
   const saveProfileData = () => {
+    console.log('[ProfileScreen] 🔵 saveProfileData called with:', {
+      nombre: editData.nombre,
+      email: editData.email,
+      pais: editData.pais,
+    })
     localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
     setProfileData(editData)
     setEditingProfile(false)
     onSaveProfile?.(editData)
+    console.log('[ProfileScreen] ✅ saveProfileData completed, called onSaveProfile')
   }
 
   const cancelProfileEdit = () => {
@@ -110,12 +123,14 @@ export function ProfileScreen({
 
   // Handle avatar editor save
   const handleAvatarSave = (croppedImage: string) => {
+    console.log('[ProfileScreen] 🔵 handleAvatarSave called')
     const newData = { ...profileData, avatarUrl: croppedImage }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
     setShowAvatarEditor(false)
     setTempAvatarImage('')
     onSaveProfile?.(newData)
+    console.log('[ProfileScreen] ✅ Avatar saved, called onSaveProfile')
   }
 
   // Handle avatar editor cancel

@@ -323,7 +323,15 @@ export default function Home() {
         setConceptMap(data.conceptMap ?? {})
         setLearnedCategoryMap(data.learnedCategoryMap ?? {})
         if (data.isPrivacyMode) setIsPrivacyMode(true)
-        if (data.profile) setProfileData(data.profile)
+        if (data.profile) {
+          console.log('[initializeApp] 🔵 Setting profileData from loaded data:', {
+            nombre: data.profile.nombre,
+            email: data.profile.email,
+          })
+          setProfileData(data.profile)
+        } else {
+          console.log('[initializeApp] ⚠️ No profile data found in loaded data')
+        }
 
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
           // Ignore stale load runs or late loads after data is already initialized.
@@ -1056,14 +1064,24 @@ export default function Home() {
 
   const handleSaveProfile = useCallback(
     async (newProfile: import('../lib/types').UserProfile) => {
+      console.log('[page.tsx] 🔵 handleSaveProfile called:', {
+        nombre: newProfile.nombre,
+        email: newProfile.email,
+        userId: userId || guestUserId,
+      })
       setProfileData(newProfile)
       const saveUserId = userId || guestUserId
-      if (!saveUserId) return
+      if (!saveUserId) {
+        console.warn('[page.tsx] ⚠️ No userId/guestUserId available')
+        return
+      }
       // Solo guarda profile_data — no toca gastos ni movimientos
       try {
+        console.log('[page.tsx] 🔵 Calling saveProfileData with userId:', saveUserId)
         await saveProfileData(saveUserId, newProfile)
+        console.log('[page.tsx] ✅ Profile saved successfully')
       } catch (e) {
-        console.error('[PROFILE] Error saving profile to Supabase:', e)
+        console.error('[PROFILE] ❌ Error saving profile to Supabase:', e)
       }
     },
     [userId, guestUserId]
