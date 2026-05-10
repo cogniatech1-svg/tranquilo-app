@@ -21,6 +21,13 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     throw new Error(`Invalid userId format: must be a non-empty string`)
   }
 
+  console.log('[Supabase] 🟢 INICIANDO saveUserData:', {
+    userId,
+    monthlyHistoryMonths: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+    monthlyIncome: data.monthlyIncome,
+    hasProfile: !!data.profile,
+  })
+
   try {
     // 1. Update or create user record with metadata
     // For guests, use a placeholder email based on their UUID
@@ -30,6 +37,12 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     const userEmail = isGuest
       ? `guest_${userId.substring(0, 8)}@tranquilo.local`
       : `user_${userId.substring(0, 12)}@tranquilo.local`
+
+    console.log('[Supabase] 🟡 Guardando users record:', {
+      userId,
+      userEmail,
+      isGuest,
+    })
 
     const { error: userError } = await supabase.from('users').upsert({
       id: userId,
@@ -43,10 +56,11 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
     if (userError) {
       console.error(
-        `[Supabase] Error updating user record: code=${userError.code}, message=${userError.message}`
+        `[Supabase] ❌ Error guardando users record: code=${userError.code}, message=${userError.message}`
       )
       throw userError
     }
+    console.log('[Supabase] ✅ users record guardado')
 
     // 2. Save pockets (upsert each one)
     // TODO: Investigate pockets table schema - currently skipping to avoid 400 errors
@@ -55,6 +69,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     }
 
     // 3. Save monthly records with their expenses and extra incomes
+    console.log('[Supabase] 🟡 Guardando monthly_records:', {
+      monthCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+    })
     if (data.monthlyHistory) {
       for (const [monthKey, monthRecord] of Object.entries(data.monthlyHistory)) {
         // Upsert monthly_records
@@ -165,8 +182,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
         throw learnedError
       }
     }
+    console.log('[Supabase] 🟢 ✅ saveUserData completado exitosamente')
   } catch (error) {
-    console.error('[Supabase] Failed to save user data:', error)
+    console.error('[Supabase] ❌ CRÍTICO: Error guardando en Supabase:', error)
     // Don't throw - allow app to continue with localStorage fallback
   }
 }
@@ -480,7 +498,10 @@ export async function saveProfileData(userId: string, profile: UserProfile): Pro
  */
 export async function validateDataPersistence(userId: string): Promise<boolean> {
   try {
-    console.log('[Supabase] 🔷 Validating data persistence for userId:', userId)
+    console.log(
+      '[Supabase] 🟡 Validando que los datos se guardaron en Supabase para userId:',
+      userId
+    )
     const { data, error } = await supabase
       .from('users')
       .select('id, monthly_income, monthly_savings, updated_at')
@@ -488,23 +509,27 @@ export async function validateDataPersistence(userId: string): Promise<boolean> 
       .single()
 
     if (error) {
-      console.error('[Supabase] ❌ Validation failed - user not found:', error)
+      console.error('[Supabase] ❌ Validación falló - usuario no encontrado en DB:', {
+        error: error.message,
+        code: error.code,
+        userId,
+      })
       return false
     }
 
     if (!data) {
-      console.error('[Supabase] ❌ Validation failed - no user data returned')
+      console.error('[Supabase] ❌ Validación falló - DB devolvió vacío')
       return false
     }
 
-    console.log('[Supabase] ✅ Validation successful - data exists in Supabase:', {
+    console.log('[Supabase] 🟢 ✅ Validación exitosa - datos existen en Supabase:', {
       userId,
       updatedAt: data.updated_at,
       monthlyIncome: data.monthly_income,
     })
     return true
   } catch (e) {
-    console.error('[Supabase] ❌ Validation error:', e)
+    console.error('[Supabase] ❌ Validación error (exception):', e)
     return false
   }
 }
