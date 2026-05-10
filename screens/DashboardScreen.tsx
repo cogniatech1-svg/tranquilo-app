@@ -13,13 +13,13 @@ import { useSupabaseData } from '../lib/useSupabaseData'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
-  ajustado:  { dot: '#FBB040', label: 'Vas un poco por encima' },
-  riesgo:    { dot: '#F87171', label: 'Estás gastando demasiado rápido' },
-  neutral:   { dot: '#4ADE80', label: 'Vas bien' },
+  ajustado: { dot: '#FBB040', label: 'Vas un poco por encima' },
+  riesgo: { dot: '#F87171', label: 'Estás gastando demasiado rápido' },
+  neutral: { dot: '#4ADE80', label: 'Vas bien' },
 }
 
 interface Props {
-  snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
+  snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
   expenses: Expense[]
   pockets: Pocket[]
   spentByPocket: Record<string, number>
@@ -30,7 +30,7 @@ interface Props {
   onAdd: () => void
   isPrivacyMode: boolean
   onTogglePrivacy: () => void
-  userId?: string | null  // Para sincronización Supabase Realtime
+  userId?: string | null // Para sincronización Supabase Realtime
 }
 
 export function DashboardScreen({
@@ -48,12 +48,15 @@ export function DashboardScreen({
   userId,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [syncMenuOpen, setSyncMenuOpen] = useState(false)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
 
   // Hook para Supabase Realtime
-  const { lastSync, refresh: refreshFromSupabase, loading: supabaseSyncing } = useSupabaseData(userId || null)
+  const {
+    lastSync,
+    refresh: refreshFromSupabase,
+    loading: supabaseSyncing,
+  } = useSupabaseData(userId || null)
 
   // USAR snapshot en lugar de cálculos locales
   const {
@@ -66,19 +69,13 @@ export function DashboardScreen({
     daysInMonth,
   } = snapshot
 
-  // Skeleton loading effect
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300)
-    return () => clearTimeout(timer)
-  }, [])
-
   const handleExportCSV = () => {
-    console.log("[EXPORT HIT] handleExportCSV en DashboardScreen.tsx")
-    alert("EXPORT EJECUTADO")
+    console.log('[EXPORT HIT] handleExportCSV en DashboardScreen.tsx')
+    alert('EXPORT EJECUTADO')
     // 1. DETECTAR KEY CORRECTA (user-scoped o guest)
     let raw = null
     const allKeys = Object.keys(localStorage)
-    const userKeys = allKeys.filter(k => k.startsWith('tranquilo_v1_'))
+    const userKeys = allKeys.filter((k) => k.startsWith('tranquilo_v1_'))
 
     if (userKeys.length > 0) {
       raw = localStorage.getItem(userKeys[0])
@@ -91,8 +88,9 @@ export function DashboardScreen({
     // 2. EXTRAER NOMBRES DE POCKETS DESDE monthlyHistory
     const pocketNames: Record<string, string> = {}
     for (const record of Object.values(data.monthlyHistory ?? {})) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rec = record as any
-      for (const p of (rec.pockets ?? [])) {
+      for (const p of rec.pockets ?? []) {
         pocketNames[p.id] = capitalizeWords(p.name)
       }
     }
@@ -101,8 +99,9 @@ export function DashboardScreen({
 
     // 3. EXTRAER DE monthlyHistory (nueva estructura)
     for (const [, record] of Object.entries(data.monthlyHistory ?? {})) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rec = record as any
-      for (const e of (rec.expenses ?? [])) {
+      for (const e of rec.expenses ?? []) {
         rows.push([
           e.date.slice(0, 10),
           'gasto',
@@ -112,7 +111,7 @@ export function DashboardScreen({
           e.concept ?? '',
         ])
       }
-      for (const i of (rec.extraIncomes ?? [])) {
+      for (const i of rec.extraIncomes ?? []) {
         rows.push([
           i.date.slice(0, 10),
           'ingreso',
@@ -131,8 +130,8 @@ export function DashboardScreen({
     // 5. GENERAR CSV CON BOM UTF-8 Y FORMATO EXCEL
     const BOM = '\uFEFF'
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    console.log("[CSV DEBUG DashboardScreen]", rows.slice(0, 5))
-    const csvContent = BOM + [header, ...body].map(r => r.map(escape).join(',')).join('\r\n')
+    console.log('[CSV DEBUG DashboardScreen]', rows.slice(0, 5))
+    const csvContent = BOM + [header, ...body].map((r) => r.map(escape).join(',')).join('\r\n')
 
     const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -146,76 +145,57 @@ export function DashboardScreen({
   const isViewingPast = activeMonth !== realCurrentMonth
   const today = useMemo(() => new Date(), [])
 
-
   // Derivados de snapshot para cálculos secundarios
   const calendarRate = snapshot.day / snapshot.daysInMonth
   const effectiveBudget = monthlyBudget > 0 ? monthlyBudget : totalIncome
 
-  const activePockets  = pockets.filter(p => (spentByPocket[p.id] ?? 0) > 0 || p.budget > 0)
+  const activePockets = pockets.filter((p) => (spentByPocket[p.id] ?? 0) > 0 || p.budget > 0)
   const recentExpenses = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
-    [expenses],
+    [expenses]
   )
 
   const dateLabel = today.toLocaleDateString(config.locale, {
-    weekday: 'long', day: 'numeric', month: 'long',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
   })
 
   return (
     <div className="pb-8">
-
       {/* ── Hero Card ────────────────────────────────────────────────────── */}
-      {isLoading ? (
-        // Skeleton Hero Card
-        <div
-          className="rounded-b-[2.5rem] px-5 pt-12 pb-8 overflow-hidden relative"
-          style={{
-            background: 'linear-gradient(135deg, #0D6259 0%, #0891B2 100%)',
-            boxShadow: '0 8px 40px rgba(4,47,46,.30)',
-          }}
-        >
-          <div className="space-y-4">
-            {/* Date skeleton */}
-            <div className="flex justify-between items-center mb-8">
-              <div className="h-3 w-24 bg-white/20 rounded animate-pulse" />
-              <div className="h-10 w-10 bg-white/20 rounded-2xl animate-pulse" />
-            </div>
-            {/* Status skeleton */}
-            <div className="h-4 w-32 bg-white/20 rounded animate-pulse mb-4" />
-            {/* Main number skeleton */}
-            <div className="h-16 w-48 bg-white/20 rounded animate-pulse mb-2" />
-            {/* Context skeleton */}
-            <div className="h-4 w-40 bg-white/20 rounded animate-pulse mb-4" />
-            {/* Progress bar skeleton */}
-            <div className="h-3 w-full bg-white/10 rounded-full animate-pulse" />
-          </div>
-        </div>
-      ) : (
       <div
         className="rounded-b-[2.5rem] px-5 pt-12 pb-8 overflow-hidden relative transition-all duration-500"
         style={{
-          background: calmState === 'green'
-            ? 'linear-gradient(150deg, #0A1628 0%, #0D6259 48%, #0891B2 100%)'  // tranquilo
-            : calmState === 'yellow'
-              ? 'linear-gradient(150deg, #1C0F00 0%, #A05209 50%, #F0C040 100%)' // ajustado
-              : 'linear-gradient(150deg, #2D0A0A 0%, #B02020 50%, #F87171 100%)', // riesgo (red)
+          background:
+            calmState === 'green'
+              ? 'linear-gradient(150deg, #0A1628 0%, #0D6259 48%, #0891B2 100%)' // tranquilo
+              : calmState === 'yellow'
+                ? 'linear-gradient(150deg, #1C0F00 0%, #A05209 50%, #F0C040 100%)' // ajustado
+                : 'linear-gradient(150deg, #2D0A0A 0%, #B02020 50%, #F87171 100%)', // riesgo (red)
           boxShadow: '0 8px 40px rgba(4,47,46,.30)',
         }}
       >
         <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-white/8 pointer-events-none" />
-        <div className="absolute bottom-0 -left-12 w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)' }} />
+        <div
+          className="absolute bottom-0 -left-12 w-48 h-48 rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(103,232,249,.15) 0%, transparent 70%)',
+          }}
+        />
 
         {/* Top row */}
         <div className="flex items-center justify-between mb-8 relative">
           <div className="flex flex-col gap-1">
-            <p className="text-[11px] text-white/70 font-medium">{dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</p>
+            <p className="text-[11px] text-white/70 font-medium">
+              {dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}
+            </p>
           </div>
 
           {/* ☰ Menu button */}
           <div className="relative flex items-center gap-2">
             <button
-              onClick={() => setMenuOpen(o => !o)}
+              onClick={() => setMenuOpen((o) => !o)}
               className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
               style={{ backdropFilter: 'blur(4px)' }}
             >
@@ -236,7 +216,7 @@ export function DashboardScreen({
                     width: 260,
                     top: '80px',
                     right: '20px',
-                    boxShadow: '0 8px 32px rgba(15,23,42,.18)'
+                    boxShadow: '0 8px 32px rgba(15,23,42,.18)',
                   }}
                 >
                   {/* Exportar datos */}
@@ -258,7 +238,10 @@ export function DashboardScreen({
                       <p className="text-[10px] text-slate-400 mt-0.5">Privacidad</p>
                     </div>
                     <button
-                      onClick={() => { onTogglePrivacy(); setMenuOpen(false) }}
+                      onClick={() => {
+                        onTogglePrivacy()
+                        setMenuOpen(false)
+                      }}
                       className={`w-11 h-6 rounded-full relative transition-colors duration-200 shrink-0 ${
                         isPrivacyMode ? 'bg-teal-500' : 'bg-slate-200'
                       }`}
@@ -280,59 +263,60 @@ export function DashboardScreen({
             Pantalla simplificada: 3 elementos clave en 3 segundos
             ────────────────────────────────────────────────────────────────
         */}
-        {effectiveBudget > 0 && (() => {
-          const spendingPct = monthlyBudget > 0 ? Math.round((totalSpent / monthlyBudget) * 100) : 0
+        {effectiveBudget > 0 &&
+          (() => {
+            const spendingPct =
+              monthlyBudget > 0 ? Math.round((totalSpent / monthlyBudget) * 100) : 0
 
-          // Status message del snapshot: green, yellow, red
-          const statusMessages: Record<string, string> = {
-            'green': 'Vas bien',
-            'yellow': 'Ojo, vas por encima',
-            'red': 'Te estás pasando',
-          }
-          const statusText = statusMessages[calmState] || 'Vas bien'
+            // Status message del snapshot: green, yellow, red
+            const statusMessages: Record<string, string> = {
+              green: 'Vas bien',
+              yellow: 'Ojo, vas por encima',
+              red: 'Te estás pasando',
+            }
+            const statusText = statusMessages[calmState] || 'Vas bien'
 
-          return (
-            <>
-              {/* 1. ESTADO (basado en snapshot.status) */}
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-white/85 leading-snug">
-                  {statusText}
+            return (
+              <>
+                {/* 1. ESTADO (basado en snapshot.status) */}
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-white/85 leading-snug">{statusText}</p>
+                </div>
+
+                {/* 2. NÚMERO PRINCIPAL: dinero disponible */}
+                <p className="text-[3.5rem] font-bold text-white tabular-nums leading-none mb-3">
+                  {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
                 </p>
-              </div>
 
-              {/* 2. NÚMERO PRINCIPAL: dinero disponible */}
-              <p className="text-[3.5rem] font-bold text-white tabular-nums leading-none mb-3">
-                {remaining >= 0 ? mm(remaining) : `−${mm(-remaining)}`}
-              </p>
+                {/* 3. LABEL: Disponible o Exceso según remaining */}
+                <p className="text-sm text-white/80 mb-5 font-medium">
+                  {remaining >= 0
+                    ? 'Disponible para gastar de tu presupuesto'
+                    : 'Has excedido tu presupuesto'}
+                </p>
 
-              {/* 3. LABEL: Disponible o Exceso según remaining */}
-              <p className="text-sm text-white/80 mb-5 font-medium">
-                {remaining >= 0
-                  ? 'Disponible para gastar de tu presupuesto'
-                  : 'Has excedido tu presupuesto'
-                }
-              </p>
-
-              {/* 4. BARRA DE PROGRESO vs PRESUPUESTO */}
-              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.15)' }}>
+                {/* 4. BARRA DE PROGRESO vs PRESUPUESTO */}
                 <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${Math.min(100, spendingPct)}%`,
-                    background: calmState === 'red'
-                      ? 'linear-gradient(90deg, #EF4444, #FCA5A5)'
-                      : calmState === 'yellow'
-                        ? 'linear-gradient(90deg, #FBBF24, #FCD34D)'
-                        : 'linear-gradient(90deg, #10B981, #6EE7B7)',
-                  }}
-                />
-              </div>
-            </>
-          )
-        })()}
+                  className="h-2.5 rounded-full overflow-hidden"
+                  style={{ background: 'rgba(255,255,255,.15)' }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${Math.min(100, spendingPct)}%`,
+                      background:
+                        calmState === 'red'
+                          ? 'linear-gradient(90deg, #EF4444, #FCA5A5)'
+                          : calmState === 'yellow'
+                            ? 'linear-gradient(90deg, #FBBF24, #FCD34D)'
+                            : 'linear-gradient(90deg, #10B981, #6EE7B7)',
+                    }}
+                  />
+                </div>
+              </>
+            )
+          })()}
       </div>
-      )}
-
 
       {/* ── Pockets ──────────────────────────────────────────────────────── */}
       {activePockets.length > 0 && (
@@ -386,7 +370,6 @@ export function DashboardScreen({
           </div>
         </div>
       )}
-
     </div>
   )
 }
