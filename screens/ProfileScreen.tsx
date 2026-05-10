@@ -124,7 +124,7 @@ export function ProfileScreen({
   // Handle avatar editor save
   const handleAvatarSave = (croppedImage: string) => {
     console.log('[ProfileScreen] 🔵 handleAvatarSave called')
-    const newData = { ...profileData, avatar_url: croppedImage }
+    const newData = { ...profileData, avatarUrl: croppedImage }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
     setShowAvatarEditor(false)
@@ -141,7 +141,7 @@ export function ProfileScreen({
 
   // Handle avatar delete
   const handleAvatarDelete = () => {
-    const newData = { ...profileData, avatar_url: '/logo-ui.png' }
+    const newData = { ...profileData, avatarUrl: '/logo-ui.png' }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
   }
