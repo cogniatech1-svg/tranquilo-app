@@ -321,6 +321,18 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       // Learned category map table may not exist - that's fine, optional feature
     }
 
+    // Reconstruct profile from user data
+    const profile: UserProfile | undefined = userData
+      ? {
+          full_name: userData.full_name || '',
+          phone: userData.phone || '',
+          avatar_url: userData.avatar_url || '',
+          country: userData.country || 'CO',
+          onboarding_completed: userData.onboarding_completed || false,
+          updated_at: userData.updated_at,
+        }
+      : undefined
+
     // Reconstruct StoredData
     const storedData: StoredData = {
       monthlyHistory,
@@ -339,7 +351,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       countryCode: userData?.country_code || 'CO',
       isPrivacyMode: userData?.is_privacy_mode || false,
       currentMonth: undefined,
-      profile: userData?.profile_data ?? undefined,
+      profile,
     }
 
     console.log('[Supabase] 🔵 loadUserData completed:', {
@@ -347,11 +359,10 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       hasProfile: !!storedData.profile,
       profileData: storedData.profile
         ? {
-            nombre: storedData.profile.nombre,
-            email: storedData.profile.email,
-            telefono: storedData.profile.telefono,
-            pais: storedData.profile.pais,
-            avatarUrl: storedData.profile.avatarUrl ? '(image)' : '(none)',
+            full_name: storedData.profile.full_name,
+            phone: storedData.profile.phone,
+            country: storedData.profile.country,
+            hasAvatar: storedData.profile.avatar_url ? '✓' : '✗',
           }
         : null,
       monthsLoaded: Object.keys(monthlyHistory).length,
@@ -469,28 +480,75 @@ export function subscribeToUserData(
 }
 
 /**
- * Save only the user profile — does NOT touch expenses, incomes, or any other table.
+ * Save user profile to Supabase users table
+ * Profile fields are persisted directly in users table (not as JSON)
  */
 export async function saveProfileData(userId: string, profile: UserProfile): Promise<void> {
-  console.log('[Supabase] 🔵 saveProfileData called:', {
+  console.log('[Supabase] 🔵 Guardando perfil de usuario:', {
     userId,
-    profileData: {
-      nombre: profile.nombre,
-      email: profile.email,
-      telefono: profile.telefono,
-      pais: profile.pais,
-      avatarUrl: profile.avatarUrl ? '(image)' : '(none)',
-    },
+    full_name: profile.full_name,
+    phone: profile.phone,
+    country: profile.country,
+    hasAvatar: profile.avatar_url ? '✓' : '✗',
   })
 
-  const { error } = await supabase.from('users').update({ profile_data: profile }).eq('id', userId)
+  const { error } = await supabase
+    .from('users')
+    .update({
+      full_name: profile.full_name,
+      phone: profile.phone,
+      avatar_url: profile.avatar_url,
+      country: profile.country,
+      onboarding_completed: profile.onboarding_completed ?? false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
 
   if (error) {
-    console.error('[Supabase] ❌ Error saving profile:', error)
+    console.error('[Supabase] ❌ Error guardando perfil:', error)
     throw error
   }
 
-  console.log('[Supabase] ✅ Profile saved successfully')
+  console.log('[Supabase] ✅ Perfil guardado exitosamente')
+}
+
+/**
+ * Upload avatar image to Supabase Storage and return public URL
+ */
+export async function uploadAvatar(userId: string, base64Image: string): Promise<string> {
+  try {
+    // Convert base64 to blob
+    const arr = base64Image.split(',')
+    const bstr = atob(arr[1])
+    const n = bstr.length
+    const u8arr = new Uint8Array(n)
+    for (let i = 0; i < n; i++) {
+      u8arr[i] = bstr.charCodeAt(i)
+    }
+    const blob = new Blob([u8arr], { type: 'image/png' })
+
+    // Upload to Storage
+    const filename = `${userId}-${Date.now()}.png`
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(`${userId}/${filename}`, blob, {
+        cacheControl: '3600',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error('[Supabase] ❌ Error subiendo avatar:', uploadError)
+      throw uploadError
+    }
+
+    // Get public URL
+    const { data } = supabase.storage.from('avatars').getPublicUrl(`${userId}/${filename}`)
+    console.log('[Supabase] ✅ Avatar subido:', { url: data.publicUrl })
+    return data.publicUrl
+  } catch (error) {
+    console.error('[Supabase] ❌ Avatar upload error:', error)
+    throw error
+  }
 }
 
 /**

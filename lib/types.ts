@@ -88,11 +88,12 @@ export interface ParsedTransaction {
 }
 
 export interface UserProfile {
-  nombre: string
-  email: string
-  telefono: string
-  pais: string
-  avatarUrl: string
+  full_name: string
+  phone: string
+  avatar_url: string
+  country: string
+  onboarding_completed?: boolean
+  updated_at?: string
 }
 
 export interface StoredData {

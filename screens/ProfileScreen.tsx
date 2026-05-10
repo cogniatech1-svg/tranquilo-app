@@ -44,11 +44,11 @@ export function ProfileScreen({
     return saved
       ? JSON.parse(saved)
       : {
-          nombre: 'Juan Pérez',
-          email: 'juan@example.com',
-          telefono: '+57 300 123 4567',
-          pais: 'Colombia',
-          avatarUrl: '/logo-ui.png',
+          full_name: 'Usuario',
+          phone: '',
+          avatar_url: '/logo-ui.png',
+          country: 'CO',
+          onboarding_completed: false,
         }
   })
 
@@ -56,9 +56,9 @@ export function ProfileScreen({
   useEffect(() => {
     if (profileDataProp) {
       console.log('[ProfileScreen] 🔵 Received profileDataProp from parent:', {
-        nombre: profileDataProp.nombre,
-        email: profileDataProp.email,
-        pais: profileDataProp.pais,
+        full_name: profileDataProp.full_name,
+        phone: profileDataProp.phone,
+        country: profileDataProp.country,
       })
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfileData(profileDataProp)
@@ -89,9 +89,9 @@ export function ProfileScreen({
   // Save profile to localStorage + Supabase
   const saveProfileData = () => {
     console.log('[ProfileScreen] 🔵 saveProfileData called with:', {
-      nombre: editData.nombre,
-      email: editData.email,
-      pais: editData.pais,
+      full_name: editData.full_name,
+      phone: editData.phone,
+      country: editData.country,
     })
     localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
     setProfileData(editData)
@@ -124,7 +124,7 @@ export function ProfileScreen({
   // Handle avatar editor save
   const handleAvatarSave = (croppedImage: string) => {
     console.log('[ProfileScreen] 🔵 handleAvatarSave called')
-    const newData = { ...profileData, avatarUrl: croppedImage }
+    const newData = { ...profileData, avatar_url: croppedImage }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
     setShowAvatarEditor(false)
@@ -141,7 +141,7 @@ export function ProfileScreen({
 
   // Handle avatar delete
   const handleAvatarDelete = () => {
-    const newData = { ...profileData, avatarUrl: '/logo-ui.png' }
+    const newData = { ...profileData, avatar_url: '/logo-ui.png' }
     localStorage.setItem('tranquilo_profile', JSON.stringify(newData))
     setProfileData(newData)
   }
@@ -480,17 +480,16 @@ export function ProfileScreen({
       title: 'Mi Perfil',
       icon: '👤',
       content: [
-        { label: 'Nombre', value: profileData.nombre, editable: true, field: 'nombre' },
-        { label: 'Email', value: profileData.email, editable: true, field: 'email' },
-        { label: 'Teléfono', value: profileData.telefono, editable: true, field: 'telefono' },
-        { label: 'País', value: profileData.pais, editable: true, field: 'pais' },
+        { label: 'Nombre', value: profileData.full_name, editable: true, field: 'full_name' },
+        { label: 'Teléfono', value: profileData.phone, editable: true, field: 'phone' },
+        { label: 'País', value: profileData.country, editable: true, field: 'country' },
       ],
     },
     foto: {
       title: 'Foto de Perfil',
       icon: '📸',
       content: [
-        { label: 'Foto actual', value: profileData.avatarUrl, type: 'image' },
+        { label: 'Foto actual', value: profileData.avatar_url, type: 'image' },
         {
           label: 'Cambiar',
           value: 'Subir nueva foto',
@@ -602,7 +601,7 @@ export function ProfileScreen({
             }}
           >
             <img
-              src={profileData.avatarUrl}
+              src={profileData.avatar_url}
               alt="Avatar"
               style={{
                 width: '60px',
@@ -621,7 +620,7 @@ export function ProfileScreen({
               letterSpacing: '-0.5px',
             }}
           >
-            {profileData.nombre}
+            {profileData.full_name}
           </h1>
           <p
             style={{
@@ -631,7 +630,7 @@ export function ProfileScreen({
               fontWeight: 500,
             }}
           >
-            {profileData.email}
+            {profileData.phone || 'Sin teléfono'}
           </p>
         </div>
 
