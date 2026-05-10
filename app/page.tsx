@@ -179,10 +179,12 @@ export default function Home() {
     isMountedRef.current = true
 
     const unsubscribe = onAuthStateChanged((event, user) => {
+      console.log('═══════════════════════════════════════════════════════════')
       console.log(
         `[onAuthStateChanged] event=${event}, user=`,
         user ? `${user.email} (${user.uid})` : 'null'
       )
+      console.log('═══════════════════════════════════════════════════════════')
       handleAuth(event, user)
     })
 
@@ -263,16 +265,28 @@ export default function Home() {
           ? `${STORAGE_KEY}_${currentUserId}`
           : `${STORAGE_KEY}_${guestUserId}`
 
+        console.log('═══════════════════════════════════════════════════════════')
+        console.log('[initializeApp] 🔷 INICIANDO CARGA DE DATOS')
+        console.log('═══════════════════════════════════════════════════════════')
+        console.log('[initializeApp] userId autenticado:', currentUserId)
+        console.log('[initializeApp] guestUserId:', guestUserId)
+        console.log('[initializeApp] storageKey:', storageKey)
+
         // ── LOAD FROM SUPABASE (fuente de verdad) ─────────────────────────────
         let data: StoredData = {}
         const loadUserId = currentUserId || guestUserId
         if (loadUserId) {
+          console.log('[initializeApp] 🔷 Cargando de Supabase con loadUserId:', loadUserId)
           const supabaseData = await loadUserData(loadUserId)
           if (supabaseData) {
             data = supabaseData
-            console.log('[initializeApp] ✅ Loaded from Supabase')
+            console.log('[initializeApp] ✅ Datos cargados de Supabase:', {
+              monthsCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+              hasProfile: !!data.profile,
+              monthlyIncome: data.monthlyIncome,
+            })
           } else {
-            console.log('[initializeApp] ℹ️ No data in Supabase (new user)')
+            console.log('[initializeApp] ⚠️ Sin datos en Supabase (usuario nuevo?)')
           }
         }
 
@@ -284,14 +298,20 @@ export default function Home() {
         const hasSupabaseHistory =
           data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0
         if (!hasSupabaseHistory) {
+          console.log('[initializeApp] 🔷 Sin datos en Supabase, intentando localStorage...')
           const raw = localStorage.getItem(storageKey)
           if (raw) {
             try {
               data = JSON.parse(raw) as StoredData
-              console.log('[initializeApp] ✅ Loaded from localStorage (Supabase had no history)')
+              console.log('[initializeApp] ✅ Datos cargados de localStorage:', {
+                monthsCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+                hasProfile: !!data.profile,
+              })
             } catch {
-              /* JSON inválido */
+              console.log('[initializeApp] ❌ Error parsing localStorage')
             }
+          } else {
+            console.log('[initializeApp] ❌ Sin datos en localStorage tampoco')
           }
         }
 
@@ -485,19 +505,22 @@ export default function Home() {
       const storageKey = `${STORAGE_KEY}_${saveUserId}`
       try {
         localStorage.setItem(storageKey, JSON.stringify(dataToSave))
-        console.log(`[AUTO-SAVE] ✅ Saved to localStorage for userId: ${saveUserId}`)
+        console.log(`[AUTO-SAVE] ✅ localStorage guardado para userId: ${saveUserId}`)
       } catch (error) {
-        console.error('Error saving to localStorage:', error)
+        console.error('[AUTO-SAVE] ❌ Error guardando localStorage:', error)
       }
 
       // Save to Supabase (primary storage for authenticated and guest users)
       if (saveUserId) {
         try {
-          console.log(`[AUTO-SAVE] Saving to Supabase for userId: ${saveUserId}`)
+          console.log(`[AUTO-SAVE] 🔷 Guardando a Supabase para userId: ${saveUserId}`, {
+            monthlyHistoryMonths: Object.keys(dataToSave.monthlyHistory || {}).length,
+            monthlyIncome: dataToSave.monthlyIncome,
+          })
           await saveUserData(saveUserId, dataToSave)
-          console.log(`[AUTO-SAVE] ✅ Saved to Supabase successfully`)
+          console.log(`[AUTO-SAVE] ✅ Supabase guardado exitosamente`)
         } catch (error) {
-          console.error('[AUTO-SAVE] ❌ Error saving to Supabase:', error)
+          console.error('[AUTO-SAVE] ❌ Error guardando a Supabase:', error)
         }
       }
     }, 2000)
@@ -552,9 +575,12 @@ export default function Home() {
         }
 
         try {
-          console.log('[VISIBILITY] App ocultada, guardando en Supabase inmediatamente...')
+          console.log('[VISIBILITY] 🔷 App ocultada, guardando en Supabase inmediatamente...', {
+            userId: saveUserId,
+            monthlyHistoryMonths: Object.keys(monthlyHistory).length,
+          })
           await saveUserData(saveUserId, dataToSave)
-          console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir')
+          console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir de la app')
         } catch (e) {
           console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
         }
@@ -713,6 +739,12 @@ export default function Home() {
             expenses: newExpenses,
           },
         }
+        console.log('[EXPENSE] 🔷 Nuevo gasto guardado:', {
+          userId: userId || guestUserId,
+          concept: rest.concept,
+          amount: rest.amount,
+          month: activeMonth,
+        })
         saveNow(updated)
         return updated
       })
