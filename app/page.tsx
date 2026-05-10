@@ -356,8 +356,8 @@ export default function Home() {
         if (data.isPrivacyMode) setIsPrivacyMode(true)
         if (data.profile) {
           console.log('[initializeApp] 🔵 Setting profileData from loaded data:', {
-            full_name: data.profile.full_name,
-            phone: data.profile.phone,
+            nombre: data.profile.nombre,
+            email: data.profile.email,
           })
           setProfileData(data.profile)
         } else {
@@ -1135,8 +1135,8 @@ export default function Home() {
   const handleSaveProfile = useCallback(
     async (newProfile: import('../lib/types').UserProfile) => {
       console.log('[page.tsx] 🔵 handleSaveProfile called:', {
-        full_name: newProfile.full_name,
-        phone: newProfile.phone,
+        nombre: newProfile.nombre,
+        email: newProfile.email,
         userId: userId || guestUserId,
       })
       setProfileData(newProfile)

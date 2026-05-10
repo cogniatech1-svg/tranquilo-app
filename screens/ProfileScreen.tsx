@@ -44,11 +44,11 @@ export function ProfileScreen({
     return saved
       ? JSON.parse(saved)
       : {
-          full_name: 'Usuario',
-          phone: '',
-          avatar_url: '/logo-ui.png',
-          country: 'CO',
-          onboarding_completed: false,
+          nombre: 'Juan Pérez',
+          email: 'juan@example.com',
+          telefono: '+57 300 123 4567',
+          pais: 'Colombia',
+          avatarUrl: '/logo-ui.png',
         }
   })
 
@@ -56,9 +56,9 @@ export function ProfileScreen({
   useEffect(() => {
     if (profileDataProp) {
       console.log('[ProfileScreen] 🔵 Received profileDataProp from parent:', {
-        full_name: profileDataProp.full_name,
-        phone: profileDataProp.phone,
-        country: profileDataProp.country,
+        nombre: profileDataProp.nombre,
+        email: profileDataProp.email,
+        pais: profileDataProp.pais,
       })
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfileData(profileDataProp)
@@ -89,9 +89,9 @@ export function ProfileScreen({
   // Save profile to localStorage + Supabase
   const saveProfileData = () => {
     console.log('[ProfileScreen] 🔵 saveProfileData called with:', {
-      full_name: editData.full_name,
-      phone: editData.phone,
-      country: editData.country,
+      nombre: editData.nombre,
+      email: editData.email,
+      pais: editData.pais,
     })
     localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
     setProfileData(editData)
@@ -480,16 +480,17 @@ export function ProfileScreen({
       title: 'Mi Perfil',
       icon: '👤',
       content: [
-        { label: 'Nombre', value: profileData.full_name, editable: true, field: 'full_name' },
-        { label: 'Teléfono', value: profileData.phone, editable: true, field: 'phone' },
-        { label: 'País', value: profileData.country, editable: true, field: 'country' },
+        { label: 'Nombre', value: profileData.nombre, editable: true, field: 'nombre' },
+        { label: 'Email', value: profileData.email, editable: true, field: 'email' },
+        { label: 'Teléfono', value: profileData.telefono, editable: true, field: 'telefono' },
+        { label: 'País', value: profileData.pais, editable: true, field: 'pais' },
       ],
     },
     foto: {
       title: 'Foto de Perfil',
       icon: '📸',
       content: [
-        { label: 'Foto actual', value: profileData.avatar_url, type: 'image' },
+        { label: 'Foto actual', value: profileData.avatarUrl, type: 'image' },
         {
           label: 'Cambiar',
           value: 'Subir nueva foto',
@@ -601,7 +602,7 @@ export function ProfileScreen({
             }}
           >
             <img
-              src={profileData.avatar_url}
+              src={profileData.avatarUrl}
               alt="Avatar"
               style={{
                 width: '60px',
@@ -620,7 +621,7 @@ export function ProfileScreen({
               letterSpacing: '-0.5px',
             }}
           >
-            {profileData.full_name}
+            {profileData.nombre}
           </h1>
           <p
             style={{
@@ -630,7 +631,7 @@ export function ProfileScreen({
               fontWeight: 500,
             }}
           >
-            {profileData.phone || 'Sin teléfono'}
+            {profileData.email}
           </p>
         </div>
 
