@@ -1186,20 +1186,8 @@ export default function Home() {
     )
   }
 
-  // ── Show login screen ────────────────────────────────────────────────────
-  if (screen === 'login') {
-    return (
-      <LoginScreen
-        authenticatedEmail={userEmail || undefined}
-        onLoginSuccess={() => {}}
-        onGuestMode={handleGuestMode}
-        onLogOut={() => {}}
-      />
-    )
-  }
-
   // ── Wait for hydration ─────────────────────────────────────────────────────
-  if (!hydrated)
+  if (!hydrated || authLoading)
     return (
       <div
         style={{
@@ -1455,6 +1443,18 @@ export default function Home() {
       `}</style>
       </div>
     )
+
+  // ── Show login screen ────────────────────────────────────────────────────
+  if (screen === 'login') {
+    return (
+      <LoginScreen
+        authenticatedEmail={userEmail || undefined}
+        onLoginSuccess={() => {}}
+        onGuestMode={handleGuestMode}
+        onLogOut={() => {}}
+      />
+    )
+  }
 
   // ── Onboarding ────────────────────────────────────────────────────────────
   if (screen === 'onboarding') {
