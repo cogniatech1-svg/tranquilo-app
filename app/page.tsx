@@ -1186,11 +1186,20 @@ export default function Home() {
     )
   }
 
-  // ── Wait for hydration / auth check ──────────────────────────────────────
-  // IMPORTANT: This must be checked BEFORE the login screen to avoid a flash
-  // of the login form while Supabase resolves the initial session.
-  // Sequence: PWA splash → loading skeleton → (login | main) — no login flash.
-  if (!hydrated || authLoading)
+  // ── Show login screen ────────────────────────────────────────────────────
+  if (screen === 'login') {
+    return (
+      <LoginScreen
+        authenticatedEmail={userEmail || undefined}
+        onLoginSuccess={() => {}}
+        onGuestMode={handleGuestMode}
+        onLogOut={() => {}}
+      />
+    )
+  }
+
+  // ── Wait for hydration ─────────────────────────────────────────────────────
+  if (!hydrated)
     return (
       <div
         style={{
@@ -1446,18 +1455,6 @@ export default function Home() {
       `}</style>
       </div>
     )
-
-  // ── Show login screen ─────────────────────────────────────────────────────
-  if (screen === 'login') {
-    return (
-      <LoginScreen
-        authenticatedEmail={userEmail || undefined}
-        onLoginSuccess={() => {}}
-        onGuestMode={handleGuestMode}
-        onLogOut={() => {}}
-      />
-    )
-  }
 
   // ── Onboarding ────────────────────────────────────────────────────────────
   if (screen === 'onboarding') {
