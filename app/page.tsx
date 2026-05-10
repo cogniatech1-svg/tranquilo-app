@@ -95,6 +95,9 @@ export default function Home() {
   const [guestUserId, setGuestUserId] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [screen, setScreen] = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
+  const [profileData, setProfileData] = useState<import('../lib/types').UserProfile | undefined>(
+    undefined
+  )
   const [activeTab, setActiveTab] = useState<TabId>('inicio')
 
   const [countryCode, setCountryCode] = useState<CountryCode>('CO')
@@ -320,6 +323,7 @@ export default function Home() {
         setConceptMap(data.conceptMap ?? {})
         setLearnedCategoryMap(data.learnedCategoryMap ?? {})
         if (data.isPrivacyMode) setIsPrivacyMode(true)
+        if (data.profile) setProfileData(data.profile)
 
         if (data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0) {
           // Ignore stale load runs or late loads after data is already initialized.
@@ -1050,6 +1054,25 @@ export default function Home() {
     setIsPrivacyMode((prev) => !prev)
   }, [])
 
+  const handleSaveProfile = useCallback(
+    async (newProfile: import('../lib/types').UserProfile) => {
+      setProfileData(newProfile)
+      const saveUserId = userId || guestUserId
+      if (!saveUserId) return
+      const storageKey = `${STORAGE_KEY}_${saveUserId}`
+      const raw = localStorage.getItem(storageKey)
+      const existing = raw ? JSON.parse(raw) : {}
+      const updated = { ...existing, profile: newProfile }
+      localStorage.setItem(storageKey, JSON.stringify(updated))
+      try {
+        await saveUserData(saveUserId, { ...updated })
+      } catch (e) {
+        console.error('[PROFILE] Error saving profile to Supabase:', e)
+      }
+    },
+    [userId, guestUserId]
+  )
+
   const handleLogOut = useCallback(async () => {
     try {
       await logOut()
@@ -1537,6 +1560,8 @@ export default function Home() {
             onTogglePrivacy={handleTogglePrivacy}
             userEmail={userId ? 'User' : 'Guest'}
             onLogOut={handleLogOut}
+            profileData={profileData}
+            onSaveProfile={handleSaveProfile}
           />
         )}
       </div>

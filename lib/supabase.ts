@@ -38,6 +38,7 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       monthly_savings: data.monthlySavings,
       country_code: data.countryCode,
       is_privacy_mode: data.isPrivacyMode,
+      profile_data: data.profile ?? null,
     })
 
     if (userError) {
@@ -320,6 +321,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       countryCode: userData?.country_code || 'CO',
       isPrivacyMode: userData?.is_privacy_mode || false,
       currentMonth: undefined,
+      profile: userData?.profile_data ?? undefined,
     }
 
     return storedData

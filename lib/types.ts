@@ -27,7 +27,7 @@ export interface Pocket {
   id: string
   name: string
   budget: number
-  icon?: string   // custom emoji chosen by user
+  icon?: string // custom emoji chosen by user
 }
 
 export interface Expense {
@@ -45,8 +45,8 @@ export type IncomeCategory = 'salary' | 'extra' | 'other'
 export interface ExtraIncome {
   id: string
   amount: number
-  concept: string    // descripción del ingreso (ej: "Venta", "Bono", "Regalo")
-  date: string       // ISO date
+  concept: string // descripción del ingreso (ej: "Venta", "Bono", "Regalo")
+  date: string // ISO date
   category?: IncomeCategory
 }
 
@@ -83,8 +83,16 @@ export interface MonthRecord {
 export interface ParsedTransaction {
   type: 'income' | 'expense'
   amount: number
-  category: string | null   // pocket ID, null if unknown
+  category: string | null // pocket ID, null if unknown
   description: string
+}
+
+export interface UserProfile {
+  nombre: string
+  email: string
+  telefono: string
+  pais: string
+  avatarUrl: string
 }
 
 export interface StoredData {
@@ -93,14 +101,15 @@ export interface StoredData {
   pockets?: Pocket[]
   monthlyBudget?: number
   monthlyIncome?: number
-  monthlySavings?: number   // User-defined or calculated savings
+  monthlySavings?: number // User-defined or calculated savings
   budget?: number
   conceptMap?: Record<string, string>
-  learnedCategoryMap?: Record<string, string>   // word → category mapping (learned from user corrections)
+  learnedCategoryMap?: Record<string, string> // word → category mapping (learned from user corrections)
   currentMonth?: string
   monthlyHistory?: Record<string, MonthRecord>
   countryCode?: CountryCode
   isPrivacyMode?: boolean
+  profile?: UserProfile
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

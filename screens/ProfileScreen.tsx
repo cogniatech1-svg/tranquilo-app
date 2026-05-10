@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
-import type { Expense, ExtraIncome, MonthRecord, StoredData } from '../lib/types'
+import type { Expense, ExtraIncome, MonthRecord, StoredData, UserProfile } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
 import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
@@ -20,6 +20,8 @@ interface Props {
   onTogglePrivacy?: () => void
   userEmail?: string
   onLogOut?: () => Promise<void>
+  profileData?: UserProfile
+  onSaveProfile?: (profile: UserProfile) => Promise<void>
 }
 
 export function ProfileScreen({
@@ -29,12 +31,15 @@ export function ProfileScreen({
   onTogglePrivacy,
   userEmail = 'User',
   onLogOut,
+  profileData: profileDataProp,
+  onSaveProfile,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
 
   // Editable profile fields
-  const [profileData, setProfileData] = useState(() => {
+  const [profileData, setProfileData] = useState<UserProfile>(() => {
+    if (profileDataProp) return profileDataProp
     const saved = typeof window !== 'undefined' ? localStorage.getItem('tranquilo_profile') : null
     return saved
       ? JSON.parse(saved)
@@ -68,11 +73,12 @@ export function ProfileScreen({
   const [showAvatarEditor, setShowAvatarEditor] = useState(false)
   const [tempAvatarImage, setTempAvatarImage] = useState<string>('')
 
-  // Save profile to localStorage
+  // Save profile to localStorage + Supabase
   const saveProfileData = () => {
     localStorage.setItem('tranquilo_profile', JSON.stringify(editData))
     setProfileData(editData)
     setEditingProfile(false)
+    onSaveProfile?.(editData)
   }
 
   const cancelProfileEdit = () => {
@@ -103,6 +109,7 @@ export function ProfileScreen({
     setProfileData(newData)
     setShowAvatarEditor(false)
     setTempAvatarImage('')
+    onSaveProfile?.(newData)
   }
 
   // Handle avatar editor cancel
@@ -762,7 +769,7 @@ export function ProfileScreen({
                       {section.key === 'perfil' && editingProfile && item.field ? (
                         <input
                           type={item.field === 'email' ? 'email' : 'text'}
-                          value={editData[item.field] || ''}
+                          value={(editData as unknown as Record<string, string>)[item.field] || ''}
                           onChange={(e) =>
                             setEditData({ ...editData, [item.field]: e.target.value })
                           }
