@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, ExtraIncome, MonthRecord, StoredData, UserProfile } from '../lib/types'
@@ -51,6 +51,12 @@ export function ProfileScreen({
           avatarUrl: '/logo-ui.png',
         }
   })
+
+  // Actualizar cuando lleguen datos de Supabase (carga asíncrona)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (profileDataProp) setProfileData(profileDataProp)
+  }, [profileDataProp])
 
   const [editingProfile, setEditingProfile] = useState(false)
   const [editData, setEditData] = useState(profileData)

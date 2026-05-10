@@ -41,7 +41,7 @@ import type { AuthUser } from '../lib/auth'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
 import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
-import { saveUserData, loadUserData, subscribeToUserData } from '../lib/supabase'
+import { saveUserData, loadUserData, subscribeToUserData, saveProfileData } from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STORAGE
@@ -1059,13 +1059,9 @@ export default function Home() {
       setProfileData(newProfile)
       const saveUserId = userId || guestUserId
       if (!saveUserId) return
-      const storageKey = `${STORAGE_KEY}_${saveUserId}`
-      const raw = localStorage.getItem(storageKey)
-      const existing = raw ? JSON.parse(raw) : {}
-      const updated = { ...existing, profile: newProfile }
-      localStorage.setItem(storageKey, JSON.stringify(updated))
+      // Solo guarda profile_data — no toca gastos ni movimientos
       try {
-        await saveUserData(saveUserId, { ...updated })
+        await saveProfileData(saveUserId, newProfile)
       } catch (e) {
         console.error('[PROFILE] Error saving profile to Supabase:', e)
       }

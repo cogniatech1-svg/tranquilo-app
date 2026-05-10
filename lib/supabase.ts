@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { StoredData, MonthRecord, Expense, ExtraIncome, Pocket } from './types'
+import type { StoredData, MonthRecord, Expense, ExtraIncome, Pocket, UserProfile } from './types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -432,5 +432,17 @@ export function subscribeToUserData(
 
   return () => {
     channels.forEach((channel) => channel.unsubscribe())
+  }
+}
+
+/**
+ * Save only the user profile — does NOT touch expenses, incomes, or any other table.
+ */
+export async function saveProfileData(userId: string, profile: UserProfile): Promise<void> {
+  const { error } = await supabase.from('users').update({ profile_data: profile }).eq('id', userId)
+
+  if (error) {
+    console.error('[Supabase] Error saving profile:', error)
+    throw error
   }
 }
