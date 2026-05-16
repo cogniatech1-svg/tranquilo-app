@@ -293,6 +293,124 @@ Si alguna instrucción futura entra en conflicto con esta skill:
 
 ---
 
+# POST-IMPLEMENTATION RULES (CRÍTICO)
+
+## 16. EXPLICACIÓN OBLIGATORIA DESPUÉS DE CADA IMPLEMENTACIÓN
+
+Después de cada cambio, debes explicar EXACTAMENTE:
+
+1. **Qué cambió**
+   - Enumerar cada archivo modificado
+   - Describir el cambio específico en cada uno
+   - Mostrar las líneas de código que cambiaron
+
+2. **Qué NO cambió**
+   - Confirmar que otros sistemas siguen intactos
+   - Listar archivos que NO fueron tocados
+   - Verificar que lógica existente se preservó
+
+3. **Qué archivos fueron modificados**
+   - Listado completo de rutas
+   - Contexto de cada cambio
+
+4. **Qué riesgos residuales existen**
+   - Posibles efectos secundarios
+   - Datos que podrían verse afectados
+   - Inconsistencias que NO se resolvieron en este cambio
+
+## 17. VALIDACIÓN TÉCNICA OBLIGATORIA
+
+Después de implementar, SIEMPRE:
+
+1. Ejecutar `npm run lint` y reportar resultado
+2. Ejecutar `npm run typecheck` y reportar resultado
+3. Ejecutar `npm run build` (si aplica) y reportar resultado
+4. Capturar y mostrar CUALQUIER error o warning
+5. NO proceder si hay errores sin resolver
+
+## 18. PRUEBAS MANUALES ESPECÍFICAS
+
+Proponer y DETALLAR exactamente:
+
+1. Pasos para verificar el cambio
+2. Qué UI elementos verificar
+3. Qué comportamientos confirmar
+4. Datos que deben persistir
+5. Efectos cross-device (si aplica)
+
+**Nunca proponer pruebas genéricas.**
+
+Ejemplos de pruebas ESPECÍFICAS:
+
+- ✅ "Abre app en móvil, edita nombre en perfil, verifica que aparezca en el campo y se guarde en localStorage"
+- ✅ "Inicia sesión en tablet, abre perfil, verifica que muestre nombre actualizado desde móvil"
+- ✅ "Registra gasto en móvil, espera 2 segundos (debounce), desconecta internet, recarga app, verifica que el gasto siga visible"
+
+No:
+
+- ❌ "Prueba el perfil"
+- ❌ "Verifica que todo funcione"
+- ❌ "Comprueba la sincronización"
+
+## 19. NUNCA ASUMIR QUE ESTÁ "RESUELTO"
+
+**Crítico:**
+
+- NO marcar como completo sin validación
+- NO asumir que funciona porque compile
+- NO pasar al siguiente cambio automáticamente
+- NO continuar sin confirmación explícita del usuario
+
+El ciclo completo es:
+
+1. Implementar
+2. Explicar qué cambió y qué riesgos existen
+3. Ejecutar lint/typecheck/build
+4. Proponer pruebas manuales específicas
+5. **ESPERAR a que el usuario reporte resultados**
+6. Solo si el usuario confirma que funciona → pasar al siguiente cambio
+
+## 20. ADVERTENCIAS ESPECIALES PARA CAMBIOS SENSIBLES
+
+Si el cambio toca:
+
+- persistencia (localStorage, Supabase)
+- sincronización (cross-device)
+- autenticación
+- datos financieros
+- hydration o estados iniciales
+
+**Debes advertir explícitamente:**
+
+1. Qué datos podría afectar
+2. Qué sucede si el usuario pierde conexión durante el cambio
+3. Qué sucede si el usuario accede desde múltiples dispositivos
+4. Cómo recuperarse si algo falla
+5. Dónde están los backups (si aplica)
+
+## 21. VALIDACIÓN EN DISPOSITIVO REAL (GATING FINAL)
+
+**Esta es la barrera más importante:**
+
+Un cambio NO se considera "resuelto" hasta que:
+
+- [ ] Se haya testeado en **dispositivo móvil real** (no emulador)
+- [ ] Se haya verificado la interfaz visual
+- [ ] Se haya verificado la persistencia
+- [ ] Se haya verificado la sincronización (si aplica cross-device)
+- [ ] El usuario haya confirmado explícitamente que funciona
+
+**Nunca considerar un cambio "listo" basándose solo en:**
+
+- lint/typecheck/build pasando
+- cambios compilando
+- código que "se ve bien"
+- tests locales
+
+**La validación en móvil real es la confirmación FINAL.**
+
+---
+
 # OBJETIVO FINAL
 
 La app debe evolucionar:

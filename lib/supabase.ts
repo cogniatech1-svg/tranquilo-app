@@ -185,7 +185,8 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     console.log('[Supabase] 🟢 ✅ saveUserData completado exitosamente')
   } catch (error) {
     console.error('[Supabase] ❌ CRÍTICO: Error guardando en Supabase:', error)
-    // Don't throw - allow app to continue with localStorage fallback
+    // Re-throw so the auto-save can show the real Supabase error in the UI banner
+    throw error
   }
 }
 

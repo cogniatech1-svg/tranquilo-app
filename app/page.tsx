@@ -174,9 +174,15 @@ export default function Home() {
           const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
           return hasOnboarded ? 'main' : 'onboarding'
         }
-        case 'TOKEN_REFRESHED':
         case 'INITIAL_SESSION':
-          // Non-destructive events must not force redirects.
+          // Si ya hay sesión activa, navegar directamente sin mostrar login
+          if (user) {
+            const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+            return hasOnboarded ? 'main' : 'onboarding'
+          }
+          return prev
+        case 'TOKEN_REFRESHED':
+          // Token refresh ocurre durante sesión activa — no re-navegar
           return prev
         default:
           return prev
@@ -550,12 +556,6 @@ export default function Home() {
           await saveUserData(saveUserId, dataToSave)
           console.log(`[AUTO-SAVE] ✅ Supabase guardado exitosamente`)
 
-          // Validate that data was actually persisted
-          const isPersisted = await validateDataPersistence(saveUserId)
-          if (!isPersisted) {
-            throw new Error('Datos no se guardaron correctamente en Supabase (validación falló)')
-          }
-
           setSyncError(null)
           setLastSyncTime(Date.now())
         } catch (error) {
@@ -624,14 +624,6 @@ export default function Home() {
           })
           await saveUserData(saveUserId, dataToSave)
           console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir de la app')
-
-          // Validate that data was persisted
-          const isPersisted = await validateDataPersistence(saveUserId)
-          if (!isPersisted) {
-            console.error('[VISIBILITY] ⚠️ Validación falló - datos pueden no estar guardados')
-          } else {
-            console.log('[VISIBILITY] ✅ Datos validados en Supabase')
-          }
 
           setSyncError(null)
           setLastSyncTime(Date.now())
