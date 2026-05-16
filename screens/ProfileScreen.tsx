@@ -22,6 +22,7 @@ interface Props {
   onLogOut?: () => Promise<void>
   profileData?: UserProfile
   onSaveProfile?: (profile: UserProfile) => Promise<void>
+  userId?: string | null
 }
 
 export function ProfileScreen({
@@ -33,6 +34,7 @@ export function ProfileScreen({
   onLogOut,
   profileData: profileDataProp,
   onSaveProfile,
+  userId,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -309,7 +311,8 @@ export function ProfileScreen({
           return
         }
 
-        const raw = localStorage.getItem('tranquilo_v1')
+        const storageKey = userId ? `tranquilo_v1_${userId}` : 'tranquilo_v1'
+        const raw = localStorage.getItem(storageKey)
         const data = raw ? JSON.parse(raw) : { expenses: [], extraIncomes: [], pockets: [] }
 
         const pocketMap: Record<string, string> = {}
@@ -441,17 +444,20 @@ export function ProfileScreen({
       data.expenses = [...(data.expenses ?? []), ...data.newExpenses]
       data.extraIncomes = [...(data.extraIncomes ?? []), ...data.newIncomes]
 
-      // Save to localStorage first (cache)
-      localStorage.setItem('tranquilo_v1', JSON.stringify(data))
+      // Save to localStorage first (cache) — use correct user-scoped key
+      const saveKey = userId ? `tranquilo_v1_${userId}` : 'tranquilo_v1'
+      localStorage.setItem(saveKey, JSON.stringify(data))
 
-      // Get current user ID for Supabase save
-      const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
-      const guestUserId = typeof window !== 'undefined' ? localStorage.getItem('guest_id') : null
-      const currentUserId = userId || guestUserId
-
-      // Save to Supabase
-      if (currentUserId) {
-        await saveUserData(currentUserId, data)
+      // Save to Supabase (non-critical — don't fail the import if Supabase fails)
+      if (userId) {
+        try {
+          await saveUserData(userId, data)
+        } catch (supabaseErr) {
+          console.error(
+            '[CSV Import] Supabase save failed (non-critical, data is in localStorage):',
+            supabaseErr
+          )
+        }
       }
 
       const totalImported = (data.newExpenses?.length ?? 0) + (data.newIncomes?.length ?? 0)

@@ -1684,6 +1684,7 @@ export default function Home() {
             onLogOut={handleLogOut}
             profileData={profileData}
             onSaveProfile={handleSaveProfile}
+            userId={userId || guestUserId}
           />
         )}
       </div>
