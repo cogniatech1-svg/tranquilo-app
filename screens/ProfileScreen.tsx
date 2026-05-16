@@ -325,6 +325,15 @@ export function ProfileScreen({
         const newExpenses = []
         const newIncomes = []
 
+        // Convert DD/MM/YYYY to YYYY-MM-DD (ISO format required by Supabase)
+        const toIsoDate = (fecha: string): string => {
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+            const [day, month, year] = fecha.split('/')
+            return `${year}-${month}-${day}`
+          }
+          return fecha // already ISO format or unknown
+        }
+
         // Skip header, process data rows
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim()
@@ -351,6 +360,9 @@ export function ProfileScreen({
             pocketIdFromCsv = null
           }
 
+          // Convert date to ISO format (YYYY-MM-DD) before storing
+          const isoFecha = toIsoDate(fecha)
+
           if (tipo === 'gasto') {
             // Use pocketId from CSV if available, otherwise map from categoria
             const pocketId = pocketIdFromCsv || pocketMap[categoria] || 'recreacion'
@@ -358,7 +370,7 @@ export function ProfileScreen({
 
             newExpenses.push({
               id: Date.now().toString() + Math.random(),
-              date: fecha + 'T00:00:00',
+              date: isoFecha + 'T00:00:00',
               pocketId,
               amount,
               concept: descripcion,
@@ -369,7 +381,7 @@ export function ProfileScreen({
 
             newIncomes.push({
               id: Date.now().toString() + Math.random(),
-              date: fecha + 'T00:00:00',
+              date: isoFecha + 'T00:00:00',
               amount,
               note: descripcion,
               category: 'extra' as const,

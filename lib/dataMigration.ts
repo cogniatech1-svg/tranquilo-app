@@ -101,6 +101,21 @@ function hasGenericExpenseName(concept: string): boolean {
 }
 
 /**
+ * Fix date format: convert DD/MM/YYYY (from old exports/imports) to YYYY-MM-DD (ISO)
+ * Idempotent: dates already in ISO format pass through unchanged.
+ * Example: "29/04/2026T00:00:00" → "2026-04-29T00:00:00"
+ */
+function fixDateFormat(date: string): string {
+  if (!date) return date
+  // Match DD/MM/YYYY at start (with optional time suffix)
+  const match = date.match(/^(\d{2})\/(\d{2})\/(\d{4})(.*)$/)
+  if (match) {
+    return `${match[3]}-${match[2]}-${match[1]}${match[4]}`
+  }
+  return date
+}
+
+/**
  * Repair corrupted expense data
  * If expenses have generic names, we can't fix them individually,
  * but we can at least ensure the structure is correct
@@ -124,10 +139,10 @@ function repairExpenses(expenses: any[]): any[] {
       console.warn('[dataMigration] Found generic expense name:', exp.concept)
     }
 
-    // Ensure expense has required fields
+    // Ensure expense has required fields, fix date format
     return {
       id: exp.id ?? crypto.randomUUID(),
-      date: exp.date ?? new Date().toLocaleDateString('es-CO'),
+      date: fixDateFormat(exp.date ?? ''),
       amount: typeof exp.amount === 'number' ? exp.amount : 0,
       concept: exp.concept ?? 'Sin nombre',
       pocketId: exp.pocketId ?? 'extras',
@@ -161,7 +176,10 @@ function repairMonthRecord(record: any): MonthRecord {
     income: typeof record.income === 'number' ? record.income : 0,
     savings: typeof record.savings === 'number' ? record.savings : 0,
     expenses: deduplicatedExpenses,
-    extraIncomes: Array.isArray(record.extraIncomes) ? record.extraIncomes : [],
+    extraIncomes: Array.isArray(record.extraIncomes)
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        record.extraIncomes.map((i: any) => ({ ...i, date: fixDateFormat(i.date ?? '') }))
+      : [],
     pockets:
       Array.isArray(record.pockets) && record.pockets.length > 0 ? record.pockets : DEFAULT_POCKETS,
     manualBudget: record.manualBudget,
