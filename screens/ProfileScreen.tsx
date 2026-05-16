@@ -410,6 +410,11 @@ export function ProfileScreen({
   const handleConfirmImport = async () => {
     if (!pendingCsvData) return
 
+    console.log('[CSV Import] 🔵 handleConfirmImport INICIADO con userId:', {
+      userId,
+      guestUserId: typeof window !== 'undefined' ? localStorage.getItem('guest_id') : null,
+    })
+
     try {
       const data = { ...pendingCsvData }
 
@@ -458,18 +463,33 @@ export function ProfileScreen({
 
       // Save to localStorage first (cache) — use correct user-scoped key
       const saveKey = userId ? `tranquilo_v1_${userId}` : 'tranquilo_v1'
+      console.log('[CSV Import] 🟡 Guardando a localStorage con key:', {
+        saveKey,
+        monthsInData: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+        aprilData: data.monthlyHistory?.['2026-04']
+          ? {
+              expenseCount: data.monthlyHistory['2026-04'].expenses?.length,
+              firstExpenseDate: data.monthlyHistory['2026-04'].expenses?.[0]?.date,
+            }
+          : 'NO EXISTE',
+      })
       localStorage.setItem(saveKey, JSON.stringify(data))
+      console.log('[CSV Import] ✅ Guardado a localStorage exitosamente')
 
       // Save to Supabase (non-critical — don't fail the import if Supabase fails)
       if (userId) {
+        console.log('[CSV Import] 🟡 Intentando guardar a Supabase con userId:', userId)
         try {
           await saveUserData(userId, data)
+          console.log('[CSV Import] ✅ Supabase save exitoso')
         } catch (supabaseErr) {
           console.error(
-            '[CSV Import] Supabase save failed (non-critical, data is in localStorage):',
+            '[CSV Import] ❌ Supabase save failed (non-critical, data is in localStorage):',
             supabaseErr
           )
         }
+      } else {
+        console.warn('[CSV Import] ⚠️ userId es null, no se guarda a Supabase')
       }
 
       const totalImported = (data.newExpenses?.length ?? 0) + (data.newIncomes?.length ?? 0)

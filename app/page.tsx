@@ -329,6 +329,10 @@ export default function Home() {
             }
           } else {
             console.log('[initializeApp] ❌ Sin datos en localStorage tampoco')
+            // Debug: check what keys exist to diagnose key mismatch issue
+            const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('tranquilo_v1'))
+            console.log('[initializeApp] 🔍 DEBUG: Available tranquilo_v1 keys:', allKeys)
+            console.log('[initializeApp] 🔍 DEBUG: Looking for storageKey:', storageKey)
           }
         }
 
