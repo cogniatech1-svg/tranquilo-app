@@ -28,8 +28,9 @@ export function getEmptyPocketsStructure(): Pocket[] {
  */
 /**
  * Normalize pocket ID: lowercase, remove accents, replace spaces with hyphens
+ * Exported for use in CSV import and data repair
  */
-function normalizePocketId(id: string): string {
+export function normalizePocketId(id: string): string {
   return id
     .toLowerCase()
     .replace(/[áàâä]/g, 'a')
@@ -139,13 +140,13 @@ function repairExpenses(expenses: any[]): any[] {
       console.warn('[dataMigration] Found generic expense name:', exp.concept)
     }
 
-    // Ensure expense has required fields, fix date format
+    // Ensure expense has required fields, fix date format, normalize pocketId
     return {
       id: exp.id ?? crypto.randomUUID(),
       date: fixDateFormat(exp.date ?? ''),
       amount: typeof exp.amount === 'number' ? exp.amount : 0,
       concept: exp.concept ?? 'Sin nombre',
-      pocketId: exp.pocketId ?? 'extras',
+      pocketId: normalizePocketId(exp.pocketId ?? 'extras'),
     }
   })
 

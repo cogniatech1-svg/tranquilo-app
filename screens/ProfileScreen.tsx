@@ -7,6 +7,7 @@ import type { Expense, ExtraIncome, MonthRecord, StoredData, UserProfile } from 
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
 import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
+import { normalizePocketId } from '../lib/dataMigration'
 
 interface PendingCsvData extends StoredData {
   newExpenses: Expense[]
@@ -365,7 +366,9 @@ export function ProfileScreen({
 
           if (tipo === 'gasto') {
             // Use pocketId from CSV if available, otherwise map from categoria
-            const pocketId = pocketIdFromCsv || pocketMap[categoria] || 'recreacion'
+            const pocketIdRaw = pocketIdFromCsv || pocketMap[categoria] || 'recreacion'
+            // Normalize pocketId to handle capitalization/accents (Recreación → recreacion)
+            const pocketId = normalizePocketId(pocketIdRaw)
             const amount = parseInt(monto) || 0
 
             newExpenses.push({
