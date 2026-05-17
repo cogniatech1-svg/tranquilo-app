@@ -170,7 +170,7 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       }
     }
 
-    // 4. Save concept map
+    // 4. Save concept map (optional - continue even if it fails)
     if (data.conceptMap && Object.keys(data.conceptMap).length > 0) {
       const { error: conceptError } = await supabase.from('concept_map').upsert(
         {
@@ -182,12 +182,12 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       )
 
       if (conceptError) {
-        console.error('[Supabase] Error saving concept map:', conceptError)
-        throw conceptError
+        console.warn('[Supabase] ⚠️ Warning saving concept map (non-blocking):', conceptError)
+        // Don't throw - concept map is optional
       }
     }
 
-    // 5. Save learned category map
+    // 5. Save learned category map (optional - continue even if it fails)
     if (data.learnedCategoryMap && Object.keys(data.learnedCategoryMap).length > 0) {
       const { error: learnedError } = await supabase.from('learned_category_map').upsert(
         {
@@ -199,8 +199,11 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       )
 
       if (learnedError) {
-        console.error('[Supabase] Error saving learned category map:', learnedError)
-        throw learnedError
+        console.warn(
+          '[Supabase] ⚠️ Warning saving learned category map (non-blocking):',
+          learnedError
+        )
+        // Don't throw - learned category map is optional
       }
     }
     console.log('[Supabase] 🟢 ✅ saveUserData completado exitosamente')
