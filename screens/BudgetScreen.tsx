@@ -575,18 +575,22 @@ export function BudgetScreen({
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            {pockets.map((p, i) => (
-              <PocketCard
-                key={p.id}
-                pocket={p}
-                spent={spentByPocket[p.id] ?? 0}
-                pocketIndex={i}
-                config={config}
-                onEdit={onEditPocket}
-                onDelete={onDeletePocket}
-                isPrivacyMode={isPrivacyMode}
-              />
-            ))}
+            {pockets.map((p, i) => {
+              const spent = spentByPocket[p.id] ?? 0
+              return (
+                <PocketCard
+                  key={p.id}
+                  pocket={p}
+                  spent={spent}
+                  pocketIndex={i}
+                  config={config}
+                  onEdit={onEditPocket}
+                  onDelete={onDeletePocket}
+                  isPrivacyMode={isPrivacyMode}
+                  expenseCount={spent > 0 ? 1 : 0}
+                />
+              )
+            })}
           </div>
         </div>
 

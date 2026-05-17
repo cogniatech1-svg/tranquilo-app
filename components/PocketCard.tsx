@@ -9,6 +9,7 @@ import type { CountryConfig } from '../lib/config'
 import type { Pocket } from '../lib/types'
 import { parseAmount } from '../lib/utils'
 import { EmojiPicker } from './EmojiPicker'
+import { ConfirmDeletePocketModal } from './ConfirmDeletePocketModal'
 
 interface Props {
   pocket: Pocket
@@ -19,6 +20,7 @@ interface Props {
   onDelete?: (id: string) => void
   compact?: boolean
   isPrivacyMode?: boolean
+  expenseCount?: number
 }
 
 export function PocketCard({
@@ -30,6 +32,7 @@ export function PocketCard({
   onDelete,
   compact = false,
   isPrivacyMode = false,
+  expenseCount = 0,
 }: Props) {
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const [editing, setEditing]       = useState(false)
@@ -39,6 +42,7 @@ export function PocketCard({
   )
   const [draftIcon, setDraftIcon]   = useState(pocket.icon ?? '')
   const [showPicker, setShowPicker] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const ratio = pocket.budget > 0 ? spent / pocket.budget : 0
   const icon  = getPocketIcon(pocket.id, pocket.name, pocket.icon)
@@ -147,7 +151,8 @@ export function PocketCard({
 
   // ── Full card ──────────────────────────────────────────────────────────────
   return (
-    <Card className="p-4 overflow-hidden relative">
+    <>
+      <Card className="p-4 overflow-hidden relative">
       {/* Top accent strip — red when exceeded */}
       <div
         className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
@@ -177,7 +182,15 @@ export function PocketCard({
             )}
             {onDelete && (
               <button
-                onClick={() => onDelete!(pocket.id)}
+                onClick={() => {
+                  // Si tiene presupuesto o gastos, mostrar confirmación
+                  if (pocket.budget > 0 || expenseCount > 0) {
+                    setShowDeleteConfirm(true)
+                  } else {
+                    // Si no tiene nada, eliminar directamente
+                    onDelete(pocket.id)
+                  }
+                }}
                 className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
               >
                 <Icon name="trash" size={12} />
@@ -224,5 +237,19 @@ export function PocketCard({
         </>
       )}
     </Card>
+
+    {/* Confirm delete modal */}
+    {showDeleteConfirm && (
+      <ConfirmDeletePocketModal
+        pocket={pocket}
+        gastoCount={expenseCount}
+        onConfirm={() => {
+          onDelete?.(pocket.id)
+          setShowDeleteConfirm(false)
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
+  </>
   )
 }
