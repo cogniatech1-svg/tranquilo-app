@@ -142,6 +142,8 @@ export function BudgetScreen({
   // Budget-first: how much of the budget has been split across pockets
   const unassigned = hasBudget ? monthlyBudget - totalPocketBudget : 0
   const assignedPct = hasBudget ? Math.round((totalPocketBudget / monthlyBudget) * 100) : 0
+  // Check if user budgeted more than monthly income
+  const isOverBudget = totalPocketBudget > totalIncome
 
   // ── Exceeded pocket tracking ──────────────────────────────────────────────
   const exceededPockets = pockets.filter(
@@ -241,7 +243,12 @@ export function BudgetScreen({
                     <span className="text-red-500">(manual)</span>
                   )}
                 </p>
-                <p className="text-lg font-bold text-slate-900 tabular-nums">{mm(monthlyBudget)}</p>
+                <p
+                  className="text-lg font-bold tabular-nums"
+                  style={{ color: isOverBudget ? '#EF4444' : '#0F172A' }}
+                >
+                  {mm(monthlyBudget)}
+                </p>
                 {manualBudget && manualBudget > 0 && (
                   <button
                     onClick={() => onSetManualBudget(0)}
@@ -299,7 +306,7 @@ export function BudgetScreen({
                 </p>
                 <p
                   className="text-sm font-bold tabular-nums leading-tight"
-                  style={{ color: DS.primary }}
+                  style={{ color: isOverBudget ? '#EF4444' : DS.primary }}
                 >
                   {mm(totalPocketBudget)}
                 </p>
