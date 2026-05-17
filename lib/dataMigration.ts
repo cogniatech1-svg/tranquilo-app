@@ -72,6 +72,15 @@ function ensurePocketsComplete(record: any): any {
   const originalCount = existingPockets.length
   const finalCount = finalPockets.length
   if (originalCount !== finalCount) {
+    console.log('[dataMigration] 📝 ensurePocketsComplete:', {
+      originalCount,
+      finalCount,
+      originalPocketNames: existingPockets.map((p: Pocket) => p.name),
+      finalPocketNames: finalPockets.map((p: Pocket) => p.name),
+      addedPockets: finalPockets.filter(
+        (fp) => !existingPockets.some((ep: Pocket) => normalizePocketId(ep.id) === fp.id)
+      ).length,
+    })
   }
 
   record.pockets = finalPockets
@@ -162,16 +171,45 @@ function repairExpenses(expenses: any[]): any[] {
  * Ensures it has all required fields and all 8 pockets
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function repairMonthRecord(record: any): MonthRecord {
+function repairMonthRecord(record: any, monthKey?: string): MonthRecord {
   if (!record || typeof record !== 'object') {
     record = {}
   }
 
+  const pocketsBeforeRepair = (record.pockets ?? []).length
+  const pocketsBeforeNames = (record.pockets ?? []).map((p: Pocket) => p.name)
+
   // Ensure all 8 pockets exist
   ensurePocketsComplete(record)
 
+  const pocketsAfterEnsure = record.pockets.length
+  const pocketsAfterEnsureNames = record.pockets.map((p: Pocket) => p.name)
+
   const repairedExpenses = repairExpenses(record.expenses ?? [])
   const deduplicatedExpenses = deduplicateExpenses(repairedExpenses)
+
+  // Log if pockets changed during repair
+  if (pocketsBeforeRepair !== pocketsAfterEnsure) {
+    console.log(
+      `[dataMigration] 🔍 Pockets changed during repair for ${monthKey || 'unknown month'}:`,
+      {
+        beforeRepair: pocketsBeforeRepair,
+        afterEnsure: pocketsAfterEnsure,
+        beforeNames: pocketsBeforeNames,
+        afterNames: pocketsAfterEnsureNames,
+      }
+    )
+  }
+
+  // CRITICAL: Check if we're about to revert to DEFAULT_POCKETS
+  let finalPockets = record.pockets
+  if (!(Array.isArray(record.pockets) && record.pockets.length > 0)) {
+    console.error(
+      `[dataMigration] ⚠️ REVERTING TO DEFAULT_POCKETS for ${monthKey || 'unknown'}! record.pockets is:`,
+      record.pockets
+    )
+    finalPockets = DEFAULT_POCKETS
+  }
 
   return {
     income: typeof record.income === 'number' ? record.income : 0,
@@ -181,8 +219,7 @@ function repairMonthRecord(record: any): MonthRecord {
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
         record.extraIncomes.map((i: any) => ({ ...i, date: fixDateFormat(i.date ?? '') }))
       : [],
-    pockets:
-      Array.isArray(record.pockets) && record.pockets.length > 0 ? record.pockets : DEFAULT_POCKETS,
+    pockets: finalPockets,
     manualBudget: record.manualBudget,
   }
 }
@@ -245,20 +282,41 @@ export function repairStoredData(data: any): StoredData {
 
   // Repair monthlyHistory
   const repairedHistory: Record<string, MonthRecord> = {}
+  console.log('[dataMigration] 🔍 repairStoredData() starting:', {
+    monthCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
+    months: data.monthlyHistory ? Object.keys(data.monthlyHistory) : [],
+  })
+
   if (data.monthlyHistory && typeof data.monthlyHistory === 'object') {
     for (const [month, record] of Object.entries(data.monthlyHistory)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      repairedHistory[month] = repairMonthRecord(record as any)
+      const originalPockets = (record as any).pockets?.length ?? 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalPocketNames = (record as any).pockets?.map((p: Pocket) => p.name) ?? []
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      repairedHistory[month] = repairMonthRecord(record as any, month)
 
       // Check if month was repaired
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const originalPocketCount = (record as any).pockets?.length ?? 0
       const repairedPocketCount = repairedHistory[month].pockets.length
+      const repairedPocketNames = repairedHistory[month].pockets.map((p: Pocket) => p.name)
 
-      if (originalPocketCount !== repairedPocketCount) {
+      if (originalPockets !== repairedPocketCount) {
+        console.log(`[dataMigration] 🔍 Pockets changed for month ${month}:`, {
+          originalCount: originalPockets,
+          repairedCount: repairedPocketCount,
+          originalNames: originalPocketNames,
+          repairedNames: repairedPocketNames,
+        })
       }
     }
   }
+
+  console.log(
+    '[dataMigration] ✅ repairStoredData() completed with',
+    Object.keys(repairedHistory).length,
+    'months'
+  )
 
   return {
     monthlyHistory: repairedHistory,
