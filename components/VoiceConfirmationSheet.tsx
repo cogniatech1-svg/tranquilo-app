@@ -59,7 +59,7 @@ export function VoiceConfirmationSheet({
 
         {/* Escuchaste */}
         <div className="mb-6">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
             Escuché:
           </p>
           <p className="text-lg font-bold text-slate-900">
@@ -94,7 +94,7 @@ export function VoiceConfirmationSheet({
 
         {/* Concepto */}
         <div className="mb-8">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
             Concepto:
           </p>
           <p className="text-base font-semibold text-slate-700">

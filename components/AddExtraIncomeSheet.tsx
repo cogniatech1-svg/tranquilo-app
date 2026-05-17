@@ -64,11 +64,11 @@ export function AddExtraIncomeSheet({ isOpen, config, onSave, onClose }: Props) 
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Ingreso extra</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Freelance, bono, venta…</p>
+            <p className="text-xs text-slate-500 mt-0.5">Freelance, bono, venta…</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
           >
             <Icon name="x" size={16} />
           </button>

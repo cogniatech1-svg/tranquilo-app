@@ -102,7 +102,7 @@ export function TransactionsScreen({
       <div className="px-5 pt-14 pb-5 bg-white border-b border-slate-100">
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-500 mb-1">
               Registro
             </p>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Movimientos</h1>
@@ -147,7 +147,7 @@ export function TransactionsScreen({
             <div key={label}>
               {/* Date group header */}
               <div className="flex items-center gap-3 mb-3">
-                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400 shrink-0">
+                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-500 shrink-0">
                   {label}
                 </p>
                 <div className="flex-1 h-px bg-slate-100" />
@@ -193,13 +193,13 @@ export function TransactionsScreen({
                           <div className="flex gap-0.5 shrink-0">
                             <button
                               onClick={() => onEditIncome(inc)}
-                              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
                             >
                               <Icon name="edit" size={14} />
                             </button>
                             <button
                               onClick={() => onDeleteExtraIncome(inc.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
                             >
                               <Icon name="trash" size={14} />
                             </button>

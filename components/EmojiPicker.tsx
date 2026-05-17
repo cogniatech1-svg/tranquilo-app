@@ -35,14 +35,14 @@ export function EmojiPicker({ current, onSelect, onClose }: Props) {
       >
         {/* Handle */}
         <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4" />
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 text-center">
           Elige un ícono
         </p>
 
         <div className="space-y-4">
           {EMOJI_GROUPS.map(group => (
             <div key={group.label}>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
                 {group.label}
               </p>
               <div className="flex flex-wrap gap-2">

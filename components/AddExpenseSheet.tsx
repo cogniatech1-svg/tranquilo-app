@@ -311,7 +311,7 @@ export function AddExpenseSheet({
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
           >
             <Icon name="x" size={16} />
           </button>
@@ -351,7 +351,7 @@ export function AddExpenseSheet({
 
           {/* Date picker */}
           <div className="flex items-center gap-2">
-            <Icon name="calendar" size={14} className="text-slate-400 shrink-0" />
+            <Icon name="calendar" size={14} className="text-slate-500 shrink-0" />
             <input
               type="date"
               value={date}
@@ -417,7 +417,7 @@ export function AddExpenseSheet({
                 className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
                   txType === 'expense'
                     ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
                 💳 Gasto
@@ -428,7 +428,7 @@ export function AddExpenseSheet({
                 className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
                   txType === 'income'
                     ? 'bg-green-500 text-white'
-                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
                 💚 Ingreso

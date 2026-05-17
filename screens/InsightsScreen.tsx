@@ -636,7 +636,7 @@ export function InsightsScreen({
     <div className="pb-6">
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-14 pb-5 bg-white border-b border-slate-100">
-        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400 mb-1">
+        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-500 mb-1">
           Análisis
         </p>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Insights</h1>
@@ -816,7 +816,7 @@ export function InsightsScreen({
                       {isExpanded && (
                         <div className="border-t border-slate-100 bg-slate-50/70">
                           {pocketExpenses.length === 0 ? (
-                            <p className="text-xs text-slate-400 text-center py-4">Sin movimientos en esta categoría</p>
+                            <p className="text-xs text-slate-500 text-center py-4">Sin movimientos en esta categoría</p>
                           ) : (
                             <div className="divide-y divide-slate-100">
                               {pocketExpenses.map(e => {
@@ -824,7 +824,7 @@ export function InsightsScreen({
                                 const dateStr = d.toLocaleDateString(config.locale, { day: 'numeric', month: 'short' })
                                 return (
                                   <div key={e.id} className="flex items-center justify-between px-5 py-3 gap-3">
-                                    <span className="text-[10px] text-slate-400 font-medium shrink-0 w-12">{dateStr}</span>
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0 w-12">{dateStr}</span>
                                     <span className="text-xs text-slate-700 flex-1 truncate capitalize">{e.concept}</span>
                                     <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
                                       {mm(e.amount)}
@@ -938,7 +938,7 @@ export function InsightsScreen({
                             {m.savingsRate !== null && m.savings > 0 && ` (${m.savingsRate}%)`}
                           </span>
                         ) : m.budget > 0 ? (
-                          <span className="text-[10px] text-slate-400 tabular-nums">
+                          <span className="text-[10px] text-slate-500 tabular-nums">
                             de {mm(m.budget)} presupuesto
                           </span>
                         ) : null}
@@ -946,7 +946,7 @@ export function InsightsScreen({
                           <span className="text-[10px] text-slate-300">·</span>
                         )}
                         {m.topCategory && (
-                          <span className="text-[10px] text-slate-400 capitalize">{m.topCategory}</span>
+                          <span className="text-[10px] text-slate-500 capitalize">{m.topCategory}</span>
                         )}
                       </div>
                       {m.vsLast !== null && (

@@ -42,7 +42,7 @@ export function InsightDonut({ segments }: Props) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="text-sm font-bold text-slate-800">{segments.length}</span>
-          <span className="text-[8px] font-bold uppercase tracking-wide text-slate-400">categ.</span>
+          <span className="text-[8px] font-bold uppercase tracking-wide text-slate-500">categ.</span>
         </div>
       </div>
 

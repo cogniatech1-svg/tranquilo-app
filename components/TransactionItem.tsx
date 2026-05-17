@@ -70,7 +70,7 @@ export function TransactionItem({
           {onEdit && (
             <button
               onClick={() => onEdit(expense)}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+              className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
             >
               <Icon name="edit" size={14} />
             </button>
@@ -78,7 +78,7 @@ export function TransactionItem({
           {onDelete && (
             <button
               onClick={() => onDelete(expense.id)}
-              className="p-1.5 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+              className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
             >
               <Icon name="trash" size={14} />
             </button>

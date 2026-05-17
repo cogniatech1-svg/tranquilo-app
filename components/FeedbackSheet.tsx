@@ -79,7 +79,7 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
           <h2 className="text-xl font-bold text-slate-900">Feedback</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
           >
             <Icon name="x" size={16} />
           </button>
@@ -92,7 +92,7 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
             <p className="text-base font-bold text-slate-900">
               Gracias, esto nos ayuda a mejorar la app
             </p>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <p className="text-sm text-slate-500 leading-relaxed">
               Leemos cada mensaje con cuidado.
             </p>
             <button
@@ -137,7 +137,7 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
                 />
 
                 {/* Privacy note */}
-                <p className="text-[10px] text-slate-400 px-1 leading-relaxed">
+                <p className="text-[10px] text-slate-500 px-1 leading-relaxed">
                   No incluyas información sensible como contraseñas o datos bancarios.
                 </p>
 

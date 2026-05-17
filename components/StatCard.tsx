@@ -33,13 +33,13 @@ export function StatCard({ label, value, sub, accent = false }: Props) {
       className="bg-white rounded-2xl p-4 flex flex-col gap-0.5 border border-slate-100"
       style={{ boxShadow: '0 1px 3px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.04)' }}
     >
-      <span className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400">
+      <span className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">
         {label}
       </span>
       <span className="text-[15px] font-bold text-slate-900 tabular-nums leading-tight">
         {value}
       </span>
-      {sub && <span className="text-[10px] text-slate-400 tabular-nums">{sub}</span>}
+      {sub && <span className="text-[10px] text-slate-500 tabular-nums">{sub}</span>}
     </div>
   )
 }

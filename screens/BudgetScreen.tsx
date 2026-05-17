@@ -154,7 +154,7 @@ export function BudgetScreen({
     <div className="pb-6">
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-14 pb-5 bg-white border-b border-slate-100">
-        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400 mb-1">
+        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-500 mb-1">
           Control
         </p>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Presupuesto</h1>
@@ -185,7 +185,7 @@ export function BudgetScreen({
                     setEditingIncome(false)
                     setIncomeInput('')
                   }}
-                  className="px-3 text-slate-400 hover:text-slate-600"
+                  className="px-3 text-slate-500 hover:text-slate-600"
                 >
                   <Icon name="x" size={16} />
                 </button>
@@ -195,7 +195,7 @@ export function BudgetScreen({
         ) : (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
                 Ingresos mensuales
               </p>
               <button
@@ -217,7 +217,7 @@ export function BudgetScreen({
         {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-5">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
                 Presupuesto a gastar
               </p>
               <button
@@ -235,7 +235,7 @@ export function BudgetScreen({
             <div className="grid grid-cols-2 gap-4">
               {/* Presupuesto */}
               <div className="text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500 mb-2">
                   Presupuesto{' '}
                   {manualBudget && manualBudget > 0 && (
                     <span className="text-red-500">(manual)</span>
@@ -253,7 +253,7 @@ export function BudgetScreen({
               </div>
               {/* Gastado */}
               <div className="text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500 mb-2">
                   Gastado
                 </p>
                 <p
@@ -270,11 +270,11 @@ export function BudgetScreen({
         {/* ── 1.6. AHORRO AUTOMÁTICO (Read-only) ────────────────────────────────────── */}
         {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400 mb-4">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
               Ahorro automático
             </p>
             <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(monthlySavings)}</p>
-            <p className="text-sm text-slate-400 mt-2 tabular-nums">
+            <p className="text-sm text-slate-500 mt-2 tabular-nums">
               {savingsPercentageValue}% de tus ingresos
             </p>
           </Card>
@@ -287,14 +287,14 @@ export function BudgetScreen({
             style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
           >
             <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
                 distribución
               </p>
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100">
               {/* Asignado a bolsillos */}
               <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500 mb-1">
                   Asignado
                 </p>
                 <p
@@ -304,12 +304,12 @@ export function BudgetScreen({
                   {mm(totalPocketBudget)}
                 </p>
                 {assignedPct > 0 && (
-                  <p className="text-[9px] text-slate-400 mt-0.5">{assignedPct}%</p>
+                  <p className="text-[9px] text-slate-500 mt-0.5">{assignedPct}%</p>
                 )}
               </div>
               {/* Sin asignar */}
               <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500 mb-1">
                   Sin asignar
                 </p>
                 <p
@@ -337,7 +337,7 @@ export function BudgetScreen({
         {/* ── 1.5b. BUDGET EDIT MODE ────────────────────────────────────── */}
         {totalIncome > 0 && editingSavings && (
           <Card className="p-5 space-y-4">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
               Editar presupuesto
             </p>
 
@@ -348,7 +348,7 @@ export function BudgetScreen({
                   setBudgetEditMode('savings')
                   setSavingsInput('')
                 }}
-                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'savings' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'savings' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500'}`}
               >
                 Editar ahorro
               </button>
@@ -357,7 +357,7 @@ export function BudgetScreen({
                   setBudgetEditMode('budget')
                   setSavingsInput('')
                 }}
-                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'budget' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'budget' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500'}`}
               >
                 Editar presupuesto
               </button>
@@ -378,7 +378,7 @@ export function BudgetScreen({
                   onKeyDown={(e) => e.key === 'Enter' && saveSavings()}
                   className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
                 />
-                <p className="text-[9px] text-slate-400 mt-2">
+                <p className="text-[9px] text-slate-500 mt-2">
                   Presupuesto resultante:{' '}
                   {savingsInput
                     ? mm(Math.max(0, totalIncome - parseAmount(savingsInput)))
@@ -400,7 +400,7 @@ export function BudgetScreen({
                   onKeyDown={(e) => e.key === 'Enter' && saveSavings()}
                   className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
                 />
-                <p className="text-[9px] text-slate-400 mt-2">Máximo: {mm(totalIncome)}</p>
+                <p className="text-[9px] text-slate-500 mt-2">Máximo: {mm(totalIncome)}</p>
               </div>
             )}
 
@@ -415,7 +415,7 @@ export function BudgetScreen({
                   setSavingsPercentage('')
                   setBudgetEditMode('savings')
                 }}
-                className="px-4 py-3 text-slate-400 text-sm font-medium"
+                className="px-4 py-3 text-slate-500 text-sm font-medium"
               >
                 Cancelar
               </button>
@@ -479,7 +479,7 @@ export function BudgetScreen({
           >
             Bolsillos
             {totalPocketBudget > 0 && (
-              <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
+              <span className="text-[9px] font-normal text-slate-500 ml-2 normal-case tracking-normal">
                 {mm(totalPocketBudget)} asignados de {mm(monthlyBudget)}
                 {unassigned >= 0
                   ? ` (${mm(unassigned)} libre)`
@@ -490,7 +490,7 @@ export function BudgetScreen({
 
           {addingPocket && (
             <Card className="p-5 space-y-3 mb-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
                 Nuevo bolsillo
               </p>
 
@@ -551,7 +551,7 @@ export function BudgetScreen({
                     setNewBudget('')
                     setNewIcon('')
                   }}
-                  className="px-4 py-3 text-slate-400 text-sm font-medium"
+                  className="px-4 py-3 text-slate-500 text-sm font-medium"
                 >
                   Cancelar
                 </button>

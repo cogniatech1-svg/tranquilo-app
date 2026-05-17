@@ -48,12 +48,12 @@ export function BottomNavigation({
                 <Icon
                   name={icon}
                   size={20}
-                  className={`transition-colors ${isActive ? 'text-white' : 'text-slate-400'}`}
+                  className={`transition-colors ${isActive ? 'text-white' : 'text-slate-500'}`}
                 />
               </div>
               <span
                 className={`text-[10px] font-bold leading-none transition-colors ${
-                  isActive ? 'text-slate-700' : 'text-slate-400'
+                  isActive ? 'text-slate-700' : 'text-slate-500'
                 }`}
               >
                 {label}

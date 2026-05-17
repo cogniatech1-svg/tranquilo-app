@@ -96,7 +96,7 @@ export function PocketCard({
             className="w-full text-sm text-slate-500 border-b border-slate-100 outline-none bg-transparent pb-1.5"
           />
           <div className="flex justify-between pt-1">
-            <button onClick={cancelEdit} className="text-xs text-slate-400 font-medium">
+            <button onClick={cancelEdit} className="text-xs text-slate-500 font-medium">
               Cancelar
             </button>
             <button onClick={saveEdit} className="text-xs font-bold" style={{ color: '#0D6259' }}>
@@ -196,7 +196,7 @@ export function PocketCard({
             >
               {mm(spent)}
             </span>
-            <span className="text-xs text-slate-400 tabular-nums">
+            <span className="text-xs text-slate-500 tabular-nums">
               / {mm(pocket.budget)}
             </span>
           </div>

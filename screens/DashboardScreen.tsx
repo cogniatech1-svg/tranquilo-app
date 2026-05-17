@@ -255,7 +255,7 @@ export function DashboardScreen({
                   <div className="px-4 py-3.5 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">Ocultar montos</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Privacidad</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Privacidad</p>
                     </div>
                     <button
                       onClick={() => { onTogglePrivacy(); setMenuOpen(false) }}
@@ -362,7 +362,7 @@ export function DashboardScreen({
             style={{ boxShadow: '0 1px 3px rgba(15,23,42,.04)' }}
           >
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400 mb-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-500 mb-0.5">
                 Mes en curso
               </p>
               <p className="text-sm font-semibold text-slate-700">
@@ -379,7 +379,7 @@ export function DashboardScreen({
                   }}
                 />
               </div>
-              <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+              <span className="text-[11px] font-bold text-slate-500 tabular-nums">
                 {Math.round(calendarRate * 100)}%
               </span>
             </div>
