@@ -56,10 +56,10 @@ function ensurePocketsComplete(record: any): any {
     }
   }
 
-  // Add missing pockets from DEFAULT_POCKETS
+  // Add missing pockets from DEFAULT_POCKETS (but with budget: 0, not default budget)
   for (const defaultPocket of DEFAULT_POCKETS) {
     if (!pocketMap.has(defaultPocket.id)) {
-      pocketMap.set(defaultPocket.id, defaultPocket)
+      pocketMap.set(defaultPocket.id, { ...defaultPocket, budget: 0 })
     }
   }
 
