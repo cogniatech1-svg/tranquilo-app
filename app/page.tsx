@@ -687,8 +687,10 @@ export default function Home() {
         const storageKey = `${STORAGE_KEY}_${saveUserId}`
         try {
           localStorage.setItem(storageKey, JSON.stringify(dataToSave))
-        } catch {
-          /* ignore */
+          console.log('[VISIBILITY] ✅ localStorage guardado antes de cerrar')
+        } catch (storageError) {
+          console.warn('[VISIBILITY] ⚠️ Error guardando a localStorage:', storageError)
+          // Continue to Supabase even if localStorage fails
         }
 
         try {
@@ -752,7 +754,15 @@ export default function Home() {
       }
 
       const storageKey = `${STORAGE_KEY}_${saveUserId}`
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+
+      // Save to localStorage (critical for offline support)
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+        console.log('[SAVE-NOW] ✅ localStorage guardado')
+      } catch (storageError) {
+        console.error('[SAVE-NOW] ❌ Error guardando a localStorage:', storageError)
+        // Continue to Supabase even if localStorage fails
+      }
 
       try {
         await saveUserData(saveUserId, dataToSave)
