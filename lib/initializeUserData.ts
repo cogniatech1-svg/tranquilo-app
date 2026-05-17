@@ -1,9 +1,10 @@
 import type { StoredData, MonthRecord } from './types'
-import { DEFAULT_POCKETS } from './dataMigration'
+import { getEmptyPocketsStructure } from './dataMigration'
 import { getCurrentMonth } from './utils'
 
 /**
- * Create default month record with 8 pockets
+ * Create default month record with 8 pockets (all with budget: 0)
+ * Users assign budgets as needed — no preset allocations
  * Used for preconfiguring new users
  */
 function getDefaultMonthData(): MonthRecord {
@@ -12,7 +13,7 @@ function getDefaultMonthData(): MonthRecord {
     savings: 0,
     expenses: [],
     extraIncomes: [],
-    pockets: DEFAULT_POCKETS,
+    pockets: getEmptyPocketsStructure(),
     manualBudget: undefined,
   }
 }
@@ -37,7 +38,7 @@ export function initializeUserData(monthlyIncome: number = 5000000): StoredData 
     },
 
     // Bolsillos (will be overridden by monthlyHistory, but included for consistency)
-    pockets: DEFAULT_POCKETS,
+    pockets: getEmptyPocketsStructure(),
 
     // Monthly income preconfigured
     monthlyIncome,

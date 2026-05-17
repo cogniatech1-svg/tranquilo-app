@@ -18,7 +18,7 @@ import { EmojiPicker } from '../components/EmojiPicker'
 import { guessIconFromName } from '../lib/config'
 
 interface Props {
-  snapshot: FinancialSnapshot  // ÚNICA FUENTE DE VERDAD
+  snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
   pockets: Pocket[]
   spentByPocket: Record<string, number>
   config: CountryConfig
@@ -33,7 +33,7 @@ interface Props {
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
   isPrivacyMode?: boolean
-  manualBudget?: number  // Para saber si hay presupuesto manual activo
+  manualBudget?: number // Para saber si hay presupuesto manual activo
 }
 
 export function BudgetScreen({
@@ -91,7 +91,9 @@ export function BudgetScreen({
     if (budgetEditMode === 'budget' && savingsInput) {
       const newBudgetValue = parseAmount(savingsInput)
       if (newBudgetValue > totalIncome) {
-        alert(`❌ El presupuesto no puede exceder tus ingresos.\n\nIngresos totales: ${mm(totalIncome)}\nIntentaste establecer: ${mm(newBudgetValue)}`)
+        alert(
+          `❌ El presupuesto no puede exceder tus ingresos.\n\nIngresos totales: ${mm(totalIncome)}\nIntentaste establecer: ${mm(newBudgetValue)}`
+        )
         return
       }
       onSetManualBudget(newBudgetValue)
@@ -117,22 +119,16 @@ export function BudgetScreen({
     }
   }
 
-  const savingsPercentageValue = totalIncome > 0
-    ? Math.round((monthlySavings / totalIncome) * 100)
-    : 0
+  const savingsPercentageValue =
+    totalIncome > 0 ? Math.round((monthlySavings / totalIncome) * 100) : 0
 
   const addPocket = () => {
     if (!newName.trim()) return
 
     const budgetAmount = parseAmount(newBudget)
-    const totalPocketBudget = pockets.reduce((s, p) => s + p.budget, 0)
 
-    // VALIDACIÓN: No permitir que suma exceda presupuesto
-    if (totalPocketBudget + budgetAmount > monthlyBudget) {
-      alert(`❌ No puedes asignar más de lo disponible.\n\nPresupuesto disponible: $${monthlyBudget - totalPocketBudget}\nIntentando asignar: $${budgetAmount}`)
-      return
-    }
-
+    // Sin validación: el usuario decide cómo asignar su presupuesto
+    // El financial engine mostrará visualmente si es sostenible (status, savings, etc)
     onAddPocket(newName.trim(), budgetAmount, newIcon || undefined)
     setNewName('')
     setNewBudget('')
@@ -142,16 +138,16 @@ export function BudgetScreen({
 
   const globalRatio = monthlyBudget > 0 ? totalSpent / monthlyBudget : 0
   const totalPocketBudget = pockets.reduce((s, p) => s + p.budget, 0)
-  const hasBudget   = monthlyBudget > 0
+  const hasBudget = monthlyBudget > 0
   // Budget-first: how much of the budget has been split across pockets
-  const unassigned  = hasBudget ? monthlyBudget - totalPocketBudget : 0
-  const assignedPct = hasBudget
-    ? Math.round((totalPocketBudget / monthlyBudget) * 100)
-    : 0
+  const unassigned = hasBudget ? monthlyBudget - totalPocketBudget : 0
+  const assignedPct = hasBudget ? Math.round((totalPocketBudget / monthlyBudget) * 100) : 0
 
   // ── Exceeded pocket tracking ──────────────────────────────────────────────
-  const exceededPockets = pockets.filter(p => p.budget > 0 && (spentByPocket[p.id] ?? 0) > p.budget)
-  const totalExcess     = exceededPockets.reduce((s, p) => s + (spentByPocket[p.id] ?? 0) - p.budget, 0)
+  const exceededPockets = pockets.filter(
+    (p) => p.budget > 0 && (spentByPocket[p.id] ?? 0) > p.budget
+  )
+  const totalExcess = exceededPockets.reduce((s, p) => s + (spentByPocket[p.id] ?? 0) - p.budget, 0)
   const budgetRemaining = monthlyBudget > 0 ? monthlyBudget - totalSpent : null
 
   return (
@@ -165,7 +161,6 @@ export function BudgetScreen({
       </div>
 
       <div className="px-4 pt-5 space-y-6">
-
         {/* ── 0. INGRESOS MENSUALES ─────────────────────────────────────── */}
         {editingIncome || totalIncome === 0 ? (
           <Card className="p-5 space-y-4">
@@ -177,8 +172,8 @@ export function BudgetScreen({
                 inputMode="numeric"
                 placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
                 value={incomeInput}
-                onChange={e => setIncomeInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveIncome()}
+                onChange={(e) => setIncomeInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveIncome()}
                 className="flex-1 min-w-0 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none transition-colors bg-slate-50 focus:bg-white"
               />
               <PrimaryButton onClick={saveIncome} className="px-5 py-3 text-sm shrink-0">
@@ -186,7 +181,10 @@ export function BudgetScreen({
               </PrimaryButton>
               {totalIncome > 0 && (
                 <button
-                  onClick={() => { setEditingIncome(false); setIncomeInput('') }}
+                  onClick={() => {
+                    setEditingIncome(false)
+                    setIncomeInput('')
+                  }}
                   className="px-3 text-slate-400 hover:text-slate-600"
                 >
                   <Icon name="x" size={16} />
@@ -201,19 +199,19 @@ export function BudgetScreen({
                 Ingresos mensuales
               </p>
               <button
-                onClick={() => { setEditingIncome(true); setIncomeInput(String(totalIncome)) }}
+                onClick={() => {
+                  setEditingIncome(true)
+                  setIncomeInput(String(totalIncome))
+                }}
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
               >
                 Editar
               </button>
             </div>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">
-              {mm(totalIncome)}
-            </p>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
           </Card>
         )}
-
 
         {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
         {totalIncome > 0 && !editingSavings && (
@@ -238,11 +236,12 @@ export function BudgetScreen({
               {/* Presupuesto */}
               <div className="text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
-                  Presupuesto {manualBudget && manualBudget > 0 && <span className="text-red-500">(manual)</span>}
+                  Presupuesto{' '}
+                  {manualBudget && manualBudget > 0 && (
+                    <span className="text-red-500">(manual)</span>
+                  )}
                 </p>
-                <p className="text-lg font-bold text-slate-900 tabular-nums">
-                  {mm(monthlyBudget)}
-                </p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">{mm(monthlyBudget)}</p>
                 {manualBudget && manualBudget > 0 && (
                   <button
                     onClick={() => onSetManualBudget(0)}
@@ -257,7 +256,10 @@ export function BudgetScreen({
                 <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-2">
                   Gastado
                 </p>
-                <p className="text-lg font-bold tabular-nums" style={{ color: totalSpent > monthlyBudget ? '#EF4444' : '#0F172A' }}>
+                <p
+                  className="text-lg font-bold tabular-nums"
+                  style={{ color: totalSpent > monthlyBudget ? '#EF4444' : '#0F172A' }}
+                >
                   {mm(totalSpent)}
                 </p>
               </div>
@@ -271,9 +273,7 @@ export function BudgetScreen({
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400 mb-4">
               Ahorro automático
             </p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">
-              {mm(monthlySavings)}
-            </p>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(monthlySavings)}</p>
             <p className="text-sm text-slate-400 mt-2 tabular-nums">
               {savingsPercentageValue}% de tus ingresos
             </p>
@@ -287,13 +287,20 @@ export function BudgetScreen({
             style={{ boxShadow: '0 1px 6px rgba(15,23,42,.06)' }}
           >
             <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">distribución</p>
+              <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
+                distribución
+              </p>
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100">
               {/* Asignado a bolsillos */}
               <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Asignado</p>
-                <p className="text-sm font-bold tabular-nums leading-tight" style={{ color: DS.primary }}>
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">
+                  Asignado
+                </p>
+                <p
+                  className="text-sm font-bold tabular-nums leading-tight"
+                  style={{ color: DS.primary }}
+                >
                   {mm(totalPocketBudget)}
                 </p>
                 {assignedPct > 0 && (
@@ -302,14 +309,14 @@ export function BudgetScreen({
               </div>
               {/* Sin asignar */}
               <div className="px-3 py-3.5 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">Sin asignar</p>
+                <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-400 mb-1">
+                  Sin asignar
+                </p>
                 <p
                   className="text-sm font-bold tabular-nums leading-tight"
                   style={{ color: unassigned >= 0 ? '#16A34A' : '#EF4444' }}
                 >
-                  {unassigned >= 0
-                    ? mm(unassigned)
-                    : `−${mm(-unassigned)}`}
+                  {unassigned >= 0 ? mm(unassigned) : `−${mm(-unassigned)}`}
                 </p>
               </div>
             </div>
@@ -319,9 +326,8 @@ export function BudgetScreen({
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${Math.min(100, assignedPct)}%`,
-                  background: assignedPct > 100
-                    ? '#EF4444'
-                    : 'linear-gradient(90deg, #0f766e, #14b8a6)',
+                  background:
+                    assignedPct > 100 ? '#EF4444' : 'linear-gradient(90deg, #0f766e, #14b8a6)',
                 }}
               />
             </div>
@@ -338,13 +344,19 @@ export function BudgetScreen({
             {/* Tabs */}
             <div className="flex gap-2 border-b border-slate-200">
               <button
-                onClick={() => { setBudgetEditMode('savings'); setSavingsInput('') }}
+                onClick={() => {
+                  setBudgetEditMode('savings')
+                  setSavingsInput('')
+                }}
                 className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'savings' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
               >
                 Editar ahorro
               </button>
               <button
-                onClick={() => { setBudgetEditMode('budget'); setSavingsInput('') }}
+                onClick={() => {
+                  setBudgetEditMode('budget')
+                  setSavingsInput('')
+                }}
                 className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${budgetEditMode === 'budget' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400'}`}
               >
                 Editar presupuesto
@@ -353,42 +365,56 @@ export function BudgetScreen({
 
             {budgetEditMode === 'savings' ? (
               <div>
-                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">Ahorro mensual</label>
+                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
+                  Ahorro mensual
+                </label>
                 <input
                   autoFocus
-                  type="text" inputMode="numeric"
+                  type="text"
+                  inputMode="numeric"
                   placeholder={`ej. ${mm(monthlySavings)}`}
                   value={savingsInput}
-                  onChange={e => setSavingsInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
+                  onChange={(e) => setSavingsInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveSavings()}
                   className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
                 />
                 <p className="text-[9px] text-slate-400 mt-2">
-                  Presupuesto resultante: {savingsInput ? mm(Math.max(0, totalIncome - parseAmount(savingsInput))) : mm(monthlyBudget)}
+                  Presupuesto resultante:{' '}
+                  {savingsInput
+                    ? mm(Math.max(0, totalIncome - parseAmount(savingsInput)))
+                    : mm(monthlyBudget)}
                 </p>
               </div>
             ) : (
               <div>
-                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">Presupuesto a gastar</label>
+                <label className="text-[9px] font-semibold uppercase tracking-[.12em] text-slate-600 block mb-2">
+                  Presupuesto a gastar
+                </label>
                 <input
                   autoFocus
-                  type="text" inputMode="numeric"
+                  type="text"
+                  inputMode="numeric"
                   placeholder={`ej. ${mm(monthlyBudget)}`}
                   value={savingsInput}
-                  onChange={e => setSavingsInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveSavings()}
+                  onChange={(e) => setSavingsInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveSavings()}
                   className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
                 />
-                <p className="text-[9px] text-slate-400 mt-2">
-                  Máximo: {mm(totalIncome)}
-                </p>
+                <p className="text-[9px] text-slate-400 mt-2">Máximo: {mm(totalIncome)}</p>
               </div>
             )}
 
             <div className="flex gap-2.5">
-              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">Guardar</PrimaryButton>
+              <PrimaryButton onClick={saveSavings} className="flex-1 py-3 text-sm">
+                Guardar
+              </PrimaryButton>
               <button
-                onClick={() => { setEditingSavings(false); setSavingsInput(''); setSavingsPercentage(''); setBudgetEditMode('savings') }}
+                onClick={() => {
+                  setEditingSavings(false)
+                  setSavingsInput('')
+                  setSavingsPercentage('')
+                  setBudgetEditMode('savings')
+                }}
                 className="px-4 py-3 text-slate-400 text-sm font-medium"
               >
                 Cancelar
@@ -417,19 +443,29 @@ export function BudgetScreen({
         <div>
           {/* ALERTA CRÍTICA: Si unassigned < 0, bolsillos exceden presupuesto */}
           {unassigned < 0 && (
-            <div style={{
-              background: '#fee2e2',
-              border: '2px solid #ef4444',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '16px',
-              textAlign: 'center',
-            }}>
-              <p style={{ color: '#991b1b', fontWeight: 'bold', fontSize: '14px', margin: '0 0 4px 0' }}>
+            <div
+              style={{
+                background: '#fee2e2',
+                border: '2px solid #ef4444',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                textAlign: 'center',
+              }}
+            >
+              <p
+                style={{
+                  color: '#991b1b',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  margin: '0 0 4px 0',
+                }}
+              >
                 ⚠️ EXCESO CRÍTICO
               </p>
               <p style={{ color: '#991b1b', fontSize: '12px', margin: 0 }}>
-                Bolsillos asignados (${mm(totalPocketBudget)}) SUPERAN presupuesto (${mm(monthlyBudget)})
+                Bolsillos asignados (${mm(totalPocketBudget)}) SUPERAN presupuesto ($
+                {mm(monthlyBudget)})
               </p>
             </div>
           )}
@@ -445,7 +481,9 @@ export function BudgetScreen({
             {totalPocketBudget > 0 && (
               <span className="text-[9px] font-normal text-slate-400 ml-2 normal-case tracking-normal">
                 {mm(totalPocketBudget)} asignados de {mm(monthlyBudget)}
-                {unassigned >= 0 ? ` (${mm(unassigned)} libre)` : ` (${mm(-unassigned)} sobre límite)`}
+                {unassigned >= 0
+                  ? ` (${mm(unassigned)} libre)`
+                  : ` (${mm(-unassigned)} sobre límite)`}
               </span>
             )}
           </SectionHeader>
@@ -465,29 +503,37 @@ export function BudgetScreen({
                   title="Cambiar ícono"
                 >
                   {selectedIcon}
-                  <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">✎</span>
+                  <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                    ✎
+                  </span>
                 </button>
                 <input
                   autoFocus
                   placeholder="Nombre (ej. Transporte)"
                   value={newName}
-                  onChange={e => { setNewName(e.target.value); setNewIcon('') }}
-                  onKeyDown={e => e.key === 'Escape' && setAddingPocket(false)}
+                  onChange={(e) => {
+                    setNewName(e.target.value)
+                    setNewIcon('')
+                  }}
+                  onKeyDown={(e) => e.key === 'Escape' && setAddingPocket(false)}
                   className="flex-1 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3 text-sm outline-none bg-slate-50 focus:bg-white transition-colors"
                 />
               </div>
 
               {newIcon && (
                 <p className="text-[10px] text-teal-600 font-medium px-1">
-                  Ícono personalizado · <button className="underline" onClick={() => setNewIcon('')}>usar automático</button>
+                  Ícono personalizado ·{' '}
+                  <button className="underline" onClick={() => setNewIcon('')}>
+                    usar automático
+                  </button>
                 </p>
               )}
 
               <input
                 placeholder={`Presupuesto (ej. ${Math.round(config.defaultBudget / 5).toLocaleString()})`}
                 value={newBudget}
-                onChange={e => setNewBudget(e.target.value)}
-                onKeyDown={e => {
+                onChange={(e) => setNewBudget(e.target.value)}
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') addPocket()
                   if (e.key === 'Escape') setAddingPocket(false)
                 }}
@@ -499,7 +545,12 @@ export function BudgetScreen({
                   Agregar
                 </PrimaryButton>
                 <button
-                  onClick={() => { setAddingPocket(false); setNewName(''); setNewBudget(''); setNewIcon('') }}
+                  onClick={() => {
+                    setAddingPocket(false)
+                    setNewName('')
+                    setNewBudget('')
+                    setNewIcon('')
+                  }}
                   className="px-4 py-3 text-slate-400 text-sm font-medium"
                 >
                   Cancelar
@@ -553,14 +604,12 @@ export function BudgetScreen({
             </div>
 
             <div className="space-y-1.5 mb-3">
-              {exceededPockets.map(p => {
+              {exceededPockets.map((p) => {
                 const exc = (spentByPocket[p.id] ?? 0) - p.budget
                 return (
                   <div key={p.id} className="flex items-center justify-between">
                     <span className="text-xs text-red-700 font-medium">{p.name}</span>
-                    <span className="text-xs font-bold text-red-600 tabular-nums">
-                      +{mm(exc)}
-                    </span>
+                    <span className="text-xs font-bold text-red-600 tabular-nums">+{mm(exc)}</span>
                   </div>
                 )
               })}
@@ -572,9 +621,7 @@ export function BudgetScreen({
                 <>
                   Quedan{' '}
                   <span className="font-bold tabular-nums">
-                    {budgetRemaining >= 0
-                      ? mm(budgetRemaining)
-                      : `−${mm(-budgetRemaining)}`}
+                    {budgetRemaining >= 0 ? mm(budgetRemaining) : `−${mm(-budgetRemaining)}`}
                   </span>
                   {budgetRemaining < 0 ? ' (presupuesto excedido).' : ' del presupuesto total.'}
                 </>
@@ -626,7 +673,8 @@ export function BudgetScreen({
               Bolsillos sobre-asignados en {mm(-unassigned)}
             </p>
             <p className="text-xs text-orange-600 leading-relaxed">
-              Los presupuestos de tus bolsillos superan el presupuesto total. Reduce alguno para cuadrar.
+              Los presupuestos de tus bolsillos superan el presupuesto total. Reduce alguno para
+              cuadrar.
             </p>
           </div>
         )}

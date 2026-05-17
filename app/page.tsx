@@ -858,20 +858,9 @@ export default function Home() {
   const handleEditPocket = useCallback(
     (id: string, name: string, budget: number, icon?: string) => {
       const monthData = getActiveMonthData()
-      const budget_available = snapshot.budget
 
-      // VALIDACIÓN: sum(pockets) <= presupuesto
-      const otherPockets = monthData.pockets.filter((p) => p.id !== id)
-      const sumWithoutThis = otherPockets.reduce((s, p) => s + p.budget, 0)
-      const totalIfEdited = sumWithoutThis + budget
-
-      if (totalIfEdited > budget_available) {
-        alert(
-          `❌ No puedes asignar más de lo disponible.\n\nPresupuesto: $${budget_available}\nAsignado (sin este bolsillo): $${sumWithoutThis}\nIntentando asignar: $${budget}\nTotal resultaría en: $${totalIfEdited}`
-        )
-        return false
-      }
-
+      // Sin validación: el usuario decide cómo asignar su presupuesto
+      // El financial engine mostrará visualmente si es sostenible (status, savings, etc)
       setMonthlyHistory((prev) => ({
         ...prev,
         [activeMonth]: {
@@ -883,7 +872,7 @@ export default function Home() {
       }))
       return true
     },
-    [activeMonth, getActiveMonthData, snapshot.budget]
+    [activeMonth, getActiveMonthData]
   )
 
   const handleDeletePocket = useCallback(
@@ -923,20 +912,8 @@ export default function Home() {
 
         const monthData = prev[activeMonth]
 
-        // 2. VALIDACIÓN: sum(pockets) <= presupuesto
-        const currentTotal = monthData.pockets.reduce((s, p) => s + p.budget, 0)
-        const totalIfAdded = currentTotal + budget
-
-        // TEMP: deshabilitar validación de presupuesto para permitir crear bolsillos
-        // if (totalIfAdded > budget_available) {
-        //   return prev
-        // }
-
-        // 3. Agregar nuevo pocket a monthlyHistory[activeMonth].pockets
-        console.log('[ADD POCKET] new pockets', [
-          ...monthData.pockets,
-          { id: 'test', name, budget, icon },
-        ])
+        // Sin validación: el usuario decide cómo asignar su presupuesto
+        // El financial engine mostrará visualmente si es sostenible
         return {
           ...prev,
           [activeMonth]: {
@@ -949,7 +926,7 @@ export default function Home() {
         }
       })
     },
-    [activeMonth, snapshot.budget]
+    [activeMonth]
   )
 
   const handleAddExtraIncome = useCallback(
