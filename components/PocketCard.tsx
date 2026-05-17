@@ -170,7 +170,7 @@ export function PocketCard({
             {onEdit && (
               <button
                 onClick={openEdit}
-                className="p-1.5 text-slate-300 hover:text-slate-500 rounded-xl hover:bg-slate-50 transition-colors"
+                className="p-1.5 text-slate-500 hover:text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 <Icon name="edit" size={12} />
               </button>
@@ -178,7 +178,7 @@ export function PocketCard({
             {onDelete && (
               <button
                 onClick={() => onDelete!(pocket.id)}
-                className="p-1.5 text-slate-300 hover:text-red-400 rounded-xl hover:bg-red-50 transition-colors"
+                className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
               >
                 <Icon name="trash" size={12} />
               </button>
