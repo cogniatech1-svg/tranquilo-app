@@ -341,31 +341,16 @@ export default function Home() {
 
         let localStorageData: StoredData | null = null
         const raw = localStorage.getItem(storageKey)
-
-        console.log('[initializeApp] 🔍 localStorage lookup:', {
-          storageKey,
-          found: !!raw,
-          size: raw ? raw.length : 0,
-        })
-
         if (raw) {
           try {
             localStorageData = JSON.parse(raw) as StoredData
-            const lsMonths = localStorageData.monthlyHistory
-              ? Object.keys(localStorageData.monthlyHistory)
-              : []
-            const lsPockets = lsMonths.map(
-              (m) =>
-                `${m}:${localStorageData!.monthlyHistory![m].pockets?.map((p) => p.name).join(',')}` ||
-                'no-pockets'
-            )
-            console.log('[initializeApp] ✅ localStorage data parsed:', {
-              monthsCount: lsMonths.length,
-              months: lsMonths,
-              pocketsByMonth: lsPockets,
+            console.log('[initializeApp] ✅ localStorage data available:', {
+              monthsCount: localStorageData.monthlyHistory
+                ? Object.keys(localStorageData.monthlyHistory).length
+                : 0,
             })
-          } catch (e) {
-            console.log('[initializeApp] ❌ Error parsing localStorage:', e)
+          } catch {
+            console.log('[initializeApp] ❌ Error parsing localStorage')
           }
         }
 
@@ -404,9 +389,6 @@ export default function Home() {
             // Merge: for each month in localStorage, if Supabase is missing pockets, use localStorage version
             for (const [month, lsMonthData] of Object.entries(localStorageData.monthlyHistory)) {
               if (!data.monthlyHistory[month]) {
-                console.log(
-                  `[initializeApp] 📝 Mes ${month} solo en localStorage, copiando completamente`
-                )
                 data.monthlyHistory[month] = lsMonthData
               } else if (
                 (!data.monthlyHistory[month].pockets ||
@@ -415,20 +397,9 @@ export default function Home() {
                 lsMonthData.pockets.length > 0
               ) {
                 // Replace pockets from localStorage if Supabase has empty pockets
-                const supaPocketsCount = data.monthlyHistory[month].pockets?.length ?? 0
-                const lsPocketsCount = lsMonthData.pockets.length
-                const supaNames = data.monthlyHistory[month].pockets?.map((p) => p.name) ?? []
-                const lsNames = lsMonthData.pockets.map((p) => p.name)
-
                 data.monthlyHistory[month].pockets = lsMonthData.pockets
                 console.log(
-                  `[initializeApp] ✅ Restaurado pockets para ${month} desde localStorage`,
-                  {
-                    supaPocketsCount,
-                    lsPocketsCount,
-                    supaNames,
-                    lsNames,
-                  }
+                  `[initializeApp] ✅ Restaurado pockets para ${month} desde localStorage`
                 )
               }
             }
@@ -443,27 +414,7 @@ export default function Home() {
         // ── REPARAR DATOS CORRUPTOS (PHASE 2) ────────────────────────────────
         // Asegura que todos los 9 bolsillos estén presentes
         // Detecta y reporta gastos con nombres genéricos ("Expense 1", etc)
-        console.log('[initializeApp] 🔍 Antes de repairStoredData:', {
-          monthCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-          months: data.monthlyHistory ? Object.keys(data.monthlyHistory) : [],
-          pocketsByMonth: data.monthlyHistory
-            ? Object.entries(data.monthlyHistory).map(
-                ([m, rec]) => `${m}:${rec.pockets?.map((p) => p.name).join(',') || 'empty'}`
-              )
-            : [],
-        })
-
         data = repairStoredData(data)
-
-        console.log('[initializeApp] 🔍 Después de repairStoredData:', {
-          monthCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-          months: data.monthlyHistory ? Object.keys(data.monthlyHistory) : [],
-          pocketsByMonth: data.monthlyHistory
-            ? Object.entries(data.monthlyHistory).map(
-                ([m, rec]) => `${m}:${rec.pockets?.map((p) => p.name).join(',') || 'empty'}`
-              )
-            : [],
-        })
 
         // ── CARGA DE ESTADO REACT ──────────────────────────────────────────────
         // Re-leer la bandera DESPUÉS de posible restauración
@@ -804,42 +755,10 @@ export default function Home() {
 
       const storageKey = `${STORAGE_KEY}_${saveUserId}`
 
-      // ── DIAGNÓSTICO: Log detallado antes de guardar ────────────────────────
-      console.log('[SAVE-NOW] 📝 DIAGNÓSTICO PRE-SAVE:', {
-        userId: userId || '(null)',
-        guestUserId: guestUserId || '(null)',
-        saveUserId: saveUserId,
-        storageKey: storageKey,
-        activeMonth: activeMonth,
-        currentMonth: currentMonth,
-        pocketsInActiveMonth: activeData.pockets.length,
-        pocketNames: activeData.pockets.map((p) => p.name),
-        totalMonthsInHistory: Object.keys(updatedHistory).length,
-      })
-
       // Save to localStorage (critical for offline support)
       try {
-        const jsonString = JSON.stringify(dataToSave)
-        console.log('[SAVE-NOW] 📏 Tamaño JSON:', jsonString.length, 'bytes')
-        console.log('[SAVE-NOW] 📦 Data structure:', {
-          hasMonthlyHistory: !!dataToSave.monthlyHistory,
-          monthlyHistoryKeys: Object.keys(dataToSave.monthlyHistory || {}),
-          pocketsInDataToSave: dataToSave.pockets?.length ?? 0,
-          expensesCount: dataToSave.expenses?.length ?? 0,
-          extraIncomesCount: dataToSave.extraIncomes?.length ?? 0,
-        })
-        localStorage.setItem(storageKey, jsonString)
-
-        // Verificar que se guardó realmente leyendo de vuelta
-        const readBack = localStorage.getItem(storageKey)
-        if (readBack) {
-          console.log('[SAVE-NOW] ✅ localStorage guardado y verificado')
-          console.log('[SAVE-NOW] ✅ Read-back size:', readBack.length, 'bytes')
-        } else {
-          console.error(
-            '[SAVE-NOW] ❌ localStorage.setItem() no generó error pero read-back falló!'
-          )
-        }
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+        console.log('[SAVE-NOW] ✅ localStorage guardado')
       } catch (storageError) {
         console.error('[SAVE-NOW] ❌ Error guardando a localStorage:', storageError)
         // Continue to Supabase even if localStorage fails
@@ -1081,23 +1000,16 @@ export default function Home() {
 
         // Sin validación: el usuario decide cómo asignar su presupuesto
         // El financial engine mostrará visualmente si es sostenible
-        const newPocket = { id: createEntityId(), name: capitalizeWords(name), budget, icon }
         const updated = {
           ...prev,
           [activeMonth]: {
             ...monthData,
-            pockets: [...monthData.pockets, newPocket],
+            pockets: [
+              ...monthData.pockets,
+              { id: createEntityId(), name: capitalizeWords(name), budget, icon },
+            ],
           },
         }
-
-        console.log('[POCKET] 🟢 handleAddPocket creando bolsillo:', {
-          name: newPocket.name,
-          budget: newPocket.budget,
-          icon: newPocket.icon,
-          activeMonth,
-          totalPocketsNow: updated[activeMonth].pockets.length,
-        })
-
         saveNow(updated)
         return updated
       })
