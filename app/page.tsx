@@ -861,39 +861,45 @@ export default function Home() {
 
       // Sin validación: el usuario decide cómo asignar su presupuesto
       // El financial engine mostrará visualmente si es sostenible (status, savings, etc)
-      setMonthlyHistory((prev) => ({
-        ...prev,
-        [activeMonth]: {
-          ...monthData,
-          pockets: monthData.pockets.map((p) =>
-            p.id === id ? { ...p, name: capitalizeWords(name), budget, icon } : p
-          ),
-        },
-      }))
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            pockets: monthData.pockets.map((p) =>
+              p.id === id ? { ...p, name: capitalizeWords(name), budget, icon } : p
+            ),
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
       return true
     },
-    [activeMonth, getActiveMonthData]
+    [activeMonth, getActiveMonthData, saveNow]
   )
 
   const handleDeletePocket = useCallback(
     (id: string) => {
       const monthData = getActiveMonthData()
-      setMonthlyHistory((prev) => ({
-        ...prev,
-        [activeMonth]: {
-          ...monthData,
-          pockets: monthData.pockets.filter((p) => p.id !== id),
-          expenses: monthData.expenses.filter((e) => e.pocketId !== id),
-        },
-      }))
+      setMonthlyHistory((prev) => {
+        const updated = {
+          ...prev,
+          [activeMonth]: {
+            ...monthData,
+            pockets: monthData.pockets.filter((p) => p.id !== id),
+            expenses: monthData.expenses.filter((e) => e.pocketId !== id),
+          },
+        }
+        saveNow(updated)
+        return updated
+      })
     },
-    [activeMonth, getActiveMonthData]
+    [activeMonth, getActiveMonthData, saveNow]
   )
 
   const handleAddPocket = useCallback(
     (name: string, budget: number, icon?: string) => {
-      const budget_available = snapshot.budget
-
       setMonthlyHistory((prev) => {
         // 1. Asegurar que el mes actual existe en monthlyHistory
         if (!prev[activeMonth]) {
@@ -914,7 +920,7 @@ export default function Home() {
 
         // Sin validación: el usuario decide cómo asignar su presupuesto
         // El financial engine mostrará visualmente si es sostenible
-        return {
+        const updated = {
           ...prev,
           [activeMonth]: {
             ...monthData,
@@ -924,9 +930,11 @@ export default function Home() {
             ],
           },
         }
+        saveNow(updated)
+        return updated
       })
     },
-    [activeMonth]
+    [activeMonth, saveNow]
   )
 
   const handleAddExtraIncome = useCallback(
