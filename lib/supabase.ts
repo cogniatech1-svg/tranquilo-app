@@ -80,6 +80,8 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             `[Supabase] Saving manual budget for ${monthKey}: ${monthRecord.manualBudget}`
           )
         }
+        // NOTE: Pockets are persisted in localStorage and monthly_records doesn't have a pockets_data column.
+        // Supabase schema only supports: income, savings, manual_budget, updated_at, user_id, month
         const monthRecordData: Record<string, unknown> = {
           user_id: userId,
           month: monthKey,
@@ -87,11 +89,6 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           savings: monthRecord.savings,
           manual_budget: monthRecord.manualBudget ?? null,
           updated_at: new Date().toISOString(),
-        }
-
-        // Try to save pockets_data if available
-        if (monthRecord.pockets && monthRecord.pockets.length > 0) {
-          monthRecordData.pockets_data = JSON.stringify(monthRecord.pockets)
         }
 
         const { error: monthError } = await supabase
@@ -105,22 +102,7 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
               `[Supabase] HINT: The 'manual_budget' column may not exist in the 'monthly_records' table. Please check Supabase schema.`
             )
           }
-          if (monthError.message?.includes('pockets_data')) {
-            console.warn(
-              `[Supabase] HINT: The 'pockets_data' column may not exist yet. Retrying without pockets_data...`
-            )
-            // Retry without pockets_data if it fails
-            delete monthRecordData.pockets_data
-            const { error: retryError } = await supabase
-              .from('monthly_records')
-              .upsert(monthRecordData, { onConflict: 'user_id,month' })
-            if (retryError) {
-              console.error(`[Supabase] Retry failed for ${monthKey}:`, retryError)
-              throw retryError
-            }
-          } else {
-            throw monthError
-          }
+          throw monthError
         }
 
         // Delete and recreate expenses for this month (simpler than tracking deletes)
