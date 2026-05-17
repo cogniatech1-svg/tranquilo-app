@@ -281,9 +281,16 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         continue
       }
 
-      // NOTE: Pockets are stored globally in the 'pockets' table, not per-month
-      // So we load them once (below) and use the same pockets for all months
-      // This will be set after loading all monthly records
+      // Parse pockets from pockets_data JSON field in this month's record
+      let monthPockets = []
+      if (monthRecord.pockets_data) {
+        try {
+          monthPockets = JSON.parse(monthRecord.pockets_data)
+        } catch (e) {
+          console.warn(`[Supabase] Failed to parse pockets_data for month ${month}:`, e)
+          monthPockets = []
+        }
+      }
 
       monthlyHistory[month] = {
         income: monthRecord.income,
@@ -301,23 +308,8 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
           amount: i.amount,
           concept: i.concept,
         })),
-        pockets: [], // Will be populated with global pockets below
+        pockets: monthPockets,
         manualBudget: monthRecord.manual_budget,
-      }
-    }
-
-    // Get global pockets to assign to all months
-    const globalPockets = (pocketsData || []).map((p) => ({
-      id: p.id,
-      name: p.name,
-      budget: p.budget,
-      icon: p.icon,
-    }))
-
-    // Assign global pockets to all months
-    for (const month of Object.keys(monthlyHistory)) {
-      if (monthlyHistory[month].pockets.length === 0) {
-        monthlyHistory[month].pockets = globalPockets
       }
     }
 
@@ -360,7 +352,12 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       monthlySavings: userData?.monthly_savings || 0,
       expenses: [],
       extraIncomes: [],
-      pockets: globalPockets,
+      pockets: (pocketsData || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        budget: p.budget,
+        icon: p.icon,
+      })),
       conceptMap,
       learnedCategoryMap,
       countryCode: userData?.country_code || 'CO',
