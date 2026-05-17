@@ -80,17 +80,23 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             `[Supabase] Saving manual budget for ${monthKey}: ${monthRecord.manualBudget}`
           )
         }
-        const { error: monthError } = await supabase.from('monthly_records').upsert(
-          {
-            user_id: userId,
-            month: monthKey,
-            income: monthRecord.income,
-            savings: monthRecord.savings,
-            manual_budget: monthRecord.manualBudget ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,month' }
-        )
+        const monthRecordData: Record<string, unknown> = {
+          user_id: userId,
+          month: monthKey,
+          income: monthRecord.income,
+          savings: monthRecord.savings,
+          manual_budget: monthRecord.manualBudget ?? null,
+          updated_at: new Date().toISOString(),
+        }
+
+        // Try to save pockets_data if available
+        if (monthRecord.pockets && monthRecord.pockets.length > 0) {
+          monthRecordData.pockets_data = JSON.stringify(monthRecord.pockets)
+        }
+
+        const { error: monthError } = await supabase
+          .from('monthly_records')
+          .upsert(monthRecordData, { onConflict: 'user_id,month' })
 
         if (monthError) {
           console.error(`[Supabase] Error saving monthly record for ${monthKey}:`, monthError)
@@ -99,7 +105,22 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
               `[Supabase] HINT: The 'manual_budget' column may not exist in the 'monthly_records' table. Please check Supabase schema.`
             )
           }
-          throw monthError
+          if (monthError.message?.includes('pockets_data')) {
+            console.warn(
+              `[Supabase] HINT: The 'pockets_data' column may not exist yet. Retrying without pockets_data...`
+            )
+            // Retry without pockets_data if it fails
+            delete monthRecordData.pockets_data
+            const { error: retryError } = await supabase
+              .from('monthly_records')
+              .upsert(monthRecordData, { onConflict: 'user_id,month' })
+            if (retryError) {
+              console.error(`[Supabase] Retry failed for ${monthKey}:`, retryError)
+              throw retryError
+            }
+          } else {
+            throw monthError
+          }
         }
 
         // Delete and recreate expenses for this month (simpler than tracking deletes)
@@ -184,7 +205,18 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     }
     console.log('[Supabase] 🟢 ✅ saveUserData completado exitosamente')
   } catch (error) {
-    console.error('[Supabase] ❌ CRÍTICO: Error guardando en Supabase:', error)
+    let errorMsg = 'Error desconocido'
+    if (error instanceof Error) {
+      errorMsg = error.message
+    } else if (error && typeof error === 'object') {
+      const obj = error as Record<string, unknown>
+      if (obj.message) errorMsg = String(obj.message)
+      else if (obj.error) errorMsg = String(obj.error)
+      else if (obj.hint) errorMsg = String(obj.hint)
+      else errorMsg = JSON.stringify(obj).substring(0, 300)
+    }
+    console.error('[Supabase] ❌ CRÍTICO: Error guardando en Supabase:', errorMsg)
+    console.error('[Supabase] Error object:', error)
     // Re-throw so the auto-save can show the real Supabase error in the UI banner
     throw error
   }
@@ -264,6 +296,17 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         continue
       }
 
+      // Parse pockets from pockets_data JSON field in this month's record
+      let monthPockets = []
+      if (monthRecord.pockets_data) {
+        try {
+          monthPockets = JSON.parse(monthRecord.pockets_data)
+        } catch (e) {
+          console.warn(`[Supabase] Failed to parse pockets_data for month ${month}:`, e)
+          monthPockets = []
+        }
+      }
+
       monthlyHistory[month] = {
         income: monthRecord.income,
         savings: monthRecord.savings,
@@ -280,12 +323,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
           amount: i.amount,
           concept: i.concept,
         })),
-        pockets: (pocketsData || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          budget: p.budget,
-          icon: p.icon,
-        })),
+        pockets: monthPockets,
         manualBudget: monthRecord.manual_budget,
       }
     }

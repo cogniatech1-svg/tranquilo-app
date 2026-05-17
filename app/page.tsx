@@ -59,6 +59,32 @@ const ONBOARDING_FLAG = 'hasOnboarded'
 // nunca son sobreescritos por datos hardcodeados.
 const APRIL_RESTORED_FLAG = 'april2026_v1_restored'
 
+// Helper function to convert any error type to a readable message
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (error && typeof error === 'object') {
+    // Handle Supabase errors and similar objects
+    const obj = error as Record<string, unknown>
+    if (obj.message && typeof obj.message === 'string') {
+      return obj.message
+    }
+    if (obj.error && typeof obj.error === 'string') {
+      return obj.error
+    }
+    if (obj.hint && typeof obj.hint === 'string') {
+      return obj.hint
+    }
+    try {
+      return JSON.stringify(obj).substring(0, 200)
+    } catch {
+      return 'Error desconocido'
+    }
+  }
+  return String(error) || 'Error desconocido'
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER: Obtener ID de usuario garantizado (nunca null)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,31 +334,75 @@ export default function Home() {
         }
 
         // ── FALLBACK: Load from localStorage ────────────────────────────────
-        // Use localStorage when Supabase has no monthly history.
-        // NOTE: loadUserData() returns a StoredData object even for new users
-        // (with empty monthlyHistory: {}), so Object.keys(data).length is NEVER 0
-        // after a successful Supabase fetch. We must check monthlyHistory specifically.
+        // Use localStorage when Supabase has no monthly history OR when Supabase data is incomplete
+        // (e.g., missing pockets_data due to schema migration)
         const hasSupabaseHistory =
           data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0
+
+        let localStorageData: StoredData | null = null
+        const raw = localStorage.getItem(storageKey)
+        if (raw) {
+          try {
+            localStorageData = JSON.parse(raw) as StoredData
+            console.log('[initializeApp] ✅ localStorage data available:', {
+              monthsCount: localStorageData.monthlyHistory
+                ? Object.keys(localStorageData.monthlyHistory).length
+                : 0,
+            })
+          } catch {
+            console.log('[initializeApp] ❌ Error parsing localStorage')
+          }
+        }
+
+        // If no Supabase history, use localStorage entirely
         if (!hasSupabaseHistory) {
-          console.log('[initializeApp] 🔷 Sin datos en Supabase, intentando localStorage...')
-          const raw = localStorage.getItem(storageKey)
-          if (raw) {
-            try {
-              data = JSON.parse(raw) as StoredData
-              console.log('[initializeApp] ✅ Datos cargados de localStorage:', {
-                monthsCount: data.monthlyHistory ? Object.keys(data.monthlyHistory).length : 0,
-                hasProfile: !!data.profile,
-              })
-            } catch {
-              console.log('[initializeApp] ❌ Error parsing localStorage')
-            }
+          if (localStorageData) {
+            console.log(
+              '[initializeApp] 🔷 Sin datos en Supabase, usando localStorage completamente'
+            )
+            data = localStorageData
           } else {
             console.log('[initializeApp] ❌ Sin datos en localStorage tampoco')
             // Debug: check what keys exist to diagnose key mismatch issue
             const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('tranquilo_v1'))
             console.log('[initializeApp] 🔍 DEBUG: Available tranquilo_v1 keys:', allKeys)
             console.log('[initializeApp] 🔍 DEBUG: Looking for storageKey:', storageKey)
+          }
+        } else if (localStorageData && data.monthlyHistory) {
+          // MERGE: If Supabase has history but localStorage also exists, merge them
+          // This handles cases where Supabase schema is incomplete (missing pockets_data column)
+          console.log('[initializeApp] 🔷 Supabase + localStorage ambos presentes, merging...')
+
+          // Check if Supabase data is missing pockets in any month
+          let supabaseIncomplete = false
+          for (const [month, monthData] of Object.entries(data.monthlyHistory)) {
+            if (!monthData.pockets || monthData.pockets.length === 0) {
+              supabaseIncomplete = true
+              break
+            }
+          }
+
+          if (supabaseIncomplete && localStorageData.monthlyHistory) {
+            console.log(
+              '[initializeApp] 🔷 Detectado: Supabase tiene pockets incompletos, fusionando con localStorage...'
+            )
+            // Merge: for each month in localStorage, if Supabase is missing pockets, use localStorage version
+            for (const [month, lsMonthData] of Object.entries(localStorageData.monthlyHistory)) {
+              if (!data.monthlyHistory[month]) {
+                data.monthlyHistory[month] = lsMonthData
+              } else if (
+                (!data.monthlyHistory[month].pockets ||
+                  data.monthlyHistory[month].pockets.length === 0) &&
+                lsMonthData.pockets &&
+                lsMonthData.pockets.length > 0
+              ) {
+                // Replace pockets from localStorage if Supabase has empty pockets
+                data.monthlyHistory[month].pockets = lsMonthData.pockets
+                console.log(
+                  `[initializeApp] ✅ Restaurado pockets para ${month} desde localStorage`
+                )
+              }
+            }
           }
         }
 
@@ -563,7 +633,7 @@ export default function Home() {
           setSyncError(null)
           setLastSyncTime(Date.now())
         } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error)
+          const errorMsg = getErrorMessage(error)
           console.error('[AUTO-SAVE] ❌ Error guardando a Supabase:', error)
           setSyncError(`Error de sincronización: ${errorMsg}`)
         } finally {
@@ -632,7 +702,7 @@ export default function Home() {
           setSyncError(null)
           setLastSyncTime(Date.now())
         } catch (e) {
-          const errorMsg = e instanceof Error ? e.message : String(e)
+          const errorMsg = getErrorMessage(e)
           console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
           setSyncError(`Error crítico al salir: ${errorMsg}`)
         }
