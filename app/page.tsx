@@ -47,6 +47,7 @@ import {
   subscribeToUserData,
   saveProfileData,
   validateDataPersistence,
+  migrateGuestDataToAuthenticatedUser,
 } from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ export default function Home() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -159,62 +161,90 @@ export default function Home() {
   const config: CountryConfig = COUNTRIES[countryCode]
 
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
-  const handleAuth = useCallback((event: AuthChangeEvent, user: AuthUser | null) => {
-    // Guard: only update state if component is still mounted
-    if (!isMountedRef.current) return
+  const handleAuth = useCallback(
+    (event: AuthChangeEvent, user: AuthUser | null) => {
+      // Guard: only update state if component is still mounted
+      if (!isMountedRef.current) return
 
-    console.log(
-      `[AUTH] Auth event=${event}:`,
-      user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in'
-    )
+      console.log(
+        `[AUTH] Auth event=${event}:`,
+        user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in'
+      )
 
-    // Store authenticated user state if present
-    if (user) {
-      setUserId(user.uid)
-      setUserEmail(user.email)
-    } else {
-      setUserId(null)
-      setUserEmail(null)
+      // Store authenticated user state if present
+      if (user) {
+        setUserId(user.uid)
+        setUserEmail(user.email)
+      } else {
+        setUserId(null)
+        setUserEmail(null)
 
-      // Generate guest ID for unauthenticated users
-      let guest = localStorage.getItem('guest_id')
-      const isValidUUID =
-        guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
+        // Generate guest ID for unauthenticated users
+        let guest = localStorage.getItem('guest_id')
+        const isValidUUID =
+          guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
 
-      if (!guest || !isValidUUID) {
-        guest = generateGuestUserId()
-        localStorage.setItem('guest_id', guest)
-      }
-      setGuestUserId(guest)
-    }
-
-    setAuthLoading(false)
-
-    // Single source of truth for auth-driven navigation.
-    setScreen((prev) => {
-      switch (event) {
-        case 'SIGNED_OUT':
-          return 'login'
-        case 'SIGNED_IN': {
-          if (!user) return 'login'
-          const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-          return hasOnboarded ? 'main' : 'onboarding'
+        if (!guest || !isValidUUID) {
+          guest = generateGuestUserId()
+          localStorage.setItem('guest_id', guest)
         }
-        case 'INITIAL_SESSION':
-          // Si ya hay sesión activa, navegar directamente sin mostrar login
-          if (user) {
+        setGuestUserId(guest)
+      }
+
+      setAuthLoading(false)
+
+      // Single source of truth for auth-driven navigation.
+      setScreen((prev) => {
+        switch (event) {
+          case 'SIGNED_OUT':
+            return 'login'
+          case 'SIGNED_IN': {
+            if (!user) return 'login'
+
+            // NEW: Migrate guest data to authenticated user if guest mode was active
+            if (guestUserId && guestUserId !== user.uid) {
+              console.log('[Auth] Migrating guest data to authenticated user...')
+              setIsAuthenticating(true)
+
+              migrateGuestDataToAuthenticatedUser(guestUserId, user.uid)
+                .then((result) => {
+                  if (result.success) {
+                    console.log(
+                      `[Auth] ✅ Migration complete: ${result.itemsMigrated} items migrated`
+                    )
+                    setGuestUserId(null)
+                  } else {
+                    console.warn(`[Auth] ⚠️ Migration failed: ${result.error}`)
+                  }
+                })
+                .catch((error) => {
+                  console.error('[Auth] ❌ Unexpected migration error:', error)
+                })
+                .finally(() => {
+                  setIsAuthenticating(false)
+                })
+            }
+
             const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
             return hasOnboarded ? 'main' : 'onboarding'
           }
-          return prev
-        case 'TOKEN_REFRESHED':
-          // Token refresh ocurre durante sesión activa — no re-navegar
-          return prev
-        default:
-          return prev
-      }
-    })
-  }, [])
+          case 'INITIAL_SESSION':
+            // Si ya hay sesión activa, navegar directamente sin mostrar login
+            if (user) {
+              const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
+              return hasOnboarded ? 'main' : 'onboarding'
+            }
+            return prev
+          case 'TOKEN_REFRESHED':
+            // Token refresh ocurre durante sesión activa — no re-navegar
+            return prev
+          default:
+            return prev
+        }
+      })
+    },
+    [guestUserId]
+  )
 
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
   // Subscribe to Supabase auth state changes
@@ -495,17 +525,10 @@ export default function Home() {
           // Mark data as loaded (we have actual data from Supabase/localStorage)
           dataLoadedRef.current = true
 
-          // Si hay datos, preferir abril CON gastos, si no usar mes actual
+          // Always display the current month by default
           const availableMonths = Object.keys(history)
           if (availableMonths.length > 0) {
-            // Preferir abril CON gastos
-            let targetMonth = availableMonths.find(
-              (m) => m === '2026-04' && history[m].expenses?.length > 0
-            )
-            // Si no hay abril con gastos, usar el mes actual
-            if (!targetMonth) {
-              targetMonth = getCurrentMonth()
-            }
+            const targetMonth = getCurrentMonth()
             setActiveMonth(targetMonth)
             // NOTE: currentMonth should ALWAYS be the actual current month (today), not activeMonth!
             // activeMonth is what the user is viewing, currentMonth is what "today" is
@@ -551,6 +574,12 @@ export default function Home() {
   // DEBOUNCE: Only save after 2 seconds without changes (prevents Supabase saturation)
   useEffect(() => {
     if (!hydrated || (!userId && !guestUserId)) return
+
+    // Guard: Don't save during guest→auth migration (prevents race condition with userId switch)
+    if (isAuthenticating) {
+      console.log('[AUTO-SAVE] Skipping: authentication in progress (guest→auth migration)')
+      return
+    }
 
     // CRITICAL: Don't save if onboarding hasn't finished (prevents wiping good data
     // with empty state during initial load or auth state changes)
@@ -655,6 +684,7 @@ export default function Home() {
     countryCode,
     isPrivacyMode,
     activeMonth,
+    isAuthenticating,
   ])
 
   // ── Guardar inmediatamente cuando el usuario sale de la app ───────────────
@@ -1349,9 +1379,8 @@ export default function Home() {
       const storageKey = `${STORAGE_KEY}_${currentUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
 
-      // Prefer April if it has data, otherwise current month
-      const targetMonth = aprilData && aprilData.expenses.length > 0 ? '2026-04' : thisMonth
-      setActiveMonth(targetMonth)
+      // Always show current month after onboarding
+      setActiveMonth(thisMonth)
 
       setScreen('main')
     },

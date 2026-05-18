@@ -387,6 +387,216 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
 }
 
 /**
+ * Migrate all guest user data to authenticated user
+ * Called when a guest user signs up and authenticates
+ * Safely migrates all data without overwriting existing auth user data
+ */
+export async function migrateGuestDataToAuthenticatedUser(
+  guestUserId: string,
+  newAuthenticatedUserId: string
+): Promise<{ success: boolean; itemsMigrated: number; error?: string }> {
+  try {
+    console.log('[Supabase] 🟢 Starting guest→auth migration:', {
+      guestUserId: guestUserId.substring(0, 8) + '...',
+      authenticatedUserId: newAuthenticatedUserId.substring(0, 8) + '...',
+    })
+
+    // 1. Check if authenticated user already has data (don't overwrite)
+    console.log('[Supabase] 🟡 Checking if auth user already has data...')
+    const { data: authUserExpenses, error: checkError } = await supabase
+      .from('expenses')
+      .select('id', { count: 'exact' })
+      .eq('user_id', newAuthenticatedUserId)
+      .limit(1)
+
+    if (checkError) {
+      const errorMsg = `Failed to check auth user data: ${checkError.message}`
+      console.warn('[Supabase] ⚠️', errorMsg)
+      return { success: false, itemsMigrated: 0, error: errorMsg }
+    }
+
+    if (authUserExpenses && authUserExpenses.length > 0) {
+      const warnMsg = 'Auth user already has data, skipping migration (data already exists)'
+      console.warn('[Supabase] ⚠️', warnMsg)
+      return { success: true, itemsMigrated: 0, error: undefined }
+    }
+
+    let totalMigrated = 0
+
+    // 2. Migrate users record metadata
+    console.log('[Supabase] 🟡 Migrating users record...')
+    const { data: guestUserData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', guestUserId)
+      .single()
+
+    if (guestUserData) {
+      const { error: userUpdateError } = await supabase.from('users').upsert({
+        ...guestUserData,
+        id: newAuthenticatedUserId,
+        updated_at: new Date().toISOString(),
+      })
+
+      if (userUpdateError) {
+        console.warn(
+          '[Supabase] ⚠️ Warning migrating users record (non-blocking):',
+          userUpdateError
+        )
+      } else {
+        console.log('[Supabase] ✅ Users record migrated')
+      }
+    }
+
+    // 3. Migrate expenses (get all, then update user_id)
+    console.log('[Supabase] 🟡 Migrating expenses...')
+    const { data: guestExpenses, error: getExpensesError } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', guestUserId)
+
+    if (getExpensesError) {
+      const errorMsg = `Failed to fetch guest expenses: ${getExpensesError.message}`
+      console.error('[Supabase]', errorMsg)
+      return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+    }
+
+    if (guestExpenses && guestExpenses.length > 0) {
+      // Update all expenses at once
+      const { error: updateExpensesError } = await supabase
+        .from('expenses')
+        .update({ user_id: newAuthenticatedUserId })
+        .eq('user_id', guestUserId)
+
+      if (updateExpensesError) {
+        const errorMsg = `Failed to update expenses: ${updateExpensesError.message}`
+        console.error('[Supabase]', errorMsg)
+        return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+      }
+
+      totalMigrated += guestExpenses.length
+      console.log(`[Supabase] ✅ ${guestExpenses.length} expenses migrated`)
+    }
+
+    // 4. Migrate extra_incomes
+    console.log('[Supabase] 🟡 Migrating extra incomes...')
+    const { data: guestIncomes, error: getIncomesError } = await supabase
+      .from('extra_incomes')
+      .select('*')
+      .eq('user_id', guestUserId)
+
+    if (getIncomesError) {
+      const errorMsg = `Failed to fetch guest incomes: ${getIncomesError.message}`
+      console.error('[Supabase]', errorMsg)
+      return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+    }
+
+    if (guestIncomes && guestIncomes.length > 0) {
+      const { error: updateIncomesError } = await supabase
+        .from('extra_incomes')
+        .update({ user_id: newAuthenticatedUserId })
+        .eq('user_id', guestUserId)
+
+      if (updateIncomesError) {
+        const errorMsg = `Failed to update extra incomes: ${updateIncomesError.message}`
+        console.error('[Supabase]', errorMsg)
+        return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+      }
+
+      totalMigrated += guestIncomes.length
+      console.log(`[Supabase] ✅ ${guestIncomes.length} extra incomes migrated`)
+    }
+
+    // 5. Migrate monthly_records
+    console.log('[Supabase] 🟡 Migrating monthly records...')
+    const { data: guestMonths, error: getMonthsError } = await supabase
+      .from('monthly_records')
+      .select('*')
+      .eq('user_id', guestUserId)
+
+    if (getMonthsError) {
+      const errorMsg = `Failed to fetch guest monthly records: ${getMonthsError.message}`
+      console.error('[Supabase]', errorMsg)
+      return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+    }
+
+    if (guestMonths && guestMonths.length > 0) {
+      const { error: updateMonthsError } = await supabase
+        .from('monthly_records')
+        .update({ user_id: newAuthenticatedUserId })
+        .eq('user_id', guestUserId)
+
+      if (updateMonthsError) {
+        const errorMsg = `Failed to update monthly records: ${updateMonthsError.message}`
+        console.error('[Supabase]', errorMsg)
+        return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+      }
+
+      totalMigrated += guestMonths.length
+      console.log(`[Supabase] ✅ ${guestMonths.length} monthly records migrated`)
+    }
+
+    // 6. Migrate concept_map
+    console.log('[Supabase] 🟡 Migrating concept map...')
+    const { data: conceptMap } = await supabase
+      .from('concept_map')
+      .select('*')
+      .eq('user_id', guestUserId)
+      .single()
+
+    if (conceptMap) {
+      const { error: updateConceptError } = await supabase
+        .from('concept_map')
+        .update({ user_id: newAuthenticatedUserId })
+        .eq('user_id', guestUserId)
+
+      if (updateConceptError) {
+        console.warn(
+          '[Supabase] ⚠️ Warning migrating concept map (non-blocking):',
+          updateConceptError
+        )
+      } else {
+        console.log('[Supabase] ✅ Concept map migrated')
+      }
+    }
+
+    // 7. Migrate learned_category_map
+    console.log('[Supabase] 🟡 Migrating learned category map...')
+    const { data: learnedMap } = await supabase
+      .from('learned_category_map')
+      .select('*')
+      .eq('user_id', guestUserId)
+      .single()
+
+    if (learnedMap) {
+      const { error: updateLearnedError } = await supabase
+        .from('learned_category_map')
+        .update({ user_id: newAuthenticatedUserId })
+        .eq('user_id', guestUserId)
+
+      if (updateLearnedError) {
+        console.warn(
+          '[Supabase] ⚠️ Warning migrating learned category map (non-blocking):',
+          updateLearnedError
+        )
+      } else {
+        console.log('[Supabase] ✅ Learned category map migrated')
+      }
+    }
+
+    console.log('[Supabase] 🟢 ✅ Guest→auth migration complete:', {
+      itemsMigrated: totalMigrated,
+    })
+
+    return { success: true, itemsMigrated: totalMigrated }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error('[Supabase] ❌ Migration failed:', errorMsg)
+    return { success: false, itemsMigrated: 0, error: errorMsg }
+  }
+}
+
+/**
  * Subscribe to real-time updates of user data
  * Listens to changes in multiple tables and reconstructs StoredData
  * Returns unsubscribe function
