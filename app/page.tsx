@@ -857,6 +857,34 @@ export default function Home() {
     [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget]
   )
 
+  // ── Cumulative Savings Calculation ─────────────────────────────────────────
+  const cumulativeSavings = useMemo(() => {
+    const totalByYear: Record<number, number> = {}
+    let grandTotal = 0
+
+    Object.entries(monthlyHistory).forEach(([monthKey, month]) => {
+      const year = parseInt(monthKey.split('-')[0])
+      const totalExpenses = month.expenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0
+      const extraIncomeTotal = month.extraIncomes?.reduce((sum, e) => sum + e.amount, 0) ?? 0
+      const totalIncome = (month.income ?? 0) + extraIncomeTotal
+      const budget = month.manualBudget ?? month.pockets?.reduce((sum, p) => sum + p.budget, 0) ?? 0
+      const overspent = Math.max(0, totalExpenses - budget)
+      const monthSavings = Math.max(0, totalIncome - budget - overspent)
+
+      totalByYear[year] = (totalByYear[year] ?? 0) + monthSavings
+      grandTotal += monthSavings
+    })
+
+    const result = { totalByYear, total: grandTotal }
+    console.log('[cumulativeSavings] 📊 Calculated:', {
+      monthCount: Object.keys(monthlyHistory).length,
+      totalByYear,
+      grandTotal,
+      result,
+    })
+    return result
+  }, [monthlyHistory])
+
   // ── Sheet handlers ─────────────────────────────────────────────────────────
   const openAddSheet = useCallback(() => {
     setEditingExpense(null)
@@ -1759,6 +1787,7 @@ export default function Home() {
             onAddPocket={handleAddPocket}
             isViewingPast={isViewingPast}
             isPrivacyMode={isPrivacyMode}
+            cumulativeSavings={cumulativeSavings}
           />
         )}
         {activeTab === 'insights' && (

@@ -34,6 +34,7 @@ interface Props {
   onAddPocket: (name: string, budget: number, icon?: string) => void
   isPrivacyMode?: boolean
   manualBudget?: number // Para saber si hay presupuesto manual activo
+  cumulativeSavings?: { totalByYear: Record<number, number>; total: number }
 }
 
 export function BudgetScreen({
@@ -53,6 +54,7 @@ export function BudgetScreen({
   onDeletePocket,
   onAddPocket,
   isPrivacyMode = false,
+  cumulativeSavings,
 }: Props) {
   // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
   const {
@@ -77,6 +79,11 @@ export function BudgetScreen({
 
   const autoIcon = guessIconFromName(newName)
   const selectedIcon = newIcon || autoIcon
+
+  // DEBUG: Log cumulative savings
+  if (cumulativeSavings) {
+    console.log('[BudgetScreen] cumulativeSavings:', cumulativeSavings)
+  }
 
   const saveIncome = () => {
     const v = parseAmount(incomeInput)
@@ -284,6 +291,27 @@ export function BudgetScreen({
             <p className="text-sm text-slate-500 mt-2 tabular-nums">
               {savingsPercentageValue}% de tus ingresos
             </p>
+          </Card>
+        )}
+
+        {/* ── 1.7. AHORRO ACUMULADO (Nuevo) ─────────────────────────────────── */}
+        {cumulativeSavings && Object.keys(cumulativeSavings.totalByYear).length > 0 && (
+          <Card className="p-5 border-l-4 border-cyan-600">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-3">
+              Ahorro acumulado por año
+            </p>
+            <div className="space-y-2">
+              {Object.entries(cumulativeSavings.totalByYear)
+                .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
+                .map(([year, amount]) => (
+                  <div key={year} className="flex justify-between items-center">
+                    <span className="text-sm text-slate-600">{year}:</span>
+                    <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                      {mm(amount)}
+                    </span>
+                  </div>
+                ))}
+            </div>
           </Card>
         )}
 
