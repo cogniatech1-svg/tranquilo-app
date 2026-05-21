@@ -35,11 +35,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <head>
@@ -64,10 +60,11 @@ export default function RootLayout({
 
         {/* ── Version check disabled - causes errors with non-existent version.json ──────── */}
 
-        {/* ── Service worker registration ───────────────────── */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+        {/* ── Service worker registration (production only — dev mode skipped to prevent stale chunk caching) */}
+        {process.env.NODE_ENV !== 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
 (function() {
   if (!('serviceWorker' in navigator)) return;
 
@@ -93,9 +90,10 @@ export default function RootLayout({
       });
   });
 })();
-            `,
-          }}
-        />
+              `,
+            }}
+          />
+        )}
       </body>
     </html>
   )

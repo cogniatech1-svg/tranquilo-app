@@ -30,29 +30,31 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
   try {
     // 1. Update or create user record with metadata
-    // For guests, use a placeholder email based on their UUID
-    // For authenticated users, use a placeholder based on their Supabase UID
-    // Both are unique and not exposed to the user
     const isGuest = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-    const userEmail = isGuest
-      ? `guest_${userId.substring(0, 8)}@tranquilo.local`
-      : `user_${userId.substring(0, 12)}@tranquilo.local`
 
-    console.log('[Supabase] 🟡 Guardando users record:', {
-      userId,
-      userEmail,
-      isGuest,
-    })
+    // For guests use a stable placeholder. For auth users, fetch the real email from Supabase
+    // auth so we never overwrite it with a placeholder on subsequent saves.
+    let userEmail: string | null = null
+    if (isGuest) {
+      userEmail = `guest_${userId.substring(0, 8)}@tranquilo.local`
+    } else {
+      const { data: authUser } = await supabase.auth.getUser()
+      userEmail = authUser?.user?.email ?? null
+    }
 
-    const { error: userError } = await supabase.from('users').upsert({
+    console.log('[Supabase] 🟡 Guardando users record:', { userId, isGuest, hasEmail: !!userEmail })
+
+    const userRecord: Record<string, unknown> = {
       id: userId,
-      email: userEmail,
       monthly_income: data.monthlyIncome,
       monthly_savings: data.monthlySavings,
       country_code: data.countryCode,
       is_privacy_mode: data.isPrivacyMode,
       profile_data: data.profile ?? null,
-    })
+    }
+    if (userEmail) userRecord.email = userEmail
+
+    const { error: userError } = await supabase.from('users').upsert(userRecord)
 
     if (userError) {
       console.error(
@@ -62,10 +64,36 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     }
     console.log('[Supabase] ✅ users record guardado')
 
-    // 2. Save pockets (upsert each one)
-    // TODO: Investigate pockets table schema - currently skipping to avoid 400 errors
-    // Data is persisted in localStorage and monthly_records, pockets are derived from those
+    // 2. Save pockets FIRST (so expenses can reference them)
+    // Pockets must exist before expenses can be saved (foreign key constraint)
+    console.log('[Supabase] 🟡 Guardando pockets:', {
+      pocketCount: data.pockets?.length ?? 0,
+    })
     if (data.pockets && data.pockets.length > 0) {
+      const { error: pocketError } = await supabase.from('pockets').upsert(
+        data.pockets.map((pocket) => ({
+          user_id: userId,
+          pocket_id: pocket.id,
+          name: pocket.name,
+          budget: pocket.budget,
+          icon: pocket.icon,
+        })),
+        { onConflict: 'user_id,pocket_id' }
+      )
+
+      if (pocketError) {
+        console.error('[Supabase] Error saving pockets:', pocketError)
+        // Non-blocking: continue even if pockets fail (they're in localStorage anyway)
+      } else {
+        console.log('[Supabase] ✅ Pockets guardados exitosamente')
+        // Remove pockets that no longer exist in the user's list
+        const currentPocketIds = data.pockets.map((p) => p.id)
+        await supabase
+          .from('pockets')
+          .delete()
+          .eq('user_id', userId)
+          .not('pocket_id', 'in', `(${currentPocketIds.join(',')})`)
+      }
     }
 
     // 3. Save monthly records with their expenses and extra incomes
@@ -105,12 +133,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           throw monthError
         }
 
-        // Delete and recreate expenses for this month (simpler than tracking deletes)
-        await supabase.from('expenses').delete().eq('user_id', userId).eq('month', monthKey)
-
-        // Save expenses
+        // Upsert expenses first (data is safe even if stale cleanup fails below)
         if (monthRecord.expenses && monthRecord.expenses.length > 0) {
-          const { error: expenseError } = await supabase.from('expenses').insert(
+          const { error: expenseError } = await supabase.from('expenses').upsert(
             monthRecord.expenses.map((expense) => ({
               user_id: userId,
               id: expense.id,
@@ -119,21 +144,33 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
               amount: expense.amount,
               concept: expense.concept,
               pocket_id: expense.pocketId,
-            }))
+            })),
+            { onConflict: 'id' }
           )
 
           if (expenseError) {
-            console.error('[Supabase] Error saving expenses:', expenseError)
-            throw expenseError
+            console.warn(
+              '[Supabase] ⚠️ Expenses not saved to Supabase, but data is safe in localStorage'
+            )
           }
         }
 
-        // Delete and recreate extra_incomes for this month
-        await supabase.from('extra_incomes').delete().eq('user_id', userId).eq('month', monthKey)
+        // Remove expenses for this month that are no longer in the current list
+        const currentExpenseIds = monthRecord.expenses?.map((e) => e.id) ?? []
+        if (currentExpenseIds.length > 0) {
+          await supabase
+            .from('expenses')
+            .delete()
+            .eq('user_id', userId)
+            .eq('month', monthKey)
+            .not('id', 'in', `(${currentExpenseIds.join(',')})`)
+        } else {
+          await supabase.from('expenses').delete().eq('user_id', userId).eq('month', monthKey)
+        }
 
-        // Save extra incomes
+        // Upsert extra incomes first (data is safe even if stale cleanup fails below)
         if (monthRecord.extraIncomes && monthRecord.extraIncomes.length > 0) {
-          const { error: incomeError } = await supabase.from('extra_incomes').insert(
+          const { error: incomeError } = await supabase.from('extra_incomes').upsert(
             monthRecord.extraIncomes.map((income) => ({
               user_id: userId,
               id: income.id,
@@ -141,13 +178,28 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
               date: income.date,
               amount: income.amount,
               concept: income.concept,
-            }))
+            })),
+            { onConflict: 'id' }
           )
 
           if (incomeError) {
-            console.error('[Supabase] Error saving extra incomes:', incomeError)
-            throw incomeError
+            console.warn(
+              '[Supabase] ⚠️ Extra incomes not saved to Supabase, but data is safe in localStorage'
+            )
           }
+        }
+
+        // Remove extra incomes for this month that are no longer in the current list
+        const currentIncomeIds = monthRecord.extraIncomes?.map((i) => i.id) ?? []
+        if (currentIncomeIds.length > 0) {
+          await supabase
+            .from('extra_incomes')
+            .delete()
+            .eq('user_id', userId)
+            .eq('month', monthKey)
+            .not('id', 'in', `(${currentIncomeIds.join(',')})`)
+        } else {
+          await supabase.from('extra_incomes').delete().eq('user_id', userId).eq('month', monthKey)
         }
       }
     }
@@ -281,8 +333,11 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         continue
       }
 
-      // Parse pockets from pockets_data JSON field in this month's record
-      let monthPockets = []
+      // pockets_data column does not exist in monthly_records schema.
+      // Fallback: use global pockets loaded from the pockets table.
+      // When pockets_data is eventually added to the schema, this still works
+      // because it will be non-null and will take priority over the fallback.
+      let monthPockets: typeof pocketsData = []
       if (monthRecord.pockets_data) {
         try {
           monthPockets = JSON.parse(monthRecord.pockets_data)
@@ -291,6 +346,17 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
           monthPockets = []
         }
       }
+
+      // If no per-month pockets, use the global pockets from the pockets table
+      const resolvedPockets =
+        monthPockets.length > 0
+          ? monthPockets
+          : (pocketsData || []).map((p) => ({
+              id: p.pocket_id,
+              name: p.name,
+              budget: p.budget,
+              icon: p.icon,
+            }))
 
       monthlyHistory[month] = {
         income: monthRecord.income,
@@ -308,7 +374,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
           amount: i.amount,
           concept: i.concept,
         })),
-        pockets: monthPockets,
+        pockets: resolvedPockets,
         manualBudget: monthRecord.manual_budget,
       }
     }
@@ -353,7 +419,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       expenses: [],
       extraIncomes: [],
       pockets: (pocketsData || []).map((p) => ({
-        id: p.id,
+        id: p.pocket_id,
         name: p.name,
         budget: p.budget,
         icon: p.icon,
@@ -582,6 +648,44 @@ export async function migrateGuestDataToAuthenticatedUser(
       } else {
         console.log('[Supabase] ✅ Learned category map migrated')
       }
+    }
+
+    // 8. Validate migration before cleanup: confirm auth user actually received the data
+    console.log('[Supabase] 🟡 Validando migración antes de limpiar datos del guest...')
+    const { data: authMonths } = await supabase
+      .from('monthly_records')
+      .select('month', { count: 'exact' })
+      .eq('user_id', newAuthenticatedUserId)
+
+    const authHasData = (authMonths && authMonths.length > 0) || totalMigrated === 0
+
+    if (!authHasData) {
+      console.warn(
+        '[Supabase] ⚠️ Validation failed: auth user has no monthly_records after migration. Aborting cleanup to preserve guest data.'
+      )
+      return {
+        success: false,
+        itemsMigrated: totalMigrated,
+        error: 'Post-migration validation failed',
+      }
+    }
+
+    // 9. DELETE guest data only after validation passes
+    console.log('[Supabase] 🟡 Limpiando datos del guest (después de validación)...')
+    try {
+      await supabase.from('expenses').delete().eq('user_id', guestUserId)
+      await supabase.from('extra_incomes').delete().eq('user_id', guestUserId)
+      await supabase.from('monthly_records').delete().eq('user_id', guestUserId)
+      await supabase.from('concept_map').delete().eq('user_id', guestUserId)
+      await supabase.from('learned_category_map').delete().eq('user_id', guestUserId)
+      await supabase.from('users').delete().eq('id', guestUserId)
+      console.log('[Supabase] ✅ Datos del guest eliminados exitosamente')
+    } catch (cleanupError) {
+      console.warn(
+        '[Supabase] ⚠️ Warning al limpiar datos del guest (no bloqueante):',
+        cleanupError
+      )
+      // Non-blocking: orphaned guest records are harmless
     }
 
     console.log('[Supabase] 🟢 ✅ Guest→auth migration complete:', {

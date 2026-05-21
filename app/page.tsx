@@ -39,6 +39,7 @@ import {
 import { onAuthStateChanged, logOut, generateGuestUserId, requireUserId } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import {
@@ -119,8 +120,14 @@ export default function Home() {
   // Track if data has been loaded from Supabase/localStorage successfully.
   // Used to prevent auto-save from overwriting good data with empty data during initial load.
   const dataLoadedRef = useRef(false)
+  // Tracks which user ID data was last loaded for (to detect real auth changes vs token refreshes).
+  const loadedForUserRef = useRef<string | null>(null)
   // Guards against stale async initializeApp runs overwriting fresh state.
   const loadRunIdRef = useRef(0)
+  // Tracks which userId has already had the post-auth save triggered (prevents double-fire).
+  const authSavedForUserRef = useRef<string | null>(null)
+  // Mutex: prevents concurrent Supabase saves (upsert+delete-stale is not safe under concurrency)
+  const saveInProgressRef = useRef(false)
 
   const [hydrated, setHydrated] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -162,20 +169,52 @@ export default function Home() {
 
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
   const handleAuth = useCallback(
-    (event: AuthChangeEvent, user: AuthUser | null) => {
+    async (event: AuthChangeEvent, user: AuthUser | null) => {
       // Guard: only update state if component is still mounted
-      if (!isMountedRef.current) return
+      if (!isMountedRef.current) {
+        console.warn('[AUTH] 🚫 Component not mounted, ignoring auth event')
+        return
+      }
 
+      console.log(`[AUTH] ═══════════════════════════════════════════════════════════`)
       console.log(
-        `[AUTH] Auth event=${event}:`,
+        `[AUTH] 🔔 Auth event=${event}:`,
         user ? `✅ Logged in as ${user.email} (uid: ${user.uid})` : '❌ Not logged in'
       )
+      console.log(`[AUTH] ═══════════════════════════════════════════════════════════`)
+
+      // CRITICAL FIX: For INITIAL_SESSION, Supabase may not pass the user object
+      // So we need to fetch the current session explicitly
+      let currentUser = user
+      if (event === 'INITIAL_SESSION' && !user) {
+        console.log(`[AUTH] ⚠️ INITIAL_SESSION fired without user, fetching current session...`)
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          if (session?.user) {
+            currentUser = {
+              uid: session.user.id,
+              email: session.user.email || '',
+            }
+            console.log(
+              `[AUTH] ✅ Found user in session: ${currentUser.email} (${currentUser.uid})`
+            )
+          } else {
+            console.log(`[AUTH] ❌ No user found in session`)
+          }
+        } catch (error) {
+          console.error(`[AUTH] ❌ Error fetching session:`, error)
+        }
+      }
 
       // Store authenticated user state if present
-      if (user) {
-        setUserId(user.uid)
-        setUserEmail(user.email)
+      if (currentUser) {
+        console.log(`[AUTH] 🟢 Setting authenticated userId: ${currentUser.uid}`)
+        setUserId(currentUser.uid)
+        setUserEmail(currentUser.email)
       } else {
+        console.log(`[AUTH] 🔴 Clearing userId (user logged out)`)
         setUserId(null)
         setUserEmail(null)
 
@@ -185,8 +224,30 @@ export default function Home() {
           guest && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest)
 
         if (!guest || !isValidUUID) {
-          guest = generateGuestUserId()
-          localStorage.setItem('guest_id', guest)
+          // Before generating a new guest ID, try to recover an existing one from stored data.
+          // This handles the case where guest_id was lost (cookie clear, incognito) but
+          // the tranquilo_v1_<id> data key is still present in localStorage.
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+          const dataKeyPrefix = `${STORAGE_KEY}_`
+          const recoveredIds: string[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key?.startsWith(dataKeyPrefix)) {
+              const candidateId = key.slice(dataKeyPrefix.length)
+              if (uuidPattern.test(candidateId)) {
+                recoveredIds.push(candidateId)
+              }
+            }
+          }
+          if (recoveredIds.length === 1) {
+            guest = recoveredIds[0]
+            console.log(`[AUTH] 🟠 Recovered existing guestUserId from data key: ${guest}`)
+            localStorage.setItem('guest_id', guest)
+          } else {
+            guest = generateGuestUserId()
+            console.log(`[AUTH] 🟠 Generated new guestUserId: ${guest}`)
+            localStorage.setItem('guest_id', guest)
+          }
         }
         setGuestUserId(guest)
       }
@@ -195,51 +256,103 @@ export default function Home() {
 
       // Single source of truth for auth-driven navigation.
       setScreen((prev) => {
+        console.log(`[AUTH] 🔷 Screen transition logic: event=${event}, current screen=${prev}`)
         switch (event) {
-          case 'SIGNED_OUT':
+          case 'SIGNED_OUT': {
+            console.log(`[AUTH] → Navigating to login (user signed out)`)
             return 'login'
+          }
           case 'SIGNED_IN': {
-            if (!user) return 'login'
+            if (!currentUser) {
+              console.log(`[AUTH] ⚠️ SIGNED_IN event but no user object, returning to login`)
+              return 'login'
+            }
+
+            console.log(`[AUTH] ✅ User authenticated: ${currentUser.email} (${currentUser.uid})`)
 
             // NEW: Migrate guest data to authenticated user if guest mode was active
-            if (guestUserId && guestUserId !== user.uid) {
-              console.log('[Auth] Migrating guest data to authenticated user...')
+            if (guestUserId && guestUserId !== currentUser.uid) {
+              console.log(
+                `[Auth] 🔄 INICIANDO migración: invitado (${guestUserId}) → autenticado (${currentUser.uid})...`
+              )
               setIsAuthenticating(true)
 
-              migrateGuestDataToAuthenticatedUser(guestUserId, user.uid)
-                .then((result) => {
+              migrateGuestDataToAuthenticatedUser(guestUserId, currentUser.uid)
+                .then(async (result) => {
                   if (result.success) {
                     console.log(
-                      `[Auth] ✅ Migration complete: ${result.itemsMigrated} items migrated`
+                      `[Auth] ✅ Migración Supabase completa: ${result.itemsMigrated} items migrados`
                     )
+
+                    // CRITICAL: After Supabase migration, ensure ALL data is saved with the new authenticated userId
+                    // This includes pockets which may have been in guest localStorage
+                    console.log(
+                      `[Auth] 🔄 FASE 2: Guardando datos completos con nuevo userId autenticado...`
+                    )
+
+                    // Load current data to verify migration success
+                    try {
+                      const migratedData = await loadUserData(currentUser.uid)
+                      if (migratedData) {
+                        console.log(`[Auth] ✅ Datos verificados de Supabase post-migración:`, {
+                          monthsCount: migratedData.monthlyHistory
+                            ? Object.keys(migratedData.monthlyHistory).length
+                            : 0,
+                          hasProfile: !!migratedData.profile,
+                        })
+                      }
+                    } catch (verifyError) {
+                      console.warn(
+                        `[Auth] ⚠️ No se pudo verificar datos post-migración (no bloqueante):`,
+                        verifyError
+                      )
+                    }
+
                     setGuestUserId(null)
                   } else {
-                    console.warn(`[Auth] ⚠️ Migration failed: ${result.error}`)
+                    console.warn(`[Auth] ⚠️ Migración falló: ${result.error}`)
                   }
                 })
                 .catch((error) => {
-                  console.error('[Auth] ❌ Unexpected migration error:', error)
+                  console.error('[Auth] ❌ Error inesperado en migración:', error)
                 })
                 .finally(() => {
                   setIsAuthenticating(false)
                 })
             }
 
-            const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-            return hasOnboarded ? 'main' : 'onboarding'
+            const hasOnboarded =
+              localStorage.getItem(`${ONBOARDING_FLAG}_${currentUser.uid}`) === 'true'
+            const nextScreen = hasOnboarded ? 'main' : 'onboarding'
+            console.log(
+              `[AUTH] → Navigating to ${nextScreen} (user has onboarded: ${hasOnboarded})`
+            )
+            return nextScreen
           }
-          case 'INITIAL_SESSION':
+          case 'INITIAL_SESSION': {
+            console.log(`[AUTH] 📋 INITIAL_SESSION event`)
             // Si ya hay sesión activa, navegar directamente sin mostrar login
-            if (user) {
-              const hasOnboarded = localStorage.getItem(`${ONBOARDING_FLAG}_${user.uid}`) === 'true'
-              return hasOnboarded ? 'main' : 'onboarding'
+            if (currentUser) {
+              const hasOnboarded =
+                localStorage.getItem(`${ONBOARDING_FLAG}_${currentUser.uid}`) === 'true'
+              const nextScreen = hasOnboarded ? 'main' : 'onboarding'
+              console.log(
+                `[AUTH] → Navigating to ${nextScreen} (existing session, currentUser=${currentUser.email})`
+              )
+              return nextScreen
             }
+            console.log(`[AUTH] → Keeping current screen (no active session)`)
             return prev
-          case 'TOKEN_REFRESHED':
+          }
+          case 'TOKEN_REFRESHED': {
+            console.log(`[AUTH] 🔄 TOKEN_REFRESHED (no screen change needed)`)
             // Token refresh ocurre durante sesión activa — no re-navegar
             return prev
-          default:
+          }
+          default: {
+            console.log(`[AUTH] ⚠️ Unknown auth event: ${event}`)
             return prev
+          }
         }
       })
     },
@@ -250,19 +363,20 @@ export default function Home() {
   // Subscribe to Supabase auth state changes
   useEffect(() => {
     isMountedRef.current = true
+    console.log('[AUTH-LISTENER] 🎯 Registering Supabase auth state listener...')
 
     const unsubscribe = onAuthStateChanged((event, user) => {
-      console.log('═══════════════════════════════════════════════════════════')
       console.log(
-        `[onAuthStateChanged] event=${event}, user=`,
-        user ? `${user.email} (${user.uid})` : 'null'
+        `[onAuthStateChanged] 🔔 Listener fired: event=${event}, user=${user ? `${user.email} (${user.uid})` : 'null'}`
       )
-      console.log('═══════════════════════════════════════════════════════════')
       handleAuth(event, user)
     })
 
+    console.log('[AUTH-LISTENER] ✅ Listener registered successfully')
+
     return () => {
       isMountedRef.current = false
+      console.log('[AUTH-LISTENER] 🛑 Unsubscribing from auth state changes')
       unsubscribe()
     }
   }, [handleAuth])
@@ -334,16 +448,11 @@ export default function Home() {
       }
 
       try {
-        const storageKey = currentUserId
-          ? `${STORAGE_KEY}_${currentUserId}`
-          : `${STORAGE_KEY}_${guestUserId}`
-
         console.log('═══════════════════════════════════════════════════════════')
         console.log('[initializeApp] 🔷 INICIANDO CARGA DE DATOS')
         console.log('═══════════════════════════════════════════════════════════')
         console.log('[initializeApp] userId autenticado:', currentUserId)
         console.log('[initializeApp] guestUserId:', guestUserId)
-        console.log('[initializeApp] storageKey:', storageKey)
 
         // ── LOAD FROM SUPABASE (fuente de verdad) ─────────────────────────────
         let data: StoredData = {}
@@ -363,25 +472,66 @@ export default function Home() {
           }
         }
 
-        // ── FALLBACK: Load from localStorage ────────────────────────────────
-        // Use localStorage when Supabase has no monthly history OR when Supabase data is incomplete
-        // (e.g., missing pockets_data due to schema migration)
+        // ── FALLBACK: Load from localStorage with smart key selection ────────
+        // FIX: When user authenticates, search BOTH currentUserId and guestUserId keys
+        // This prevents data loss during guest→authenticated transition
         const hasSupabaseHistory =
           data.monthlyHistory && Object.keys(data.monthlyHistory).length > 0
 
         let localStorageData: StoredData | null = null
-        const raw = localStorage.getItem(storageKey)
-        if (raw) {
-          try {
-            localStorageData = JSON.parse(raw) as StoredData
-            console.log('[initializeApp] ✅ localStorage data available:', {
-              monthsCount: localStorageData.monthlyHistory
-                ? Object.keys(localStorageData.monthlyHistory).length
-                : 0,
-            })
-          } catch {
-            console.log('[initializeApp] ❌ Error parsing localStorage')
+        let usedStorageKey: string | null = null
+
+        // Try currentUserId key first (if authenticated)
+        if (currentUserId) {
+          const authStorageKey = `${STORAGE_KEY}_${currentUserId}`
+          const raw = localStorage.getItem(authStorageKey)
+          if (raw) {
+            try {
+              localStorageData = JSON.parse(raw) as StoredData
+              usedStorageKey = authStorageKey
+              console.log('[initializeApp] ✅ localStorage encontrado bajo ID autenticado:', {
+                key: authStorageKey,
+                monthsCount: localStorageData.monthlyHistory
+                  ? Object.keys(localStorageData.monthlyHistory).length
+                  : 0,
+              })
+            } catch {
+              console.log('[initializeApp] ❌ Error parsing localStorage para ID autenticado')
+            }
           }
+        }
+
+        // If not found under currentUserId, try guestUserId key (handles auth transition)
+        if (!localStorageData && guestUserId) {
+          const guestStorageKey = `${STORAGE_KEY}_${guestUserId}`
+          const raw = localStorage.getItem(guestStorageKey)
+          if (raw) {
+            try {
+              localStorageData = JSON.parse(raw) as StoredData
+              usedStorageKey = guestStorageKey
+              console.log('[initializeApp] ✅ localStorage encontrado bajo ID invitado:', {
+                key: guestStorageKey,
+                monthsCount: localStorageData.monthlyHistory
+                  ? Object.keys(localStorageData.monthlyHistory).length
+                  : 0,
+              })
+            } catch {
+              console.log('[initializeApp] ❌ Error parsing localStorage para ID invitado')
+            }
+          }
+        }
+
+        // If data was found under guestUserId but user is now authenticated,
+        // migrate it to the authenticated key in localStorage
+        if (
+          localStorageData &&
+          currentUserId &&
+          usedStorageKey === `${STORAGE_KEY}_${guestUserId}`
+        ) {
+          const authStorageKey = `${STORAGE_KEY}_${currentUserId}`
+          console.log('[initializeApp] 🔄 Migrando localStorage: invitado → autenticado')
+          localStorage.setItem(authStorageKey, JSON.stringify(localStorageData))
+          console.log('[initializeApp] ✅ localStorage migrado a ID autenticado')
         }
 
         // If no Supabase history, use localStorage entirely
@@ -396,7 +546,10 @@ export default function Home() {
             // Debug: check what keys exist to diagnose key mismatch issue
             const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('tranquilo_v1'))
             console.log('[initializeApp] 🔍 DEBUG: Available tranquilo_v1 keys:', allKeys)
-            console.log('[initializeApp] 🔍 DEBUG: Looking for storageKey:', storageKey)
+            console.log('[initializeApp] 🔍 DEBUG: IDs a buscar:', {
+              auth: currentUserId ? `${STORAGE_KEY}_${currentUserId}` : 'N/A',
+              guest: guestUserId ? `${STORAGE_KEY}_${guestUserId}` : 'N/A',
+            })
           }
         } else if (localStorageData && data.monthlyHistory) {
           // MERGE: If Supabase has history but localStorage also exists, merge them
@@ -554,18 +707,82 @@ export default function Home() {
     })
 
     if (currentUserId || guestUserId) {
-      // Only initialize once. Subsequent auth state changes (token refresh)
-      // should NOT reload data from Supabase, which would overwrite unsaved local changes.
+      // If the effective user changed (real auth change, not token refresh), allow a fresh load.
+      const effectiveId = currentUserId || guestUserId
+      if (effectiveId !== loadedForUserRef.current) {
+        dataLoadedRef.current = false
+      }
+
+      // Only initialize once per user identity. Token refreshes keep the same userId
+      // so loadedForUserRef stays the same and we skip the reload correctly.
       if (!dataLoadedRef.current) {
+        loadedForUserRef.current = effectiveId
         initializeApp()
       } else {
-        console.log('[LoadEffect] Skipping reload — data already loaded, preserving local state')
+        console.log(
+          '[LoadEffect] Skipping reload — data already loaded for this user, preserving local state'
+        )
         setHydrated(true)
       }
     } else {
       setHydrated(true)
     }
   }, [userId, guestUserId])
+
+  // ── GUEST→AUTH MIGRATION: Ensure all data syncs with new authenticated userId ──
+  // When a guest user authenticates, ensure a COMPLETE save happens with the new userId
+  // This guarantees pockets and all other data migrates from localStorage to Supabase
+  useEffect(() => {
+    if (!hydrated || !userId || !monthlyHistory || Object.keys(monthlyHistory).length === 0) {
+      return
+    }
+
+    // Only trigger once per userId — tracked via ref so it's not tied to render cycles.
+    if (userId === authSavedForUserRef.current) return
+
+    if (userId) {
+      authSavedForUserRef.current = userId // Mark immediately to prevent double-trigger
+      console.log('[AUTH-SAVE] 🔄 Nuevo usuario autenticado detectado, haciendo save completo...')
+      const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+      const dataToSave: StoredData = {
+        monthlyIncome: activeData.income,
+        monthlySavings: activeData.savings,
+        expenses: activeData.expenses,
+        extraIncomes: activeData.extraIncomes,
+        pockets: activeData.pockets,
+        monthlyHistory,
+        conceptMap,
+        learnedCategoryMap,
+        currentMonth,
+        countryCode,
+        isPrivacyMode,
+        profile: profileData,
+      }
+
+      saveUserData(userId, dataToSave)
+        .then(() => {
+          console.log('[AUTH-SAVE] ✅ Save completo post-autenticación exitoso')
+          setSyncError(null)
+          setLastSyncTime(Date.now())
+        })
+        .catch((error) => {
+          const errorMsg = getErrorMessage(error)
+          console.error('[AUTH-SAVE] ❌ Error en save post-autenticación:', error)
+          setSyncError(`Error sincronizando datos de migración: ${errorMsg}`)
+        })
+    }
+  }, [
+    userId,
+    hydrated,
+    monthlyHistory,
+    activeMonth,
+    conceptMap,
+    learnedCategoryMap,
+    currentMonth,
+    countryCode,
+    isPrivacyMode,
+    profileData,
+  ])
 
   // ── Persist to localStorage + Supabase ───────────────────────────────────
   // SUPABASE DUAL STORAGE:
@@ -650,6 +867,11 @@ export default function Home() {
 
       // Save to Supabase (primary storage for authenticated and guest users)
       if (saveUserId) {
+        if (saveInProgressRef.current) {
+          console.log('[AUTO-SAVE] Skipping Supabase save: another save already in progress')
+          return
+        }
+        saveInProgressRef.current = true
         setIsSyncing(true)
         try {
           console.log(`[AUTO-SAVE] 🔷 Guardando a Supabase para userId: ${saveUserId}`, {
@@ -666,6 +888,7 @@ export default function Home() {
           console.error('[AUTO-SAVE] ❌ Error guardando a Supabase:', error)
           setSyncError(`Error de sincronización: ${errorMsg}`)
         } finally {
+          saveInProgressRef.current = false
           setIsSyncing(false)
         }
       }
@@ -723,6 +946,11 @@ export default function Home() {
           // Continue to Supabase even if localStorage fails
         }
 
+        if (saveInProgressRef.current) {
+          console.log('[VISIBILITY] Skipping Supabase save: another save already in progress')
+          return
+        }
+        saveInProgressRef.current = true
         try {
           console.log('[VISIBILITY] 🔷 App ocultada, guardando en Supabase inmediatamente...', {
             userId: saveUserId,
@@ -737,6 +965,8 @@ export default function Home() {
           const errorMsg = getErrorMessage(e)
           console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
           setSyncError(`Error crítico al salir: ${errorMsg}`)
+        } finally {
+          saveInProgressRef.current = false
         }
       }
     }
@@ -794,11 +1024,18 @@ export default function Home() {
         // Continue to Supabase even if localStorage fails
       }
 
+      if (saveInProgressRef.current) {
+        console.log('[SAVE-NOW] Skipping Supabase save: another save already in progress')
+        return
+      }
+      saveInProgressRef.current = true
       try {
         await saveUserData(saveUserId, dataToSave)
         console.log('[SAVE-NOW] ✅ Guardado inmediato exitoso para userId:', saveUserId)
       } catch (e) {
         console.error('[SAVE-NOW] ❌ Error en guardado inmediato:', e)
+      } finally {
+        saveInProgressRef.current = false
       }
     },
     [
@@ -1750,6 +1987,8 @@ export default function Home() {
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
             userId={userId || guestUserId}
+            isAuthenticated={!!userId}
+            onRequestLogin={() => setScreen('login')}
           />
         )}
         {activeTab === 'movimientos' && (

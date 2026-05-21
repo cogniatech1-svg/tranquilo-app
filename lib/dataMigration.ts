@@ -63,15 +63,21 @@ function ensurePocketsComplete(record: any): any {
     }
   }
 
-  // Convert map back to array and ensure order matches DEFAULT_POCKETS
-  const finalPockets = DEFAULT_POCKETS.map((dp) => {
-    const found = pocketMap.get(dp.id)
-    return found ? found : dp
-  })
+  // Build ordered array: DEFAULT_POCKETS first (preserving order),
+  // then any user-created custom pockets not in DEFAULT_POCKETS.
+  const defaultIds = new Set(DEFAULT_POCKETS.map((dp) => dp.id))
+  const finalPockets = [
+    ...DEFAULT_POCKETS.map((dp) => {
+      const found = pocketMap.get(dp.id)
+      return found ? found : { ...dp, budget: 0 }
+    }),
+    ...[...pocketMap.values()].filter((p) => !defaultIds.has(p.id)),
+  ]
 
   const originalCount = existingPockets.length
   const finalCount = finalPockets.length
   if (originalCount !== finalCount) {
+    console.warn(`[dataMigration] Pockets repaired: ${originalCount} → ${finalCount}`)
   }
 
   record.pockets = finalPockets
@@ -182,7 +188,9 @@ function repairMonthRecord(record: any): MonthRecord {
         record.extraIncomes.map((i: any) => ({ ...i, date: fixDateFormat(i.date ?? '') }))
       : [],
     pockets:
-      Array.isArray(record.pockets) && record.pockets.length > 0 ? record.pockets : DEFAULT_POCKETS,
+      Array.isArray(record.pockets) && record.pockets.length > 0
+        ? record.pockets
+        : getEmptyPocketsStructure(),
     manualBudget: record.manualBudget,
   }
 }
@@ -214,6 +222,9 @@ function deduplicateExpenses(expenses: any[]): any[] {
   }
 
   if (deduplicated.length < expenses.length) {
+    console.warn(
+      `[dataMigration] Deduplicated ${expenses.length - deduplicated.length} duplicate expense(s)`
+    )
   }
 
   return deduplicated
@@ -256,6 +267,9 @@ export function repairStoredData(data: any): StoredData {
       const repairedPocketCount = repairedHistory[month].pockets.length
 
       if (originalPocketCount !== repairedPocketCount) {
+        console.warn(
+          `[dataMigration] Month ${month} pockets repaired: ${originalPocketCount} → ${repairedPocketCount}`
+        )
       }
     }
   }
