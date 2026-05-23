@@ -90,6 +90,23 @@ export async function logOut(): Promise<void> {
 }
 
 /**
+ * Sign in with Google OAuth
+ * Redirects to Google — la navegación post-auth la maneja onAuthStateChanged en page.tsx
+ */
+export async function signInWithGoogle(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+    },
+  })
+
+  if (error) {
+    throw new Error(`Google sign-in failed: ${error.message}`)
+  }
+}
+
+/**
  * Get current authenticated user
  * Returns null if not authenticated
  */

@@ -47,6 +47,16 @@ select {
   appearance: none;
 }
 
+/* WelcomeScreen: override Chrome autofill background on dark inputs */
+.welcome-input:-webkit-autofill,
+.welcome-input:-webkit-autofill:hover,
+.welcome-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(10, 92, 87, 0.90) inset;
+  -webkit-text-fill-color: white;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

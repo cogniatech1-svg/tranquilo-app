@@ -13,7 +13,7 @@ import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { InsightsScreen } from '../screens/InsightsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
-import { LoginScreen } from '../screens/LoginScreen'
+import { WelcomeScreen } from '../screens/WelcomeScreen'
 import { RecoveryScreen } from '../screens/RecoveryScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
@@ -1926,14 +1926,7 @@ export default function Home() {
 
   // ── Show login screen ────────────────────────────────────────────────────
   if (screen === 'login') {
-    return (
-      <LoginScreen
-        authenticatedEmail={userEmail || undefined}
-        onLoginSuccess={() => {}}
-        onGuestMode={handleGuestMode}
-        onLogOut={() => {}}
-      />
-    )
+    return <WelcomeScreen onLoginSuccess={() => {}} onGuestMode={handleGuestMode} />
   }
 
   // ── Onboarding ────────────────────────────────────────────────────────────
