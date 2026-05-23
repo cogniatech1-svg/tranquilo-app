@@ -315,7 +315,7 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo-ui.png"
+                src="/icons/icon-192-verde.png"
                 alt="Tranquilo"
                 style={{ width: '36px', height: '36px', borderRadius: '10px' }}
               />
