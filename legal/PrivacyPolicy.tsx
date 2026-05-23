@@ -4,7 +4,8 @@
  * Fuente única de verdad para la política de privacidad de Tranquilo.
  * Exporta:
  *   - openPrivacyPolicy()       → helper centralizado de navegación
- *   - PRIVACY_SECTIONS          → datos crudos de la política
+ *   - PRIVACY_LAST_UPDATED      → fecha de última actualización
+ *   - PRIVACY_SECTIONS          → contenido real de la política
  *   - PrivacyPolicyContent      → componente visual reutilizable
  */
 
@@ -20,11 +21,17 @@ export function openPrivacyPolicy(): void {
   }
 }
 
-// ── Contenido de la política ───────────────────────────────────────────────────
+// ── Tipos de contenido ─────────────────────────────────────────────────────────
 
 export interface PrivacyItem {
-  title: string
-  body: string
+  /** Título en negrita del ítem. Opcional — algunos ítems son solo cuerpo o bullets. */
+  title?: string
+  /** Párrafo de texto. */
+  body?: string
+  /** Lista de puntos. Puede combinarse con title. */
+  bullets?: string[]
+  /** Enlace opcional al final del ítem (ej: email de contacto). */
+  link?: { label: string; href: string }
 }
 
 export interface PrivacySection {
@@ -34,23 +41,68 @@ export interface PrivacySection {
   items: PrivacyItem[]
 }
 
+// ── Fecha de actualización ─────────────────────────────────────────────────────
+
+export const PRIVACY_LAST_UPDATED = 'Mayo de 2026'
+
+// ── Contenido real de la política ─────────────────────────────────────────────
+
 export const PRIVACY_SECTIONS: PrivacySection[] = [
+  {
+    id: 'philosophy',
+    emoji: '💚',
+    title: 'Tus datos son tuyos',
+    items: [
+      {
+        body: 'En Tranquilo creemos que tu información financiera es personal y debe permanecer bajo tu control. La aplicación existe para ayudarte a organizar tus ingresos, gastos, presupuestos y hábitos financieros de forma clara y tranquila, no para apropiarse de tu información.',
+      },
+      {
+        title: 'Buscamos ser transparentes sobre',
+        bullets: [
+          'qué datos guardamos',
+          'para qué los usamos',
+          'cómo los protegemos',
+          'qué control tienes sobre ellos',
+        ],
+      },
+      {
+        body: 'Tranquilo no es un banco, una entidad financiera ni una plataforma de inversión. Es una herramienta de organización financiera personal.',
+      },
+    ],
+  },
   {
     id: 'what-we-collect',
     emoji: '📋',
     title: 'Qué información guardamos',
     items: [
       {
-        title: 'Datos de cuenta',
-        body: 'Tu dirección de correo electrónico y contraseña cifrada, necesarios para crear y proteger tu cuenta.',
+        title: 'Información de cuenta',
+        bullets: [
+          'nombre',
+          'correo electrónico',
+          'foto de perfil',
+          'proveedor de autenticación (Google o correo electrónico)',
+        ],
       },
       {
         title: 'Información financiera',
-        body: 'Los ingresos, gastos y presupuestos que tú ingresas manualmente. Tranquilo no accede a tus cuentas bancarias ni tarjetas.',
+        bullets: [
+          'ingresos',
+          'gastos',
+          'presupuestos o bolsillos',
+          'categorías',
+          'metas financieras',
+          'notas o conceptos asociados a movimientos',
+          'configuraciones y preferencias de uso',
+        ],
       },
       {
-        title: 'Configuración personal',
-        body: 'Nombre, foto de perfil y preferencias de la app. Siempre puedes modificarlos o eliminarlos.',
+        title: 'Información técnica básica',
+        bullets: [
+          'identificadores de sesión',
+          'información básica del dispositivo',
+          'registros técnicos necesarios para mantener el funcionamiento de la aplicación',
+        ],
       },
     ],
   },
@@ -60,73 +112,139 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: 'Para qué usamos tu información',
     items: [
       {
-        title: 'Mostrarte tus finanzas',
-        body: 'Tu información se usa exclusivamente para calcular y mostrar tus reportes, presupuestos e insights dentro de la app.',
+        bullets: [
+          'guardar tus datos financieros',
+          'sincronizar tu información entre dispositivos cuando la sincronización está activa',
+          'mostrarte tu historial y organización financiera',
+          'mantener tu sesión iniciada',
+          'mejorar estabilidad y funcionamiento de la aplicación',
+          'proteger tu cuenta frente a accesos no autorizados',
+          'ofrecer soporte técnico cuando sea necesario',
+        ],
       },
       {
-        title: 'Mejorar Tranquilo',
-        body: 'Usamos datos de uso anónimos y agregados para entender qué funciones son más útiles y mejorar la experiencia.',
-      },
-      {
-        title: 'Nada más',
-        body: 'No usamos tus datos financieros para publicidad, perfilado comercial ni ningún propósito ajeno a la app.',
+        body: 'No usamos tu información financiera para vender publicidad ni para tomar decisiones automatizadas sobre ti.',
       },
     ],
   },
   {
-    id: 'storage',
-    emoji: '🔐',
-    title: 'Almacenamiento y seguridad',
-    items: [
-      {
-        title: 'Infraestructura certificada',
-        body: 'Tus datos se almacenan en Supabase, proveedor con certificaciones SOC 2 y cifrado en reposo y en tránsito.',
-      },
-      {
-        title: 'Acceso local offline',
-        body: 'Para que la app funcione sin conexión, algunos datos se guardan localmente en tu dispositivo (localStorage). Solo tú tienes acceso.',
-      },
-      {
-        title: 'Contraseñas',
-        body: 'Las contraseñas nunca se almacenan en texto plano. Usamos el sistema de autenticación segura de Supabase Auth.',
-      },
-    ],
-  },
-  {
-    id: 'sharing',
+    id: 'what-we-dont-do',
     emoji: '🚫',
-    title: 'Compartición de datos',
+    title: 'Qué NO hacemos',
     items: [
       {
-        title: 'No vendemos tu información',
-        body: 'Tranquilo no vende, alquila ni intercambia tus datos personales con ningún tercero.',
+        bullets: [
+          'no vendemos tu información financiera',
+          'no compartimos tus movimientos personales con terceros para fines comerciales',
+          'no utilizamos tus hábitos financieros para publicidad personalizada',
+          'no publicamos ni exponemos tu información financiera a otros usuarios',
+        ],
       },
       {
-        title: 'No hay anunciantes',
-        body: 'No compartimos tu información con redes publicitarias ni plataformas de seguimiento.',
-      },
-      {
-        title: 'Proveedores de servicio',
-        body: 'Solo compartimos datos con proveedores técnicos estrictamente necesarios (como Supabase) bajo acuerdos de confidencialidad.',
+        body: 'Tu información financiera sigue siendo tuya.',
       },
     ],
   },
   {
-    id: 'your-rights',
-    emoji: '✅',
-    title: 'Tus derechos',
+    id: 'third-parties',
+    emoji: '🔗',
+    title: 'Servicios y proveedores externos',
     items: [
       {
-        title: 'Acceso y portabilidad',
-        body: 'Puedes exportar todos tus datos financieros en cualquier momento desde la sección Perfil → Mis Datos.',
+        body: 'Para operar Tranquilo utilizamos servicios tecnológicos de terceros que ayudan con autenticación, almacenamiento y funcionamiento general de la plataforma.',
       },
       {
-        title: 'Corrección',
-        body: 'Puedes modificar tu información personal en cualquier momento desde tu perfil.',
+        title: 'Actualmente utilizamos',
+        bullets: [
+          'Supabase',
+          'Google Authentication',
+          'servicios de hosting e infraestructura tecnológica',
+        ],
       },
       {
-        title: 'Eliminación',
-        body: 'Puedes solicitar la eliminación completa de tu cuenta y todos tus datos. Esta opción estará disponible próximamente en Perfil.',
+        body: 'Intentamos trabajar únicamente con proveedores que ofrezcan estándares razonables de seguridad y protección de datos.',
+      },
+    ],
+  },
+  {
+    id: 'security',
+    emoji: '🔐',
+    title: 'Seguridad de la información',
+    items: [
+      {
+        body: 'Tomamos medidas razonables para proteger tu información frente a accesos no autorizados, pérdida o uso indebido.',
+      },
+      {
+        body: 'Sin embargo, ningún sistema digital puede garantizar seguridad absoluta.',
+      },
+      {
+        title: 'También recomendamos',
+        bullets: [
+          'usar contraseñas seguras',
+          'proteger tus dispositivos',
+          'no compartir tu cuenta con otras personas',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'your-control',
+    emoji: '✅',
+    title: 'Control sobre tu información',
+    items: [
+      {
+        title: 'Actualmente puedes',
+        bullets: [
+          'modificar información dentro de la aplicación',
+          'eliminar movimientos o registros individuales',
+          'cerrar sesión y dejar de usar la plataforma cuando quieras',
+        ],
+      },
+      {
+        title: 'Próximamente disponible',
+        bullets: [
+          'exportación de datos',
+          'eliminación completa de cuenta y datos asociados directamente desde la aplicación',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'retention',
+    emoji: '🗓️',
+    title: 'Conservación de datos',
+    items: [
+      {
+        body: 'Mientras uses Tranquilo, cierta información puede mantenerse almacenada para permitir el funcionamiento de la aplicación y la sincronización entre dispositivos.',
+      },
+      {
+        body: 'Cuando se habiliten las herramientas de eliminación de cuenta, podrás solicitar la eliminación de la información asociada. Algunos respaldos temporales pueden persistir por períodos limitados antes de eliminarse definitivamente.',
+      },
+    ],
+  },
+  {
+    id: 'legal',
+    emoji: '⚖️',
+    title: 'Legislación y protección de datos',
+    items: [
+      {
+        body: 'Tranquilo busca cumplir los principios generales de protección de datos personales aplicables en Colombia, incluyendo lo relacionado con Habeas Data y la Ley 1581 de 2012.',
+      },
+      {
+        body: 'Al utilizar la aplicación aceptas el tratamiento de datos descrito en esta política.',
+      },
+    ],
+  },
+  {
+    id: 'changes',
+    emoji: '🔄',
+    title: 'Cambios a esta política',
+    items: [
+      {
+        body: 'Podemos actualizar esta política para reflejar mejoras, cambios técnicos o ajustes legales. Cuando los cambios sean importantes, intentaremos comunicarlo dentro de la aplicación.',
+      },
+      {
+        body: 'La fecha de actualización siempre aparecerá al inicio de este documento.',
       },
     ],
   },
@@ -136,12 +254,24 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: 'Contacto',
     items: [
       {
-        title: 'Ejercer tus derechos',
-        body: 'Para cualquier consulta sobre tus datos o para ejercer tus derechos, escríbenos a privacidad@tranquilo.app',
+        body: 'Si tienes preguntas relacionadas con esta política o con el manejo de tu información, escríbenos a:',
+        link: { label: 'cogniatech.1@gmail.com', href: 'mailto:cogniatech.1@gmail.com' },
       },
+    ],
+  },
+  {
+    id: 'summary',
+    emoji: '💡',
+    title: 'En resumen',
+    items: [
       {
-        title: 'Actualizaciones',
-        body: 'Si realizamos cambios importantes a esta política, te notificaremos dentro de la app. La versión vigente siempre estará disponible en esta página.',
+        bullets: [
+          'tus datos financieros son tuyos',
+          'Tranquilo existe para ayudarte a organizarlos',
+          'no vendemos tu información',
+          'buscamos manejar tus datos de forma clara y responsable',
+          'y trabajamos para que tengas cada vez más control sobre tu información',
+        ],
       },
     ],
   },
@@ -150,7 +280,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
 // ── Componente visual ──────────────────────────────────────────────────────────
 
 interface PrivacyPolicyContentProps {
-  /** Controla si se muestra el encabezado completo (para página /privacy) o solo el contenido (para uso embebido) */
+  /** Muestra encabezado completo (para /privacy). false = solo contenido embebido. */
   showHeader?: boolean
 }
 
@@ -174,7 +304,7 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
       >
         {showHeader && (
           <>
-            {/* Logotipo / marca */}
+            {/* Marca */}
             <div
               style={{
                 display: 'flex',
@@ -201,7 +331,7 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
               </span>
             </div>
 
-            {/* Encabezado principal */}
+            {/* Encabezado */}
             <div style={{ marginBottom: '48px' }}>
               <h1
                 style={{
@@ -237,7 +367,7 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
                   borderRadius: '20px',
                 }}
               >
-                Última actualización: mayo 2025
+                Última actualización: {PRIVACY_LAST_UPDATED}
               </span>
             </div>
           </>
@@ -274,28 +404,76 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
 
               {/* Ítems */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {section.items.map((item) => (
-                  <div key={item.title} style={{ paddingLeft: '32px' }}>
-                    <p
-                      style={{
-                        margin: '0 0 4px 0',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#1E293B',
-                      }}
-                    >
-                      {item.title}
-                    </p>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: '14px',
-                        color: '#64748B',
-                        lineHeight: 1.65,
-                      }}
-                    >
-                      {item.body}
-                    </p>
+                {section.items.map((item, idx) => (
+                  <div key={idx} style={{ paddingLeft: '32px' }}>
+                    {/* Título del ítem */}
+                    {item.title && (
+                      <p
+                        style={{
+                          margin: '0 0 6px 0',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: '#1E293B',
+                        }}
+                      >
+                        {item.title}
+                      </p>
+                    )}
+
+                    {/* Cuerpo de texto */}
+                    {item.body && (
+                      <p
+                        style={{
+                          margin: item.link ? '0 0 8px 0' : 0,
+                          fontSize: '14px',
+                          color: '#64748B',
+                          lineHeight: 1.65,
+                        }}
+                      >
+                        {item.body}
+                      </p>
+                    )}
+
+                    {/* Enlace (ej: email de contacto) */}
+                    {item.link && (
+                      <a
+                        href={item.link.href}
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: '#0D6259',
+                          textDecoration: 'underline',
+                          textDecorationColor: 'rgba(13,98,89,0.35)',
+                        }}
+                      >
+                        {item.link.label}
+                      </a>
+                    )}
+
+                    {/* Bullets */}
+                    {item.bullets && (
+                      <ul
+                        style={{
+                          margin: item.title ? '4px 0 0 0' : 0,
+                          padding: '0 0 0 18px',
+                          listStyle: 'disc',
+                        }}
+                      >
+                        {item.bullets.map((bullet, i) => (
+                          <li
+                            key={i}
+                            style={{
+                              fontSize: '14px',
+                              color: '#64748B',
+                              lineHeight: 1.7,
+                              paddingLeft: '4px',
+                            }}
+                          >
+                            {bullet}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ))}
               </div>
@@ -318,9 +496,12 @@ export function PrivacyPolicyContent({ showHeader = true }: PrivacyPolicyContent
             <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8' }}>
               © {new Date().getFullYear()} Tranquilo. Todos los derechos reservados.
             </p>
-            <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8' }}>
-              privacidad@tranquilo.app
-            </p>
+            <a
+              href="mailto:cogniatech.1@gmail.com"
+              style={{ fontSize: '13px', color: '#94A3B8', textDecoration: 'none' }}
+            >
+              cogniatech.1@gmail.com
+            </a>
           </div>
         )}
       </div>
