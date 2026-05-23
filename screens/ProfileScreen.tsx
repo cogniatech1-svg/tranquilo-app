@@ -8,6 +8,7 @@ import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
 import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
 import { normalizePocketId } from '../lib/dataMigration'
+import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
 
 interface PendingCsvData extends StoredData {
   newExpenses: Expense[]
@@ -605,6 +606,34 @@ export function ProfileScreen({
         },
       ],
     },
+    privacidad: {
+      title: 'Privacidad y datos',
+      icon: '🔒',
+      content: [
+        {
+          label: 'Política de privacidad',
+          value: 'Ver política completa',
+          type: 'button',
+          handler: openPrivacyPolicy,
+        },
+        {
+          label: 'Tratamiento de datos',
+          value: 'Cómo usamos tu información',
+          type: 'button',
+          handler: openPrivacyPolicy,
+        },
+        {
+          label: 'Exportar datos',
+          value: 'Disponible próximamente',
+          type: 'info',
+        },
+        {
+          label: 'Eliminar cuenta',
+          value: 'Disponible próximamente',
+          type: 'info-danger',
+        },
+      ],
+    },
   }
 
   const sectionList = Object.entries(sections).map(([key, val]) => ({
@@ -952,6 +981,17 @@ export function ProfileScreen({
                         >
                           <option>{item.value}</option>
                         </select>
+                      ) : item.type === 'info' || item.type === 'info-danger' ? (
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            color: item.type === 'info-danger' ? '#f87171' : '#9ca3af',
+                            fontWeight: 400,
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          {item.value}
+                        </div>
                       ) : (
                         <div
                           style={{

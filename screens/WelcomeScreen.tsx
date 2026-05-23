@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { signUp, logIn, signInWithGoogle } from '../lib/auth'
+import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WELCOME SCREEN
@@ -655,7 +656,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     textAlign: 'left',
                   }}
                 >
-                  Acepto la{' '}
+                  He leído y acepto la{' '}
                   <span
                     style={{
                       color: 'rgba(255,255,255,0.85)',
@@ -668,20 +669,6 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     }}
                   >
                     política de privacidad
-                  </span>{' '}
-                  y el tratamiento de{' '}
-                  <span
-                    style={{
-                      color: 'rgba(255,255,255,0.85)',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPrivacyModalOpen(true)
-                    }}
-                  >
-                    mis datos
                   </span>
                 </p>
               </label>
@@ -980,26 +967,50 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          {/* Botón cerrar */}
-          <button
-            onClick={onClose}
-            style={{
-              width: '100%',
-              padding: '15px',
-              borderRadius: '14px',
-              border: 'none',
-              background: 'rgba(255,255,255,0.12)',
-              color: 'white',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-          >
-            Entendido
-          </button>
+          {/* Botones */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Ver política completa */}
+            <button
+              onClick={openPrivacyPolicy}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '14px',
+                border: '1px solid rgba(255,255,255,0.18)',
+                background: 'transparent',
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              Ver política completa →
+            </button>
+
+            {/* Cerrar */}
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%',
+                padding: '15px',
+                borderRadius: '14px',
+                border: 'none',
+                background: 'rgba(255,255,255,0.12)',
+                color: 'white',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+            >
+              Entendido
+            </button>
+          </div>
         </div>
       </div>
     </>
