@@ -99,7 +99,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
     }
     if (authMode === 'signup') {
       if (!consentAccepted) {
-        setError('Debes aceptar el tratamiento de datos para continuar')
+        setError('Debes aceptar la política de privacidad para continuar')
         return
       }
       if (password.length < 6) {
@@ -655,21 +655,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     textAlign: 'left',
                   }}
                 >
-                  Acepto el{' '}
-                  <span
-                    style={{
-                      color: 'rgba(255,255,255,0.85)',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPrivacyModalOpen(true)
-                    }}
-                  >
-                    tratamiento de datos
-                  </span>{' '}
-                  y la{' '}
+                  Acepto la{' '}
                   <span
                     style={{
                       color: 'rgba(255,255,255,0.85)',
@@ -682,6 +668,20 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     }}
                   >
                     política de privacidad
+                  </span>{' '}
+                  y el tratamiento de{' '}
+                  <span
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPrivacyModalOpen(true)
+                    }}
+                  >
+                    mis datos
                   </span>
                 </p>
               </label>
