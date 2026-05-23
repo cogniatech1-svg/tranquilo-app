@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signUp, logIn, signInWithGoogle } from '../lib/auth'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +61,20 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
   const [password2, setPassword2] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [consentAccepted, setConsentAccepted] = useState(false)
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
+
+  // Bloquear scroll del body cuando el sheet está abierto
+  useEffect(() => {
+    if (privacyModalOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [privacyModalOpen])
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -69,6 +83,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
     setPassword('')
     setPassword2('')
     setError('')
+    setConsentAccepted(false)
   }
 
   const handleSubmit = async () => {
@@ -83,6 +98,10 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
       return
     }
     if (authMode === 'signup') {
+      if (!consentAccepted) {
+        setError('Debes aceptar el tratamiento de datos para continuar')
+        return
+      }
       if (password.length < 6) {
         setError('La contraseña debe tener al menos 6 caracteres')
         return
@@ -180,7 +199,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
         }}
       />
 
-      {/* Placeholder color for all dark inputs on this screen */}
+      {/* Estilos globales: inputs y animación del sheet */}
       <style>{`
         .welcome-input::placeholder { color: rgba(255,255,255,0.4); }
         .welcome-input:focus { border-color: rgba(255,255,255,0.7) !important; background: rgba(255,255,255,0.20) !important; }
@@ -191,6 +210,14 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
           -webkit-text-fill-color: white;
           border-color: rgba(255,255,255,0.35) !important;
           transition: background-color 9999s ease-in-out 0s;
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
       `}</style>
 
@@ -576,10 +603,94 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
               </div>
             )}
 
+            {/* Consentimiento — solo en signup */}
+            {authMode === 'signup' && (
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  width: '100%',
+                  marginBottom: '20px',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '5px',
+                    border: consentAccepted
+                      ? '2px solid rgba(255,255,255,0.80)'
+                      : '2px solid rgba(255,255,255,0.35)',
+                    background: consentAccepted ? 'rgba(255,255,255,0.20)' : 'transparent',
+                    flexShrink: 0,
+                    marginTop: '1px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'border-color 0.2s, background 0.2s',
+                  }}
+                  onClick={() => setConsentAccepted((v) => !v)}
+                >
+                  {consentAccepted && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                      <path
+                        d="M1 4L3.5 6.5L9 1"
+                        stroke="white"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '12px',
+                    color: 'rgba(255,255,255,0.60)',
+                    lineHeight: 1.5,
+                    textAlign: 'left',
+                  }}
+                >
+                  Acepto el{' '}
+                  <span
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPrivacyModalOpen(true)
+                    }}
+                  >
+                    tratamiento de datos
+                  </span>{' '}
+                  y la{' '}
+                  <span
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPrivacyModalOpen(true)
+                    }}
+                  >
+                    política de privacidad
+                  </span>
+                </p>
+              </label>
+            )}
+
             {/* Botón principal */}
             <button
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || (authMode === 'signup' && !consentAccepted)}
               style={{
                 width: '100%',
                 padding: '16px',
@@ -589,8 +700,11 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                 color: '#0A5C57',
                 fontSize: '16px',
                 fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.75 : 1,
+                cursor:
+                  loading || (authMode === 'signup' && !consentAccepted)
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity: loading || (authMode === 'signup' && !consentAccepted) ? 0.45 : 1,
                 boxShadow: '0 4px 20px rgba(0,0,0,0.22)',
                 marginBottom: '20px',
                 transition: 'opacity 0.2s, transform 0.15s',
@@ -617,7 +731,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             {/* Google */}
             <button
               onClick={handleGoogle}
-              disabled={loading}
+              disabled={loading || (authMode === 'signup' && !consentAccepted)}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -627,16 +741,20 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                 color: 'white',
                 fontSize: '14px',
                 fontWeight: 500,
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor:
+                  loading || (authMode === 'signup' && !consentAccepted)
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity: loading || (authMode === 'signup' && !consentAccepted) ? 0.45 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
                 marginBottom: '36px',
-                transition: 'background 0.2s, border-color 0.2s',
+                transition: 'background 0.2s, border-color 0.2s, opacity 0.2s',
               }}
               onMouseEnter={(e) => {
-                if (!loading) {
+                if (!loading && !(authMode === 'signup' && !consentAccepted)) {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.13)'
                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'
                 }
@@ -692,7 +810,199 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
           </>
         )}
       </div>
+
+      {/* Privacy bottom sheet — fuera del contenido centrado para cubrir toda la pantalla */}
+      {privacyModalOpen && <PrivacySheet onClose={() => setPrivacyModalOpen(false)} />}
     </div>
+  )
+}
+
+// ── Privacy bottom sheet ──────────────────────────────────────────────────────
+function PrivacySheet({ onClose }: { onClose: () => void }) {
+  const items = [
+    {
+      icon: '🔒',
+      title: 'Solo tú ves tus datos',
+      desc: 'Tu información financiera es completamente privada y solo accesible desde tu cuenta.',
+    },
+    {
+      icon: '🚫',
+      title: 'No compartimos tu información',
+      desc: 'Nunca vendemos ni compartimos tus datos financieros con terceros.',
+    },
+    {
+      icon: '📤',
+      title: 'Control total sobre tus datos',
+      desc: 'Puedes exportar o eliminar tu información cuando quieras.',
+    },
+    {
+      icon: '🔄',
+      title: 'Sincronización segura',
+      desc: 'Tus datos se sincronizan entre todos los dispositivos vinculados a tu cuenta.',
+    },
+    {
+      icon: '🛡️',
+      title: 'Proveedores certificados',
+      desc: 'Usamos servicios de autenticación y almacenamiento con altos estándares de seguridad.',
+    },
+  ]
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.60)',
+          zIndex: 999,
+          animation: 'fadeIn 0.2s ease',
+        }}
+      />
+
+      {/* Panel */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: '#111C1B',
+          borderRadius: '24px 24px 0 0',
+          zIndex: 1000,
+          padding: '0 0 env(safe-area-inset-bottom, 24px)',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.50)',
+          animation: 'slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Handle */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            paddingTop: '12px',
+            paddingBottom: '4px',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '36px',
+              height: '4px',
+              borderRadius: '9999px',
+              background: 'rgba(255,255,255,0.18)',
+            }}
+          />
+        </div>
+
+        {/* Contenido scrollable */}
+        <div
+          style={{
+            overflowY: 'auto',
+            padding: '20px 24px 32px',
+            WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+          }}
+        >
+          {/* Título */}
+          <h3
+            style={{
+              margin: '0 0 6px 0',
+              fontSize: '20px',
+              fontWeight: 700,
+              color: 'white',
+              letterSpacing: '-0.3px',
+            }}
+          >
+            🔒 Cómo cuidamos tu información
+          </h3>
+          <p
+            style={{
+              margin: '0 0 28px 0',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.45)',
+              lineHeight: 1.5,
+            }}
+          >
+            Tu privacidad es parte del producto, no un requisito legal.
+          </p>
+
+          {/* Ítems */}
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}
+          >
+            {items.map((item) => (
+              <div
+                key={item.title}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '14px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '20px',
+                    lineHeight: 1.3,
+                    flexShrink: 0,
+                    width: '28px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {item.icon}
+                </span>
+                <div>
+                  <p
+                    style={{
+                      margin: '0 0 3px 0',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: 'white',
+                    }}
+                  >
+                    {item.title}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.50)',
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Botón cerrar */}
+          <button
+            onClick={onClose}
+            style={{
+              width: '100%',
+              padding: '15px',
+              borderRadius: '14px',
+              border: 'none',
+              background: 'rgba(255,255,255,0.12)',
+              color: 'white',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
