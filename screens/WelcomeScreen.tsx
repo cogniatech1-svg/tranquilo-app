@@ -842,7 +842,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.60)',
+          background: 'rgba(0,0,0,0.35)',
           zIndex: 999,
           animation: 'fadeIn 0.2s ease',
         }}
@@ -855,11 +855,11 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
           bottom: 0,
           left: 0,
           right: 0,
-          background: '#111C1B',
+          background: '#FAFAF8',
           borderRadius: '24px 24px 0 0',
           zIndex: 1000,
           padding: '0 0 env(safe-area-inset-bottom, 24px)',
-          boxShadow: '0 -8px 40px rgba(0,0,0,0.50)',
+          boxShadow: '0 -4px 32px rgba(0,0,0,0.10)',
           animation: 'slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
           maxHeight: '85vh',
           display: 'flex',
@@ -881,7 +881,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
               width: '36px',
               height: '4px',
               borderRadius: '9999px',
-              background: 'rgba(255,255,255,0.18)',
+              background: 'rgba(0,0,0,0.12)',
             }}
           />
         </div>
@@ -900,7 +900,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
               margin: '0 0 6px 0',
               fontSize: '20px',
               fontWeight: 700,
-              color: 'white',
+              color: '#0F172A',
               letterSpacing: '-0.3px',
             }}
           >
@@ -910,7 +910,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
             style={{
               margin: '0 0 28px 0',
               fontSize: '13px',
-              color: 'rgba(255,255,255,0.45)',
+              color: '#64748B',
               lineHeight: 1.5,
             }}
           >
@@ -947,7 +947,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
                       margin: '0 0 3px 0',
                       fontSize: '14px',
                       fontWeight: 600,
-                      color: 'white',
+                      color: '#1E293B',
                     }}
                   >
                     {item.title}
@@ -956,7 +956,7 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
                     style={{
                       margin: 0,
                       fontSize: '12px',
-                      color: 'rgba(255,255,255,0.50)',
+                      color: '#64748B',
                       lineHeight: 1.55,
                     }}
                   >
@@ -976,15 +976,15 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
                 width: '100%',
                 padding: '14px',
                 borderRadius: '14px',
-                border: '1px solid rgba(255,255,255,0.18)',
+                border: '1px solid #E2E8F0',
                 background: 'transparent',
-                color: 'rgba(255,255,255,0.75)',
+                color: '#0D6259',
                 fontSize: '14px',
                 fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,98,89,0.06)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               Ver política completa →
@@ -998,15 +998,15 @@ function PrivacySheet({ onClose }: { onClose: () => void }) {
                 padding: '15px',
                 borderRadius: '14px',
                 border: 'none',
-                background: 'rgba(255,255,255,0.12)',
+                background: '#0D6259',
                 color: 'white',
                 fontSize: '15px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#0A5249')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#0D6259')}
             >
               Entendido
             </button>
