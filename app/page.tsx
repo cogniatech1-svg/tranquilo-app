@@ -1412,8 +1412,16 @@ export default function Home() {
     (newMonth: string) => {
       setActiveMonth(newMonth)
 
-      // Si el nuevo mes ya existe en monthlyHistory, no hacer nada
-      if (monthlyHistory[newMonth]) {
+      // Si el mes ya existe en memoria CON datos reales, no consultar Supabase.
+      // Si existe pero está vacío (creado como placeholder), sí hay que consultar
+      // porque puede haber gastos en Supabase que no se cargaron.
+      const existingRecord = monthlyHistory[newMonth]
+      const hasRealData =
+        existingRecord &&
+        (existingRecord.expenses.length > 0 ||
+          existingRecord.extraIncomes.length > 0 ||
+          existingRecord.income > 0)
+      if (hasRealData) {
         return
       }
 
