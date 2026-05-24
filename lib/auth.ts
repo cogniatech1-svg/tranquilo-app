@@ -90,6 +90,29 @@ export async function logOut(): Promise<void> {
 }
 
 /**
+ * Send password reset email
+ * Works for any registered email, including Google OAuth accounts
+ */
+export async function resetPasswordForEmail(email: string): Promise<void> {
+  const redirectTo =
+    typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) {
+    throw new Error(`Reset failed: ${error.message}`)
+  }
+}
+
+/**
+ * Update the current user's password (used after clicking a reset link)
+ */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) {
+    throw new Error(`Password update failed: ${error.message}`)
+  }
+}
+
+/**
  * Sign in with Google OAuth
  * Redirects to Google — la navegación post-auth la maneja onAuthStateChanged en page.tsx
  */

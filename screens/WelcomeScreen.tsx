@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signUp, logIn, signInWithGoogle } from '../lib/auth'
+import { signUp, logIn, signInWithGoogle, resetPasswordForEmail } from '../lib/auth'
 import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +64,11 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
   const [loading, setLoading] = useState(false)
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   // Bloquear scroll del body cuando el sheet está abierto
   useEffect(() => {
@@ -135,6 +140,23 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgot = async () => {
+    setForgotError('')
+    if (!forgotEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
+      setForgotError('Ingresa un email válido')
+      return
+    }
+    setForgotLoading(true)
+    try {
+      await resetPasswordForEmail(forgotEmail)
+      setForgotSent(true)
+    } catch (err: unknown) {
+      setForgotError(err instanceof Error ? err.message : 'Error al enviar el enlace')
+    } finally {
+      setForgotLoading(false)
     }
   }
 
@@ -699,6 +721,137 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             >
               {loading ? 'Cargando...' : authMode === 'signup' ? 'Crear cuenta →' : 'Ingresar →'}
             </button>
+
+            {/* Olvidaste tu contraseña — solo en login */}
+            {authMode === 'login' && !forgotMode && (
+              <button
+                onClick={() => {
+                  setForgotMode(true)
+                  setForgotEmail(email)
+                  setForgotSent(false)
+                  setForgotError('')
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.45)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  padding: '0 0 20px 0',
+                  textDecoration: 'underline',
+                  textDecorationColor: 'rgba(255,255,255,0.25)',
+                  width: '100%',
+                  textAlign: 'center',
+                  marginTop: '-12px',
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
+
+            {/* Formulario inline de recuperación */}
+            {authMode === 'login' && forgotMode && (
+              <div style={{ width: '100%', marginBottom: '16px' }}>
+                {forgotSent ? (
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <p style={{ color: '#6EE7B7', fontSize: '14px', margin: '0 0 8px 0' }}>
+                      ✅ Enlace enviado
+                    </p>
+                    <p
+                      style={{
+                        color: 'rgba(255,255,255,0.55)',
+                        fontSize: '13px',
+                        margin: '0 0 16px 0',
+                      }}
+                    >
+                      Revisa tu correo y sigue las instrucciones para establecer tu contraseña.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setForgotMode(false)
+                        setForgotSent(false)
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.45)',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Volver al inicio de sesión
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p
+                      style={{
+                        color: 'rgba(255,255,255,0.65)',
+                        fontSize: '13px',
+                        margin: '0 0 12px 0',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Ingresa tu correo y te enviamos un enlace para establecer tu contraseña.
+                    </p>
+                    <input
+                      className="welcome-input"
+                      type="email"
+                      placeholder="tu@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      style={{ ...baseInputStyle, marginBottom: '10px' }}
+                    />
+                    {forgotError && (
+                      <p
+                        style={{
+                          color: '#FCA5A5',
+                          fontSize: '12px',
+                          margin: '0 0 10px 0',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {forgotError}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleForgot}
+                      disabled={forgotLoading}
+                      style={{
+                        width: '100%',
+                        padding: '13px',
+                        borderRadius: '14px',
+                        border: 'none',
+                        background: 'white',
+                        color: '#0A5C57',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: forgotLoading ? 'not-allowed' : 'pointer',
+                        opacity: forgotLoading ? 0.6 : 1,
+                        marginBottom: '10px',
+                      }}
+                    >
+                      {forgotLoading ? 'Enviando...' : 'Enviar enlace'}
+                    </button>
+                    <button
+                      onClick={() => setForgotMode(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.35)',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        width: '100%',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Volver
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Divisor */}
             <div
