@@ -30,7 +30,13 @@ export default function AuthCallbackPage() {
       typeof window !== 'undefined' && localStorage.getItem('explicitly_signed_out') === '1'
 
     if (explicitlySignedOut) {
-      router.replace('/')
+      // Supabase con detectSessionInUrl:true (default) ya procesó el
+      // #access_token del pending intent de Android ANTES de que este
+      // useEffect corra, creando una sesión nueva en localStorage.
+      // Forzamos signOut() para destruir esa sesión antes de redirigir.
+      supabase.auth.signOut().finally(() => {
+        router.replace('/')
+      })
       return
     }
 
