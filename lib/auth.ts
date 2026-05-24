@@ -131,8 +131,11 @@ export async function updatePassword(newPassword: string): Promise<void> {
  * Redirects to Google — la navegación post-auth la maneja onAuthStateChanged en page.tsx
  */
 export async function signInWithGoogle(): Promise<void> {
-  // El usuario inicia un login nuevo — limpiar la bandera de cierre explícito
+  // El usuario inicia un login nuevo — marcar el intento Y limpiar el cierre explícito.
+  // La bandera signing_in_with_google sobrevive la redirección a Google y permite
+  // que /auth/callback distinga un OAuth fresco de un pending intent de Android.
   if (typeof window !== 'undefined') {
+    localStorage.setItem('signing_in_with_google', '1')
     localStorage.removeItem('explicitly_signed_out')
   }
   const { error } = await supabase.auth.signInWithOAuth({

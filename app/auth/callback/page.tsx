@@ -23,25 +23,35 @@ export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Si el usuario cerró sesión explícitamente, ignorar el token del callback.
-    // Esto evita que el pending intent de Android vuelva a autenticar al usuario
-    // cuando reinicia la PWA después de cerrar sesión.
+    // Si el usuario acaba de iniciar un OAuth fresco (toque en "Sign in with Google"),
+    // signInWithGoogle() habrá puesto esta bandera. En ese caso, siempre procesamos
+    // el callback normalmente, ignorando explicitly_signed_out.
+    const freshOAuth =
+      typeof window !== 'undefined' && localStorage.getItem('signing_in_with_google') === '1'
+
+    if (freshOAuth) {
+      localStorage.removeItem('signing_in_with_google')
+      localStorage.removeItem('explicitly_signed_out')
+      supabase.auth.getSession().then(() => {
+        router.replace('/')
+      })
+      return
+    }
+
+    // Si el usuario cerró sesión explícitamente Y esto no es un OAuth fresco,
+    // es un pending intent de Android reproduciendo un token antiguo.
+    // Forzamos signOut() para destruir la sesión creada por ese token.
     const explicitlySignedOut =
       typeof window !== 'undefined' && localStorage.getItem('explicitly_signed_out') === '1'
 
     if (explicitlySignedOut) {
-      // Supabase con detectSessionInUrl:true (default) ya procesó el
-      // #access_token del pending intent de Android ANTES de que este
-      // useEffect corra, creando una sesión nueva en localStorage.
-      // Forzamos signOut() para destruir esa sesión antes de redirigir.
       supabase.auth.signOut().finally(() => {
         router.replace('/')
       })
       return
     }
 
-    // getSession() detecta el #access_token del fragmento y lo guarda en
-    // localStorage. Solo después redirigimos a raíz para no perder el token.
+    // Flujo normal: getSession() detecta el #access_token y lo guarda.
     supabase.auth.getSession().then(() => {
       router.replace('/')
     })
