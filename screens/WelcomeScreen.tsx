@@ -876,9 +876,9 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                 width: '100%',
                 padding: '14px',
                 borderRadius: '14px',
-                border: '1.5px solid rgba(255,255,255,0.22)',
-                background: 'rgba(255,255,255,0.08)',
-                color: 'white',
+                border: 'none',
+                background: 'white',
+                color: '#1F1F1F',
                 fontSize: '14px',
                 fontWeight: 500,
                 cursor:
@@ -891,18 +891,13 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                 justifyContent: 'center',
                 gap: '10px',
                 marginBottom: '36px',
-                transition: 'background 0.2s, border-color 0.2s, opacity 0.2s',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.22)',
+                transition: 'opacity 0.2s, transform 0.15s',
               }}
-              onMouseEnter={(e) => {
-                if (!loading && !(authMode === 'signup' && !consentAccepted)) {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.13)'
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'
-              }}
+              onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
+              onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              onTouchStart={(e) => (e.currentTarget.style.transform = 'scale(0.97)')}
+              onTouchEnd={(e) => (e.currentTarget.style.transform = 'scale(1)')}
             >
               <GoogleIcon />
               Continuar con Google
