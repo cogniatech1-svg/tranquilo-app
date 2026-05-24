@@ -82,6 +82,11 @@ export async function logIn(email: string, password: string): Promise<AuthUser> 
  * Log out current user
  */
 export async function logOut(): Promise<void> {
+  // Marcar cierre de sesión explícito para evitar que el pending intent de
+  // Android vuelva a autenticar al usuario al reiniciar la PWA.
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('explicitly_signed_out', '1')
+  }
   const { error } = await supabase.auth.signOut()
 
   if (error) {
@@ -121,6 +126,10 @@ export async function updatePassword(newPassword: string): Promise<void> {
  * Redirects to Google — la navegación post-auth la maneja onAuthStateChanged en page.tsx
  */
 export async function signInWithGoogle(): Promise<void> {
+  // El usuario inicia un login nuevo — limpiar la bandera de cierre explícito
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('explicitly_signed_out')
+  }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {

@@ -23,6 +23,17 @@ export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // Si el usuario cerró sesión explícitamente, ignorar el token del callback.
+    // Esto evita que el pending intent de Android vuelva a autenticar al usuario
+    // cuando reinicia la PWA después de cerrar sesión.
+    const explicitlySignedOut =
+      typeof window !== 'undefined' && localStorage.getItem('explicitly_signed_out') === '1'
+
+    if (explicitlySignedOut) {
+      router.replace('/')
+      return
+    }
+
     // getSession() detecta el #access_token del fragmento y lo guarda en
     // localStorage. Solo después redirigimos a raíz para no perder el token.
     supabase.auth.getSession().then(() => {
