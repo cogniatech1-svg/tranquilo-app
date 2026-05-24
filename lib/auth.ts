@@ -82,10 +82,15 @@ export async function logIn(email: string, password: string): Promise<AuthUser> 
  * Log out current user
  */
 export async function logOut(): Promise<void> {
-  // Marcar cierre de sesión explícito para evitar que el pending intent de
-  // Android vuelva a autenticar al usuario al reiniciar la PWA.
   if (typeof window !== 'undefined') {
+    // Marcar cierre de sesión explícito para bloquear el pending intent de Android.
     localStorage.setItem('explicitly_signed_out', '1')
+
+    // Pre-establecer un guest_id nuevo ANTES del signOut.
+    // Sin esto, la lógica de recuperación de ID en page.tsx busca claves
+    // tranquilo_v1_<UUID> en localStorage, encuentra la del usuario autenticado
+    // y la reutiliza como guestUserId, cargando todos sus datos sin sesión activa.
+    localStorage.setItem('guest_id', generateGuestUserId())
   }
   const { error } = await supabase.auth.signOut()
 
