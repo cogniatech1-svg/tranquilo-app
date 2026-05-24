@@ -94,8 +94,12 @@ export async function logOut(): Promise<void> {
  * Works for any registered email, including Google OAuth accounts
  */
 export async function resetPasswordForEmail(email: string): Promise<void> {
-  const redirectTo =
-    typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined
+  // Hardcoded para evitar mismatch con la lista de allowed redirect URLs de Supabase.
+  // En localhost se usa el origen dinámico; en producción siempre la URL canónica.
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  const redirectTo = isLocalhost
+    ? `${window.location.origin}/reset-password`
+    : 'https://tranquilo-app-git-main-giannuzzos-projects.vercel.app/reset-password'
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
   if (error) {
     throw new Error(`Reset failed: ${error.message}`)
