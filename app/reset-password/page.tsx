@@ -39,15 +39,32 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    // Procesar el token de recuperación del fragmento de la URL.
-    // Si no hay sesión válida, redirigir al inicio.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // Supabase procesa el fragmento #access_token=...&type=recovery de forma
+    // asíncrona y dispara el evento PASSWORD_RECOVERY en onAuthStateChange.
+    // getSession() puede devolver null si se llama antes de que Supabase
+    // haya guardado el token, por eso usamos onAuthStateChange como fuente
+    // de verdad y solo redirigimos si no llega el evento en 3 segundos.
+    let resolved = false
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (resolved) return
+      if (event === 'PASSWORD_RECOVERY') {
+        resolved = true
         setReady(true)
-      } else {
-        router.replace('/')
       }
     })
+
+    // Fallback: si no llega PASSWORD_RECOVERY en 3 s, no es un enlace válido
+    const timeout = setTimeout(() => {
+      if (!resolved) router.replace('/')
+    }, 3000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [router])
 
   const handleSubmit = async () => {
