@@ -168,7 +168,7 @@ function repairExpenses(expenses: any[]): any[] {
  * Ensures it has all required fields and all 8 pockets
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function repairMonthRecord(record: any): MonthRecord {
+export function repairMonthRecord(record: any): MonthRecord {
   if (!record || typeof record !== 'object') {
     record = {}
   }

@@ -40,7 +40,12 @@ import { onAuthStateChanged, logOut, generateGuestUserId, requireUserId } from '
 import type { AuthUser } from '../lib/auth'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { repairStoredData, DEFAULT_POCKETS, getEmptyPocketsStructure } from '../lib/dataMigration'
+import {
+  repairStoredData,
+  repairMonthRecord,
+  DEFAULT_POCKETS,
+  getEmptyPocketsStructure,
+} from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import {
   saveUserData,
@@ -1397,7 +1402,12 @@ export default function Home() {
     setCountryCode(code)
   }, [])
 
-  // ── CAMBIO DE MES: copiar bolsillos del mes anterior si no existen ──────────
+  // ── CAMBIO DE MES: cargar desde Supabase si el mes no está en memoria ────────
+  // CRITICAL: Primero intentamos cargar desde Supabase para no perder gastos
+  // históricos que no estén en el estado React (ej: datos importados externamente
+  // o meses cargados en una sesión anterior que no se persistieron en localStorage).
+  // Si NO usáramos Supabase primero, el auto-save borraría los gastos del mes al
+  // guardar el mes vacío que crearíamos localmente.
   const handleChangeMonth = useCallback(
     (newMonth: string) => {
       setActiveMonth(newMonth)
@@ -1407,13 +1417,16 @@ export default function Home() {
         return
       }
 
-      // Si no existe, encontrar el mes anterior/más cercano con bolsillos
-      const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
-      const previousMonth = sortedMonths.find((m) => m < newMonth)
+      const saveUserId = userId || guestUserId
 
-      if (previousMonth && monthlyHistory[previousMonth]) {
-        // Copiar los bolsillos del mes anterior al nuevo mes (pero con presupuesto = 0)
-        const previousPockets = monthlyHistory[previousMonth].pockets ?? []
+      // Helper: crear mes vacío heredando bolsillos del mes anterior
+      const createEmptyMonth = () => {
+        const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
+        const previousMonth = sortedMonths.find((m) => m < newMonth)
+        const previousPockets =
+          previousMonth && monthlyHistory[previousMonth]
+            ? (monthlyHistory[previousMonth].pockets ?? [])
+            : []
 
         setMonthlyHistory((prev) => ({
           ...prev,
@@ -1424,33 +1437,85 @@ export default function Home() {
             extraIncomes: [],
             pockets:
               previousPockets.length > 0
-                ? previousPockets.map((p) => ({ ...p, budget: 0 })) // Copiar nombre e ícono, pero presupuesto = 0
+                ? previousPockets.map((p) => ({ ...p, budget: 0 }))
                 : DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 })),
           },
         }))
-
-        console.log(
-          `[handleChangeMonth] Creado ${newMonth} con bolsillos del ${previousMonth} (presupuestos = 0)`
-        )
-      } else {
-        // Si no hay mes anterior, usar bolsillos por defecto con presupuesto = 0
-        setMonthlyHistory((prev) => ({
-          ...prev,
-          [newMonth]: {
-            income: 0,
-            savings: 0,
-            expenses: [],
-            extraIncomes: [],
-            pockets: DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 })),
-          },
-        }))
-
-        console.log(
-          `[handleChangeMonth] Creado ${newMonth} con bolsillos por defecto (presupuestos = 0)`
-        )
+        console.log(`[handleChangeMonth] Creado ${newMonth} vacío (sin datos en Supabase)`)
       }
+
+      if (saveUserId) {
+        // Intentar cargar el mes desde Supabase ANTES de crear uno vacío.
+        // Mientras se carga, el mes NO está en monthlyHistory → el auto-save no lo toca.
+        Promise.all([
+          supabase
+            .from('monthly_records')
+            .select('*')
+            .eq('user_id', saveUserId)
+            .eq('month', newMonth)
+            .single(),
+          supabase.from('expenses').select('*').eq('user_id', saveUserId).eq('month', newMonth),
+          supabase.from('pockets').select('*').eq('user_id', saveUserId),
+        ])
+          .then(([{ data: mr, error: mrErr }, { data: exps }, { data: pocketsData }]) => {
+            if (mr && !mrErr) {
+              // Mes encontrado en Supabase → cargarlo con sus gastos reales
+              const resolvedPockets =
+                (pocketsData || []).length > 0
+                  ? (pocketsData || []).map((p) => ({
+                      id: p.pocket_id,
+                      name: p.name,
+                      budget: p.budget,
+                      icon: p.icon,
+                    }))
+                  : DEFAULT_POCKETS
+
+              const monthRecord: MonthRecord = {
+                income: mr.income,
+                savings: mr.savings,
+                expenses: (exps || []).map((e) => ({
+                  id: e.id,
+                  date: e.date,
+                  amount: e.amount,
+                  concept: e.concept,
+                  pocketId: e.pocket_id,
+                })),
+                extraIncomes: [],
+                pockets: resolvedPockets,
+                manualBudget: mr.manual_budget ?? undefined,
+              }
+
+              // Normalizar y reparar (pocket IDs, expense pocketIds, deduplicación)
+              const repairedRecord = repairMonthRecord(monthRecord)
+              console.log(
+                `[handleChangeMonth] Cargado ${newMonth} desde Supabase: ${repairedRecord.expenses.length} gastos`
+              )
+
+              setMonthlyHistory((prev) => ({
+                ...prev,
+                [newMonth]: repairedRecord,
+              }))
+            } else {
+              // No hay datos en Supabase para este mes → crear vacío
+              createEmptyMonth()
+            }
+          })
+          .catch((err) => {
+            console.warn(
+              '[handleChangeMonth] Error cargando desde Supabase, creando mes vacío:',
+              err
+            )
+            createEmptyMonth()
+          })
+
+        // No crear mes vacío todavía — esperar respuesta de Supabase
+        return
+      }
+
+      // Sin userId (modo sin conexión) → crear vacío directamente
+      createEmptyMonth()
     },
-    [monthlyHistory]
+    [monthlyHistory, userId, guestUserId]
   )
 
   const handleSetIncome = useCallback(
