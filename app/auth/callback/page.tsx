@@ -8,24 +8,26 @@
  * Flujo:
  *   Google → Supabase → /auth/callback#access_token=... → /
  *
- * Supabase JS detecta el fragmento #access_token automáticamente al inicializar
- * el cliente. Esta página solo existe para que el intent de Android quede
- * consumido en una ruta dedicada, evitando que la PWA se reabra sola después
- * de cerrarla. Una vez que Supabase procesa el token, redirige a la raíz donde
- * el listener de auth en page.tsx maneja la navegación final.
+ * getSession() fuerza a Supabase a detectar y guardar el token del fragmento
+ * #access_token antes de redirigir a raíz. Sin este paso, el fragmento se
+ * perdería en la navegación y el usuario vería la pantalla de login.
+ * Una vez guardada la sesión en localStorage, el listener de auth en page.tsx
+ * detecta el usuario y maneja la navegación final.
  */
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '../../../lib/supabase'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Supabase ya procesó el #access_token del fragmento durante la inicialización
-    // del cliente (síncrono, antes de este useEffect). Redirigimos a raíz para que
-    // el listener de onAuthStateChanged en page.tsx maneje la navegación final.
-    router.replace('/')
+    // getSession() detecta el #access_token del fragmento y lo guarda en
+    // localStorage. Solo después redirigimos a raíz para no perder el token.
+    supabase.auth.getSession().then(() => {
+      router.replace('/')
+    })
   }, [router])
 
   return null
