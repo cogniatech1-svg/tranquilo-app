@@ -181,7 +181,7 @@ export function BudgetScreen({
             <SectionHeader>Ingresos mensuales</SectionHeader>
             <div className="flex gap-2.5">
               <input
-                autoFocus
+                autoFocus={editingIncome}
                 type="text"
                 inputMode="numeric"
                 placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
@@ -228,20 +228,24 @@ export function BudgetScreen({
         )}
 
         {/* ── DISPONIBLE REAL (carry-over) ─────────────────────────────────── */}
-        {/* Only shown when there is an accumulated surplus or deficit from prior months */}
-        {totalIncome > 0 && !editingIncome && carryOver !== 0 && (
+        {/* Shown whenever there is an accumulated surplus or deficit from prior months.
+            Does NOT require totalIncome > 0: if the current month has no income yet
+            but prior months left a balance, the card still shows that context. */}
+        {!editingIncome && carryOver !== 0 && (
           <Card className="p-5 border-l-4 border-teal-600">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
               Disponible real
             </p>
             <div className="space-y-2.5">
-              {/* Row 1: Ingresos del mes */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Ingresos del mes</span>
-                <span className="text-sm font-semibold text-slate-700 tabular-nums">
-                  {mm(totalIncome)}
-                </span>
-              </div>
+              {/* Row 1: Ingresos del mes — only when income is set */}
+              {totalIncome > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">Ingresos del mes</span>
+                  <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                    {mm(totalIncome)}
+                  </span>
+                </div>
+              )}
 
               {/* Row 2: Balance acumulado / Déficit acumulado */}
               <div className="flex items-center justify-between">
