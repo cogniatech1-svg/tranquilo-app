@@ -10,6 +10,7 @@ import { DashboardScreen } from '../screens/DashboardScreen'
 import { TransactionsScreen } from '../screens/TransactionsScreen'
 import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
+import { calculateCarryOver } from '../lib/carryOver'
 import { InsightsScreen } from '../screens/InsightsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
@@ -1082,6 +1083,13 @@ export default function Home() {
   // totalIncome = income (base) + extraIncomes (adicionales)
   const totalIncome = income + extraIncomeTotal
 
+  // ── Carry-over: balance acumulado de meses anteriores (Phase 1) ───────────
+  // Calculated, never stored. Pure function of monthlyHistory + activeMonth.
+  const carryOver = useMemo(
+    () => calculateCarryOver(activeMonth, monthlyHistory),
+    [activeMonth, monthlyHistory]
+  )
+
   // ════════════════════════════════════════════════════════════════════════════
   // FINANCIALENGINE: Calcula snapshot a partir de monthlyHistory[activeMonth]
   // ════════════════════════════════════════════════════════════════════════════
@@ -1095,8 +1103,9 @@ export default function Home() {
         monthlySavings: savings,
         currentMonth: activeMonth,
         manualBudget,
+        carryOver,
       }),
-    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget]
+    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget, carryOver]
   )
 
   // ── Cumulative Savings Calculation ─────────────────────────────────────────

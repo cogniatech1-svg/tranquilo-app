@@ -45,6 +45,9 @@ export interface FinancialSnapshot {
   day: number
   daysInMonth: number
   savingsRate: number
+  // ── Phase 1: carry-over (display-only, no impact on existing metrics) ──────
+  carryOver: number // accumulated balance from prior months (can be negative)
+  totalAvailable: number // totalIncome + carryOver (real disposable cash this month)
 }
 
 interface FinancialEngineInput {
@@ -55,6 +58,7 @@ interface FinancialEngineInput {
   monthlySavings: number
   currentMonth: string
   manualBudget?: number
+  carryOver?: number // Phase 1: accumulated balance from prior months (defaults to 0)
 }
 
 /**
@@ -72,7 +76,11 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     monthlySavings,
     currentMonth,
     manualBudget,
+    carryOver: inputCarryOver,
   } = input
+
+  // ── Phase 1: carry-over (additive, does not affect any existing calculation) ─
+  const carryOver = inputCarryOver ?? 0
 
   // ────────────────────────────────────────────────────────────────
   // 1. TOTAL INCOME: suma de TODOS los extra incomes
@@ -84,7 +92,10 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   console.log('[FINANCIAL ENGINE] DESGLOSE DE INGRESOS:')
   console.log('  monthlyIncome:', monthlyIncome)
   console.log('  extraIncomes.length:', extraIncomes.length)
-  console.log('  extraIncomes:', extraIncomes.map(e => ({ concept: e.concept, amount: e.amount })))
+  console.log(
+    '  extraIncomes:',
+    extraIncomes.map((e) => ({ concept: e.concept, amount: e.amount }))
+  )
   console.log('  extraIncomeTotal:', extraIncomeTotal)
   console.log('  TOTAL INCOME:', totalIncome)
 
@@ -103,7 +114,7 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   // 4. BUDGET: manualBudget si está definido Y > 0, si no, suma de bolsillos
   //    Si estableces manualBudget en 0, se desactiva y vuelve a bolsillos
   // ────────────────────────────────────────────────────────────────
-  const budget = (manualBudget && manualBudget > 0) ? manualBudget : assigned
+  const budget = manualBudget && manualBudget > 0 ? manualBudget : assigned
 
   // ────────────────────────────────────────────────────────────────
   // 5. SAVINGS: dinero no gastado del presupuesto
@@ -189,6 +200,10 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     status = 'green'
   }
 
+  // ── Phase 1: totalAvailable = real disposable cash (income + carry-over) ───
+  // Does NOT affect any of the calculations above — display only in Phase 1
+  const totalAvailable = totalIncome + carryOver
+
   return {
     totalIncome,
     totalExpenses,
@@ -202,6 +217,8 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     day,
     daysInMonth,
     savingsRate,
+    carryOver,
+    totalAvailable,
   }
 }
 
