@@ -394,20 +394,19 @@ export default function Home() {
     }
 
     // Si el mes no existe, heredar estructura de pockets del mes anterior
-    // pero SIN presupuestos asignados (budget = 0)
+    // incluyendo presupuestos (budget) — el usuario puede ajustarlos si cambian
     const availableMonths = Object.keys(monthlyHistory).sort()
     const previousMonth = availableMonths.reverse().find((m) => m < activeMonth)
 
     const previousData = previousMonth ? monthlyHistory[previousMonth] : null
     const defaultRecord = getDefaultMonthRecord()
 
-    // Si hay mes anterior, heredar la estructura de pockets (nombres, íconos)
-    // pero sin presupuestos asignados. Si no hay mes anterior, usar estructura vacía.
+    // Si hay mes anterior, heredar pockets completos (nombres, íconos y presupuestos).
+    // Esto evita que un mes nuevo con budget=0 sobreescriba los presupuestos globales en Supabase.
+    // Si no hay mes anterior, usar estructura vacía.
     const prevPockets = previousData?.pockets
     const pocketsToUse =
-      prevPockets && prevPockets.length > 0
-        ? prevPockets.map((p) => ({ ...p, budget: 0 }))
-        : getEmptyPocketsStructure()
+      prevPockets && prevPockets.length > 0 ? prevPockets : getEmptyPocketsStructure()
 
     return {
       ...defaultRecord,
