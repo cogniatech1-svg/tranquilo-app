@@ -347,26 +347,9 @@ export function BudgetScreen({
           </Card>
         )}
 
-        {/* ── 1.7. AHORRO ACUMULADO (Nuevo) ─────────────────────────────────── */}
-        {cumulativeSavings && Object.keys(cumulativeSavings.totalByYear).length > 0 && (
-          <Card className="p-5 border-l-4 border-cyan-600">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-3">
-              Ahorro acumulado por año
-            </p>
-            <div className="space-y-2">
-              {Object.entries(cumulativeSavings.totalByYear)
-                .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
-                .map(([year, amount]) => (
-                  <div key={year} className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600">{year}:</span>
-                    <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                      {mm(amount)}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </Card>
-        )}
+        {/* ── 1.7. AHORRO ACUMULADO ───────────────────────────────────────── */}
+        {/* Card removida de Presupuesto — lógica y datos intactos en page.tsx  */}
+        {/* cumulativeSavings sigue disponible para Insights / futuras métricas  */}
 
         {/* ── 2. DISTRIBUCIÓN ────────────────────────────────────────────── */}
         {hasBudget && (
