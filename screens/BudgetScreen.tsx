@@ -233,58 +233,6 @@ export function BudgetScreen({
           </Card>
         )}
 
-        {/* ── DISPONIBLE REAL (carry-over) ─────────────────────────────────── */}
-        {/* Shown whenever there is an accumulated surplus or deficit from prior months.
-            Does NOT require totalIncome > 0: if the current month has no income yet
-            but prior months left a balance, the card still shows that context. */}
-        {!editingIncome && carryOver !== 0 && (
-          <Card className="p-5 border-l-4 border-teal-600">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
-              Disponible real
-            </p>
-            <div className="space-y-2.5">
-              {/* Row 1: Ingresos del mes — only when income is set */}
-              {totalIncome > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">Ingresos del mes</span>
-                  <span className="text-sm font-semibold text-slate-700 tabular-nums">
-                    {mm(totalIncome)}
-                  </span>
-                </div>
-              )}
-
-              {/* Row 2: Balance acumulado / Déficit acumulado */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500 flex items-center gap-1.5">
-                  {carryOver > 0 ? 'Balance acumulado' : 'Déficit acumulado'}
-                  {isViewingFuture && (
-                    <span className="text-[9px] text-slate-400 font-medium tracking-wide">
-                      proyección
-                    </span>
-                  )}
-                </span>
-                <span
-                  className="text-sm font-semibold tabular-nums"
-                  style={{ color: carryOver > 0 ? '#0d9488' : '#EF4444' }}
-                >
-                  {carryOver > 0 ? `+${mm(carryOver)}` : `−${mm(-carryOver)}`}
-                </span>
-              </div>
-
-              {/* Divider */}
-              <div className="h-px bg-slate-100" />
-
-              {/* Row 3: Total disponible */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-900">Total disponible</span>
-                <span className="text-sm font-bold tabular-nums text-slate-900">
-                  {totalAvailable >= 0 ? mm(totalAvailable) : `−${mm(-totalAvailable)}`}
-                </span>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
         {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
@@ -762,6 +710,57 @@ export function BudgetScreen({
               cuadrar.
             </p>
           </div>
+        )}
+
+        {/* ── DISPONIBLE REAL (carry-over) ─────────────────────────────────── */}
+        {/* At the bottom: shows accumulated balance/deficit from prior months.
+            Visible whenever carryOver ≠ 0, regardless of whether income is set. */}
+        {!editingIncome && carryOver !== 0 && (
+          <Card className="p-5 border-l-4 border-teal-600">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
+              Disponible real
+            </p>
+            <div className="space-y-2.5">
+              {/* Row 1: Ingresos del mes — only when income is set */}
+              {totalIncome > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">Ingresos del mes</span>
+                  <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                    {mm(totalIncome)}
+                  </span>
+                </div>
+              )}
+
+              {/* Row 2: Balance acumulado / Déficit acumulado */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500 flex items-center gap-1.5">
+                  {carryOver > 0 ? 'Balance acumulado' : 'Déficit acumulado'}
+                  {isViewingFuture && (
+                    <span className="text-[9px] text-slate-400 font-medium tracking-wide">
+                      proyección
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="text-sm font-semibold tabular-nums"
+                  style={{ color: carryOver > 0 ? '#0d9488' : '#EF4444' }}
+                >
+                  {carryOver > 0 ? `+${mm(carryOver)}` : `−${mm(-carryOver)}`}
+                </span>
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-slate-100" />
+
+              {/* Row 3: Total disponible */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-900">Total disponible</span>
+                <span className="text-sm font-bold tabular-nums text-slate-900">
+                  {totalAvailable >= 0 ? mm(totalAvailable) : `−${mm(-totalAvailable)}`}
+                </span>
+              </div>
+            </div>
+          </Card>
         )}
       </div>
     </div>
