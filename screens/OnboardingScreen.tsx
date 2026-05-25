@@ -166,7 +166,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 }}
               />
               {incomeInput && parsedIncome > 0 && (
-                <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
+                <p className="text-white/80 text-xs text-center mt-2 tabular-nums">
                   {formatMoney(parsedIncome, config)}
                 </p>
               )}
@@ -188,7 +188,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                   setError('')
                   setStep('budget')
                 }}
-                className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
+                className="w-full text-white/80 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin ingresos
               </button>
@@ -204,7 +204,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 ¿Cuánto planeas gastar este mes?
               </p>
               {parsedIncome > 0 && (
-                <p className="text-white/55 text-xs mt-1 tabular-nums">
+                <p className="text-white/75 text-xs mt-1 tabular-nums">
                   Ingresos: {formatMoney(parsedIncome, config)}
                 </p>
               )}
@@ -228,7 +228,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 }}
               />
               {budgetInput && parsedBudget > 0 && (
-                <p className="text-white/65 text-xs text-center mt-2 tabular-nums">
+                <p className="text-white/80 text-xs text-center mt-2 tabular-nums">
                   {formatMoney(parsedBudget, config)}
                 </p>
               )}
@@ -249,7 +249,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                   setStep('csv')
                   setError('')
                 }}
-                className="w-full text-white/65 text-sm py-2 hover:text-white/85 transition-colors"
+                className="w-full text-white/80 text-sm py-2 hover:text-white/85 transition-colors"
               >
                 Continuar sin presupuesto
               </button>
@@ -260,7 +260,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 setStep('income')
                 setError('')
               }}
-              className="text-white/55 text-xs hover:text-white/75 transition-colors"
+              className="text-white/75 text-xs hover:text-white/75 transition-colors"
             >
               ← Volver
             </button>
@@ -272,7 +272,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
           <div className="w-full space-y-5">
             <div>
               <p className="text-white/85 text-sm font-semibold">Importar datos históricos</p>
-              <p className="text-white/55 text-xs mt-1">
+              <p className="text-white/75 text-xs mt-1">
                 Carga un archivo CSV con tus gastos de abril (opcional)
               </p>
             </div>
@@ -321,7 +321,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                   setStep('budget')
                   setError('')
                 }}
-                className="text-white/55 text-xs hover:text-white/75 transition-colors"
+                className="text-white/75 text-xs hover:text-white/75 transition-colors"
               >
                 ← Volver
               </button>
@@ -334,7 +334,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
           <div className="w-full space-y-5">
             <div>
               <p className="text-white/85 text-sm font-semibold">Revisar configuración</p>
-              <p className="text-white/55 text-xs mt-1">
+              <p className="text-white/75 text-xs mt-1">
                 Verifica que todo sea correcto antes de empezar
               </p>
             </div>
@@ -356,7 +356,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                 (aprilData.expenses.length > 0 || aprilData.extraIncomes.length > 0) && (
                   <>
                     <div className="border-t border-white/20 pt-3 mt-3">
-                      <p className="text-white/60 text-xs mb-2">Datos a importar:</p>
+                      <p className="text-white/75 text-xs mb-2">Datos a importar:</p>
                       {aprilData.expenses.length > 0 && (
                         <div className="text-white/70 text-xs">
                           📊 {aprilData.expenses.length} gasto
@@ -387,7 +387,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
                   setStep('csv')
                   setError('')
                 }}
-                className="text-white/55 text-xs hover:text-white/75 transition-colors"
+                className="text-white/75 text-xs hover:text-white/75 transition-colors"
               >
                 ← Volver
               </button>

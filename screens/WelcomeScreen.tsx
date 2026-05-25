@@ -318,7 +318,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             <p
               style={{
                 fontSize: '14px',
-                color: 'rgba(255,255,255,0.50)',
+                color: 'rgba(255,255,255,0.75)',
                 margin: '0 0 52px 0',
                 lineHeight: 1.6,
               }}
@@ -373,7 +373,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             <p
               style={{
                 fontSize: '14px',
-                color: 'rgba(255,255,255,0.50)',
+                color: 'rgba(255,255,255,0.75)',
                 margin: '0 0 36px 0',
               }}
             >
@@ -420,7 +420,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     <p
                       style={{
                         margin: 0,
-                        color: 'rgba(255,255,255,0.50)',
+                        color: 'rgba(255,255,255,0.75)',
                         fontSize: '12px',
                         lineHeight: 1.5,
                       }}
@@ -503,7 +503,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             <p
               style={{
                 fontSize: '13px',
-                color: 'rgba(255,255,255,0.50)',
+                color: 'rgba(255,255,255,0.75)',
                 margin: '0 0 28px 0',
                 lineHeight: 1.5,
               }}
@@ -538,7 +538,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     borderRadius: '10px',
                     border: 'none',
                     background: authMode === mode ? 'rgba(255,255,255,0.18)' : 'transparent',
-                    color: authMode === mode ? 'white' : 'rgba(255,255,255,0.45)',
+                    color: authMode === mode ? 'white' : 'rgba(255,255,255,0.70)',
                     fontSize: '13px',
                     fontWeight: authMode === mode ? 600 : 400,
                     cursor: 'pointer',
@@ -734,12 +734,12 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'rgba(255,255,255,0.45)',
+                  color: 'rgba(255,255,255,0.70)',
                   fontSize: '12px',
                   cursor: 'pointer',
                   padding: '0 0 20px 0',
                   textDecoration: 'underline',
-                  textDecorationColor: 'rgba(255,255,255,0.25)',
+                  textDecorationColor: 'rgba(255,255,255,0.45)',
                   width: '100%',
                   textAlign: 'center',
                   marginTop: '-12px',
@@ -759,7 +759,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     </p>
                     <p
                       style={{
-                        color: 'rgba(255,255,255,0.55)',
+                        color: 'rgba(255,255,255,0.80)',
                         fontSize: '13px',
                         margin: '0 0 16px 0',
                       }}
@@ -774,7 +774,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: 'rgba(255,255,255,0.45)',
+                        color: 'rgba(255,255,255,0.70)',
                         fontSize: '12px',
                         cursor: 'pointer',
                         textDecoration: 'underline',
@@ -839,7 +839,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: 'rgba(255,255,255,0.35)',
+                        color: 'rgba(255,255,255,0.65)',
                         fontSize: '12px',
                         cursor: 'pointer',
                         width: '100%',
@@ -864,7 +864,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
               }}
             >
               <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>o</span>
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.60)' }}>o</span>
               <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
             </div>
 
@@ -909,14 +909,14 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255,255,255,0.30)',
+                color: 'rgba(255,255,255,0.65)',
                 fontSize: '12px',
                 cursor: 'pointer',
                 padding: '4px 8px',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.30)')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
             >
               Continuar sin cuenta
             </button>
@@ -930,15 +930,15 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255,255,255,0.25)',
+                color: 'rgba(255,255,255,0.60)',
                 fontSize: '11px',
                 cursor: 'pointer',
                 padding: '8px',
                 marginTop: '6px',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.85)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.60)')}
             >
               ← Volver
             </button>
