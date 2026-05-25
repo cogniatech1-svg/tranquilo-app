@@ -176,12 +176,14 @@ export function BudgetScreen({
 
       <div className="px-4 pt-5 space-y-6">
         {/* ── 0. INGRESOS MENSUALES ─────────────────────────────────────── */}
-        {editingIncome || totalIncome === 0 ? (
+        {/* Input field ONLY renders when editingIncome=true (user explicitly tapped).
+            This prevents mobile keyboards from auto-opening on tab switch. */}
+        {editingIncome ? (
           <Card className="p-5 space-y-4">
             <SectionHeader>Ingresos mensuales</SectionHeader>
             <div className="flex gap-2.5">
               <input
-                autoFocus={editingIncome}
+                autoFocus
                 type="text"
                 inputMode="numeric"
                 placeholder={`ej. ${config.defaultBudget.toLocaleString()}`}
@@ -193,37 +195,41 @@ export function BudgetScreen({
               <PrimaryButton onClick={saveIncome} className="px-5 py-3 text-sm shrink-0">
                 Guardar
               </PrimaryButton>
-              {totalIncome > 0 && (
-                <button
-                  onClick={() => {
-                    setEditingIncome(false)
-                    setIncomeInput('')
-                  }}
-                  className="px-3 text-slate-500 hover:text-slate-600"
-                >
-                  <Icon name="x" size={16} />
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  setEditingIncome(false)
+                  setIncomeInput('')
+                }}
+                className="px-3 text-slate-500 hover:text-slate-600"
+              >
+                <Icon name="x" size={16} />
+              </button>
             </div>
           </Card>
         ) : (
-          <Card className="p-5">
+          <Card
+            className="p-5 cursor-pointer active:opacity-80"
+            onClick={() => {
+              setEditingIncome(true)
+              setIncomeInput(totalIncome > 0 ? String(totalIncome) : '')
+            }}
+          >
             <div className="flex items-start justify-between mb-4">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
                 Ingresos mensuales
               </p>
-              <button
-                onClick={() => {
-                  setEditingIncome(true)
-                  setIncomeInput(String(totalIncome))
-                }}
+              <span
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
               >
                 Editar
-              </button>
+              </span>
             </div>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
+            {totalIncome === 0 ? (
+              <p className="text-2xl font-bold text-slate-400">Toca para configurar</p>
+            ) : (
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
+            )}
           </Card>
         )}
 

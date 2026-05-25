@@ -155,7 +155,11 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           }
         }
 
-        // Remove expenses for this month that are no longer in the current list
+        // Remove expenses for this month that are no longer in the current list.
+        // GUARD: only delete when we have a non-empty local list to compare against.
+        // If the local list is empty it may mean the month's data was never loaded
+        // into state (e.g. imported externally). Deleting in that case would wipe
+        // data that the user never saw — the lesser evil is leaving orphans.
         const currentExpenseIds = monthRecord.expenses?.map((e) => e.id) ?? []
         if (currentExpenseIds.length > 0) {
           await supabase
@@ -164,9 +168,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             .eq('user_id', userId)
             .eq('month', monthKey)
             .not('id', 'in', `(${currentExpenseIds.join(',')})`)
-        } else {
-          await supabase.from('expenses').delete().eq('user_id', userId).eq('month', monthKey)
         }
+        // When currentExpenseIds is empty: skip deletion to avoid wiping data
+        // that wasn't yet loaded into local state.
 
         // Upsert extra incomes first (data is safe even if stale cleanup fails below)
         if (monthRecord.extraIncomes && monthRecord.extraIncomes.length > 0) {
@@ -189,7 +193,8 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           }
         }
 
-        // Remove extra incomes for this month that are no longer in the current list
+        // Remove extra incomes for this month that are no longer in the current list.
+        // Same guard as for expenses: skip deletion when local list is empty.
         const currentIncomeIds = monthRecord.extraIncomes?.map((i) => i.id) ?? []
         if (currentIncomeIds.length > 0) {
           await supabase
@@ -198,9 +203,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             .eq('user_id', userId)
             .eq('month', monthKey)
             .not('id', 'in', `(${currentIncomeIds.join(',')})`)
-        } else {
-          await supabase.from('extra_incomes').delete().eq('user_id', userId).eq('month', monthKey)
         }
+        // When currentIncomeIds is empty: skip deletion to avoid wiping data
+        // that wasn't yet loaded into local state.
       }
     }
 
