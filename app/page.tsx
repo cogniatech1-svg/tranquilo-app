@@ -991,6 +991,68 @@ export default function Home() {
     activeMonth,
   ])
 
+  // ── Safety net: re-fetch current month if empty after hydration ────────────
+  // Guards against timing issues where initializeApp loads Supabase data but the
+  // current month ends up with 0 expenses in state (e.g. stale localStorage cache
+  // that overwrites Supabase data, or race conditions during token refresh).
+  // This effect is cheap: it only queries Supabase when expenses are missing, and
+  // the query returns immediately if Supabase also has 0 expenses.
+  useEffect(() => {
+    if (!hydrated) return
+    const saveUserId = userId || guestUserId
+    if (!saveUserId) return
+
+    const currentRecord = monthlyHistory[currentMonth]
+    const hasExpenses = (currentRecord?.expenses?.length ?? 0) > 0
+    if (hasExpenses) return // Data is already present — nothing to do
+
+    console.log(
+      `[SAFETY-NET] ${currentMonth} has no expenses after hydration. Checking Supabase...`
+    )
+
+    Promise.all([
+      supabase
+        .from('monthly_records')
+        .select('*')
+        .eq('user_id', saveUserId)
+        .eq('month', currentMonth)
+        .single(),
+      supabase.from('expenses').select('*').eq('user_id', saveUserId).eq('month', currentMonth),
+    ])
+      .then(([{ data: mr, error: mrErr }, { data: exps }]) => {
+        if (mrErr || !mr) return // No monthly record for this month
+        const expenses = (exps || []).map((e) => ({
+          id: e.id,
+          date: e.date,
+          amount: e.amount,
+          concept: e.concept,
+          pocketId: e.pocket_id,
+        }))
+        if (expenses.length === 0) {
+          console.log(`[SAFETY-NET] Supabase confirmed: no expenses for ${currentMonth}`)
+          return
+        }
+        console.log(`[SAFETY-NET] ✅ Loaded ${expenses.length} expenses for ${currentMonth}`)
+        setMonthlyHistory((prev) => ({
+          ...prev,
+          [currentMonth]: {
+            income: mr.income ?? 0,
+            savings: mr.savings ?? 0,
+            expenses,
+            extraIncomes: prev[currentMonth]?.extraIncomes ?? [],
+            pockets:
+              prev[currentMonth]?.pockets && prev[currentMonth].pockets.length > 0
+                ? prev[currentMonth].pockets
+                : DEFAULT_POCKETS,
+            manualBudget: mr.manual_budget ?? undefined,
+          },
+        }))
+      })
+      .catch((err) => {
+        console.warn('[SAFETY-NET] Error fetching current month from Supabase:', err)
+      })
+  }, [hydrated, currentMonth, userId, guestUserId, monthlyHistory])
+
   // ── Guardar en Supabase inmediatamente (para acciones críticas) ──────────
   const saveNow = useCallback(
     async (updatedHistory: Record<string, MonthRecord>) => {
