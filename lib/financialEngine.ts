@@ -1,4 +1,5 @@
 import type { Expense, ExtraIncome, Pocket } from './types'
+import { logger } from './logger'
 
 /**
  * ╔════════════════════════════════════════════════════════════════════════════╗
@@ -88,16 +89,15 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const extraIncomeTotal = extraIncomes.reduce((sum, inc) => sum + inc.amount, 0)
   const totalIncome = monthlyIncome + extraIncomeTotal
 
-  // DEBUG: Verificar que se suman TODOS los ingresos
-  console.log('[FINANCIAL ENGINE] DESGLOSE DE INGRESOS:')
-  console.log('  monthlyIncome:', monthlyIncome)
-  console.log('  extraIncomes.length:', extraIncomes.length)
-  console.log(
+  logger.debug('[FINANCIAL ENGINE] DESGLOSE DE INGRESOS:')
+  logger.debug('  monthlyIncome:', monthlyIncome)
+  logger.debug('  extraIncomes.length:', extraIncomes.length)
+  logger.debug(
     '  extraIncomes:',
     extraIncomes.map((e) => ({ concept: e.concept, amount: e.amount }))
   )
-  console.log('  extraIncomeTotal:', extraIncomeTotal)
-  console.log('  TOTAL INCOME:', totalIncome)
+  logger.debug('  extraIncomeTotal:', extraIncomeTotal)
+  logger.debug('  TOTAL INCOME:', totalIncome)
 
   // ────────────────────────────────────────────────────────────────
   // 2. TOTAL EXPENSES: suma de todos los gastos

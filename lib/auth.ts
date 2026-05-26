@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
+import { logger } from './logger'
 
 export interface AuthUser {
   uid: string
@@ -12,7 +13,7 @@ export interface AuthUser {
  * Initializes localStorage with 8 pockets + 5M income
  */
 export async function signUp(email: string, password: string): Promise<AuthUser> {
-  console.log(`[Auth.signUp] 📝 Attempting signup for: ${email}`)
+  logger.debug(`[Auth.signUp] 📝 Attempting signup for: ${email}`)
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -20,17 +21,17 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
   })
 
   if (error) {
-    console.error(`[Auth.signUp] ❌ Signup failed:`, error)
+    logger.error(`[Auth.signUp] ❌ Signup failed:`, error)
     throw new Error(`Sign up failed: ${error.message}`)
   }
 
   if (!data.user) {
-    console.error(`[Auth.signUp] ❌ No user returned from Supabase`)
+    logger.error(`[Auth.signUp] ❌ No user returned from Supabase`)
     throw new Error('Sign up failed: No user returned')
   }
 
   const userId = data.user.id
-  console.log(`[Auth.signUp] ✅ Signup successful for: ${data.user.email} (${userId})`)
+  logger.debug(`[Auth.signUp] ✅ Signup successful for: ${data.user.email} (${userId})`)
 
   // Create user profile in users table
   const { error: insertError } = await supabase.from('users').insert({
@@ -39,9 +40,9 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
   })
 
   if (insertError) {
-    console.error('[Auth.signUp] ⚠️ Error creating user profile:', insertError)
+    logger.error('[Auth.signUp] ⚠️ Error creating user profile:', insertError)
   } else {
-    console.log(`[Auth.signUp] ✅ User profile created in database`)
+    logger.debug(`[Auth.signUp] ✅ User profile created in database`)
   }
 
   return {
@@ -54,7 +55,7 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
  * Log in with email and password
  */
 export async function logIn(email: string, password: string): Promise<AuthUser> {
-  console.log(`[Auth.logIn] 🔐 Attempting login for: ${email}`)
+  logger.debug(`[Auth.logIn] 🔐 Attempting login for: ${email}`)
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -62,16 +63,16 @@ export async function logIn(email: string, password: string): Promise<AuthUser> 
   })
 
   if (error) {
-    console.error(`[Auth.logIn] ❌ Login failed:`, error)
+    logger.error(`[Auth.logIn] ❌ Login failed:`, error)
     throw new Error(`Login failed: ${error.message}`)
   }
 
   if (!data.user) {
-    console.error(`[Auth.logIn] ❌ No user returned from Supabase`)
+    logger.error(`[Auth.logIn] ❌ No user returned from Supabase`)
     throw new Error('Login failed: No user returned')
   }
 
-  console.log(`[Auth.logIn] ✅ Login successful for: ${data.user.email} (${data.user.id})`)
+  logger.debug(`[Auth.logIn] ✅ Login successful for: ${data.user.email} (${data.user.id})`)
   return {
     uid: data.user.id,
     email: data.user.email || '',
@@ -177,31 +178,31 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export function onAuthStateChanged(
   callback: (event: AuthChangeEvent, user: AuthUser | null) => void
 ): () => void {
-  console.log('[Supabase Auth] 🔗 Setting up onAuthStateChange listener...')
+  logger.debug('[Supabase Auth] 🔗 Setting up onAuthStateChange listener...')
 
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log(
+    logger.debug(
       `[Supabase Auth] 🔔 Auth event fired: event=${event}, hasSession=${!!session}, user=${session?.user?.email || 'none'}`
     )
 
     if (session?.user) {
-      console.log(`[Supabase Auth] ✅ User detected: ${session.user.email} (${session.user.id})`)
+      logger.debug(`[Supabase Auth] ✅ User detected: ${session.user.email} (${session.user.id})`)
       callback(event, {
         uid: session.user.id,
         email: session.user.email || '',
       })
     } else {
-      console.log(`[Supabase Auth] ❌ No user in session`)
+      logger.debug(`[Supabase Auth] ❌ No user in session`)
       callback(event, null)
     }
   })
 
-  console.log('[Supabase Auth] ✅ Listener registered')
+  logger.debug('[Supabase Auth] ✅ Listener registered')
 
   return () => {
-    console.log('[Supabase Auth] 🛑 Unsubscribing from auth events')
+    logger.debug('[Supabase Auth] 🛑 Unsubscribing from auth events')
     subscription?.unsubscribe()
   }
 }
