@@ -51,7 +51,6 @@ import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import {
   saveUserData,
   loadUserData,
-  subscribeToUserData,
   saveProfileData,
   validateDataPersistence,
   migrateGuestDataToAuthenticatedUser,
