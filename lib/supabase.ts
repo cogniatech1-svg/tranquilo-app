@@ -31,16 +31,22 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
 
   try {
     // 1. Update or create user record with metadata
-    const isGuest = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    //
+    // IMPORTANT: UUID format is NOT a reliable guest indicator — Supabase Auth users also
+    // have UUID v4 IDs. Use the active session to distinguish them correctly.
+    // getSession() reads from local cache (no network round-trip).
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const isGuest = !session?.user || session.user.id !== userId
 
-    // For guests use a stable placeholder. For auth users, fetch the real email from Supabase
-    // auth so we never overwrite it with a placeholder on subsequent saves.
+    // For guests use a stable placeholder. For auth users, use the real email from the
+    // cached session — no extra getUser() network call needed.
     let userEmail: string | null = null
     if (isGuest) {
       userEmail = `guest_${userId.substring(0, 8)}@tranquilo.local`
     } else {
-      const { data: authUser } = await supabase.auth.getUser()
-      userEmail = authUser?.user?.email ?? null
+      userEmail = session!.user.email ?? null
     }
 
     console.log('[Supabase] 🟡 Guardando users record:', { userId, isGuest, hasEmail: !!userEmail })

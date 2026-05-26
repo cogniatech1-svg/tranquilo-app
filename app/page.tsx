@@ -747,7 +747,18 @@ export default function Home() {
     if (userId === authSavedForUserRef.current) return
 
     if (userId) {
-      authSavedForUserRef.current = userId // Mark immediately to prevent double-trigger
+      // Defer if another save is already running — avoids concurrent saveUserData() calls that
+      // could race on the delete-stale pass and silently remove recently-saved data.
+      // The ref is intentionally NOT set here: the effect will retry on the next dep change
+      // (e.g. user interaction) once the in-progress save completes and releases the mutex.
+      if (saveInProgressRef.current) {
+        console.log('[AUTH-SAVE] ⏭️ Save in progress, deferring to next dep change...')
+        return
+      }
+
+      // Mark before the async call to prevent double-trigger within the same render cycle.
+      authSavedForUserRef.current = userId
+      saveInProgressRef.current = true
       console.log('[AUTH-SAVE] 🔄 Nuevo usuario autenticado detectado, haciendo save completo...')
       const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
       const dataToSave: StoredData = {
@@ -775,6 +786,9 @@ export default function Home() {
           const errorMsg = getErrorMessage(error)
           console.error('[AUTH-SAVE] ❌ Error en save post-autenticación:', error)
           setSyncError(`Error sincronizando datos de migración: ${errorMsg}`)
+        })
+        .finally(() => {
+          saveInProgressRef.current = false
         })
     }
   }, [
