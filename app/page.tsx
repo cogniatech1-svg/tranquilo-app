@@ -46,6 +46,7 @@ import {
   repairMonthRecord,
   DEFAULT_POCKETS,
   getEmptyPocketsStructure,
+  UNASSIGNED_POCKET_ID,
 } from '../lib/dataMigration'
 import { parseStoredData } from '../lib/parseData'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
@@ -1136,6 +1137,13 @@ export default function Home() {
     return acc
   }, [expenses, pockets])
 
+  // Conteo real de gastos por pocket (para el modal de confirmación de borrado)
+  const expenseCountByPocket = useMemo(() => {
+    const acc: Record<string, number> = Object.fromEntries(pockets.map((p) => [p.id, 0]))
+    for (const e of expenses) if (e.pocketId in acc) acc[e.pocketId]++
+    return acc
+  }, [expenses, pockets])
+
   const extraIncomeTotal = useMemo(
     () => extraIncomes.reduce((s: number, e: ExtraIncome) => s + e.amount, 0),
     [extraIncomes]
@@ -1338,7 +1346,11 @@ export default function Home() {
           [activeMonth]: {
             ...monthData,
             pockets: monthData.pockets.filter((p) => p.id !== id),
-            expenses: monthData.expenses.filter((e) => e.pocketId !== id),
+            // Reasignar a 'unassigned' en lugar de eliminar — los gastos siguen
+            // contando en totalExpenses pero pierden su categoría visualmente.
+            expenses: monthData.expenses.map((e) =>
+              e.pocketId === id ? { ...e, pocketId: UNASSIGNED_POCKET_ID } : e
+            ),
           },
         }
         saveNow(updated)
@@ -2149,6 +2161,7 @@ export default function Home() {
             snapshot={snapshot}
             pockets={pockets}
             spentByPocket={spentByPocket}
+            expenseCountByPocket={expenseCountByPocket}
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}

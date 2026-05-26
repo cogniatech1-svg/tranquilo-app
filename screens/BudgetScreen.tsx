@@ -21,6 +21,7 @@ interface Props {
   snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
   pockets: Pocket[]
   spentByPocket: Record<string, number>
+  expenseCountByPocket: Record<string, number>
   config: CountryConfig
   activeMonth: string
   realCurrentMonth: string
@@ -41,6 +42,7 @@ export function BudgetScreen({
   snapshot,
   pockets,
   spentByPocket,
+  expenseCountByPocket,
   config,
   activeMonth,
   realCurrentMonth,
@@ -609,7 +611,7 @@ export function BudgetScreen({
                   onEdit={onEditPocket}
                   onDelete={onDeletePocket}
                   isPrivacyMode={isPrivacyMode}
-                  expenseCount={spent > 0 ? 1 : 0}
+                  expenseCount={expenseCountByPocket[p.id] ?? 0}
                 />
               )
             })}

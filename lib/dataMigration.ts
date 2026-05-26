@@ -1,4 +1,18 @@
-import type { StoredData, MonthRecord, Pocket } from './types'
+import type { StoredData, MonthRecord, Pocket, Expense } from './types'
+
+/**
+ * Pocket ID reservado para gastos sin categoría válida.
+ *
+ * Se usa cuando:
+ *   • Un pocket es eliminado — sus gastos pasan a 'unassigned' en lugar de borrarse
+ *   • Un expense carga con un pocketId que ya no existe en los pockets actuales
+ *
+ * Comportamiento en la UI:
+ *   • spentByPocket: excluido del breakdown por pocket (if pocketId in acc)
+ *   • financialEngine: SÍ cuenta en totalExpenses (el dinero sigue gastado)
+ *   • TransactionsScreen: aparece sin etiqueta de categoría
+ */
+export const UNASSIGNED_POCKET_ID = 'unassigned' as const
 
 /**
  * DEFAULT_POCKETS: All 8 budget categories
@@ -164,6 +178,38 @@ function repairExpenses(expenses: any[]): any[] {
 }
 
 /**
+ * Reasigna a UNASSIGNED_POCKET_ID los gastos cuyo pocketId no existe en el array
+ * de pockets del mes. Garantiza integridad referencial básica sin eliminar datos.
+ *
+ * Casos que cubre:
+ *   • Pocket eliminado (gastos quedan huérfanos tras handleDeletePocket)
+ *   • Datos importados/restaurados con pocketIds obsoletos
+ *   • Hydration con datos de versiones anteriores
+ *
+ * El gasto sigue contando en totalExpenses — solo pierde su categoría.
+ */
+export function sanitizeOrphanExpenses(expenses: Expense[], pockets: Pocket[]): Expense[] {
+  const validIds = new Set(pockets.map((p) => p.id))
+  validIds.add(UNASSIGNED_POCKET_ID) // 'unassigned' siempre es un destino válido
+
+  let orphansFound = 0
+
+  const sanitized = expenses.map((e) => {
+    if (validIds.has(e.pocketId)) return e
+    orphansFound++
+    return { ...e, pocketId: UNASSIGNED_POCKET_ID }
+  })
+
+  if (orphansFound > 0) {
+    console.warn(
+      `[dataMigration] ${orphansFound} gasto(s) huérfano(s) reasignado(s) a '${UNASSIGNED_POCKET_ID}'`
+    )
+  }
+
+  return sanitized
+}
+
+/**
  * Validate and repair a month record
  * Ensures it has all required fields and all 8 pockets
  */
@@ -179,18 +225,23 @@ export function repairMonthRecord(record: any): MonthRecord {
   const repairedExpenses = repairExpenses(record.expenses ?? [])
   const deduplicatedExpenses = deduplicateExpenses(repairedExpenses)
 
+  // Resolve the final pockets array before sanitizing (so validIds are correct)
+  const finalPockets: Pocket[] =
+    Array.isArray(record.pockets) && record.pockets.length > 0
+      ? record.pockets
+      : getEmptyPocketsStructure()
+
+  const sanitizedExpenses = sanitizeOrphanExpenses(deduplicatedExpenses, finalPockets)
+
   return {
     income: typeof record.income === 'number' ? record.income : 0,
     savings: typeof record.savings === 'number' ? record.savings : 0,
-    expenses: deduplicatedExpenses,
+    expenses: sanitizedExpenses,
     extraIncomes: Array.isArray(record.extraIncomes)
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
         record.extraIncomes.map((i: any) => ({ ...i, date: fixDateFormat(i.date ?? '') }))
       : [],
-    pockets:
-      Array.isArray(record.pockets) && record.pockets.length > 0
-        ? record.pockets
-        : getEmptyPocketsStructure(),
+    pockets: finalPockets,
     manualBudget: record.manualBudget,
   }
 }
