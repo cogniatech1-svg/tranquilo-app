@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { AuthChangeEvent } from '@supabase/supabase-js'
 import { logger } from './logger'
+import { STORAGE_KEYS, storageGet, storageSet, storageRemove } from './storage'
 
 export interface AuthUser {
   uid: string
@@ -85,13 +86,13 @@ export async function logIn(email: string, password: string): Promise<AuthUser> 
 export async function logOut(): Promise<void> {
   if (typeof window !== 'undefined') {
     // Marcar cierre de sesión explícito para bloquear el pending intent de Android.
-    localStorage.setItem('explicitly_signed_out', '1')
+    storageSet(STORAGE_KEYS.EXPLICITLY_SIGNED_OUT, '1')
 
     // Pre-establecer un guest_id nuevo ANTES del signOut.
     // Sin esto, la lógica de recuperación de ID en page.tsx busca claves
     // tranquilo_v1_<UUID> en localStorage, encuentra la del usuario autenticado
     // y la reutiliza como guestUserId, cargando todos sus datos sin sesión activa.
-    localStorage.setItem('guest_id', generateGuestUserId())
+    storageSet(STORAGE_KEYS.GUEST_ID, generateGuestUserId())
   }
   const { error } = await supabase.auth.signOut()
 
@@ -136,8 +137,8 @@ export async function signInWithGoogle(): Promise<void> {
   // La bandera signing_in_with_google sobrevive la redirección a Google y permite
   // que /auth/callback distinga un OAuth fresco de un pending intent de Android.
   if (typeof window !== 'undefined') {
-    localStorage.setItem('signing_in_with_google', '1')
-    localStorage.removeItem('explicitly_signed_out')
+    storageSet(STORAGE_KEYS.SIGNING_IN_WITH_GOOGLE, '1')
+    storageRemove(STORAGE_KEYS.EXPLICITLY_SIGNED_OUT)
   }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -240,7 +241,7 @@ export async function requireUserId(): Promise<string> {
   }
 
   // 2. Guest existente
-  const storedGuestId = localStorage.getItem('guest_id')
+  const storedGuestId = storageGet(STORAGE_KEYS.GUEST_ID)
 
   if (storedGuestId) {
     return storedGuestId
@@ -249,7 +250,7 @@ export async function requireUserId(): Promise<string> {
   // 3. Crear nuevo guest
   const newGuestId = generateGuestUserId()
 
-  localStorage.setItem('guest_id', newGuestId)
+  storageSet(STORAGE_KEYS.GUEST_ID, newGuestId)
 
   return newGuestId
 }

@@ -18,6 +18,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { STORAGE_KEYS, storageGet, storageRemove } from '../../../lib/storage'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -27,11 +28,11 @@ export default function AuthCallbackPage() {
     // signInWithGoogle() habrá puesto esta bandera. En ese caso, siempre procesamos
     // el callback normalmente, ignorando explicitly_signed_out.
     const freshOAuth =
-      typeof window !== 'undefined' && localStorage.getItem('signing_in_with_google') === '1'
+      typeof window !== 'undefined' && storageGet(STORAGE_KEYS.SIGNING_IN_WITH_GOOGLE) === '1'
 
     if (freshOAuth) {
-      localStorage.removeItem('signing_in_with_google')
-      localStorage.removeItem('explicitly_signed_out')
+      storageRemove(STORAGE_KEYS.SIGNING_IN_WITH_GOOGLE)
+      storageRemove(STORAGE_KEYS.EXPLICITLY_SIGNED_OUT)
       supabase.auth.getSession().then(() => {
         router.replace('/')
       })
@@ -42,7 +43,7 @@ export default function AuthCallbackPage() {
     // es un pending intent de Android reproduciendo un token antiguo.
     // Forzamos signOut() para destruir la sesión creada por ese token.
     const explicitlySignedOut =
-      typeof window !== 'undefined' && localStorage.getItem('explicitly_signed_out') === '1'
+      typeof window !== 'undefined' && storageGet(STORAGE_KEYS.EXPLICITLY_SIGNED_OUT) === '1'
 
     if (explicitlySignedOut) {
       supabase.auth.signOut().finally(() => {
