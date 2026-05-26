@@ -136,6 +136,15 @@ export default function Home() {
   // Mutex: prevents concurrent Supabase saves (upsert+delete-stale is not safe under concurrency)
   const saveInProgressRef = useRef(false)
 
+  // ── MULTI-TAB HARDENING ───────────────────────────────────────────────────────
+  // Timestamp when tab last went hidden (for stale detection on refocus)
+  const hiddenAtRef = useRef<number | null>(null)
+  // Mirror of lastSyncTime state: readable in async event handlers without stale closures
+  const lastSyncTimeRef = useRef<number | null>(null)
+  // Set by refocus reload when new data is merged; first save reads+clears it to skip
+  // delete-stale once (protects rows merged from another tab/device)
+  const postReloadSaveRef = useRef(false)
+
   const [hydrated, setHydrated] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -173,6 +182,15 @@ export default function Home() {
   const [defaultSheetType, setDefaultSheetType] = useState<'income' | 'expense' | null>(null)
 
   const config: CountryConfig = COUNTRIES[countryCode]
+
+  // ── markSynced: atomically updates sync state + ref ──────────────────────
+  // Use instead of bare setLastSyncTime(Date.now()) so that event handlers
+  // (which hold stale closures) can also read the freshest sync timestamp.
+  const markSynced = useCallback(() => {
+    const now = Date.now()
+    setLastSyncTime(now)
+    lastSyncTimeRef.current = now
+  }, []) // setLastSyncTime is a stable React setter — no deps needed
 
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
   const handleAuth = useCallback(
@@ -704,6 +722,8 @@ export default function Home() {
         console.warn('[initializeApp] Error during initialization:', e)
       }
       setHydrated(true)
+      // Establish sync baseline so refocus stale-check compares against initial load time
+      lastSyncTimeRef.current = Date.now()
     }
 
     console.log('[LoadEffect] Deciding whether to call initializeApp:', {
@@ -780,7 +800,7 @@ export default function Home() {
         .then(() => {
           console.log('[AUTH-SAVE] ✅ Save completo post-autenticación exitoso')
           setSyncError(null)
-          setLastSyncTime(Date.now())
+          markSynced()
         })
         .catch((error) => {
           const errorMsg = getErrorMessage(error)
@@ -802,6 +822,7 @@ export default function Home() {
     countryCode,
     isPrivacyMode,
     profileData,
+    markSynced,
   ])
 
   // ── Persist to localStorage + Supabase ───────────────────────────────────
@@ -892,17 +913,22 @@ export default function Home() {
           return
         }
         saveInProgressRef.current = true
+        const skipDeleteStale = postReloadSaveRef.current
+        if (skipDeleteStale) {
+          postReloadSaveRef.current = false
+          console.log('[AUTO-SAVE] 🛡️ postReloadSaveRef activo: skipDeleteStale=true')
+        }
         setIsSyncing(true)
         try {
           console.log(`[AUTO-SAVE] 🔷 Guardando a Supabase para userId: ${saveUserId}`, {
             monthlyHistoryMonths: Object.keys(dataToSave.monthlyHistory || {}).length,
             monthlyIncome: dataToSave.monthlyIncome,
           })
-          await saveUserData(saveUserId, dataToSave)
+          await saveUserData(saveUserId, dataToSave, { skipDeleteStale })
           console.log(`[AUTO-SAVE] ✅ Supabase guardado exitosamente`)
 
           setSyncError(null)
-          setLastSyncTime(Date.now())
+          markSynced()
         } catch (error) {
           const errorMsg = getErrorMessage(error)
           console.error('[AUTO-SAVE] ❌ Error guardando a Supabase:', error)
@@ -928,14 +954,21 @@ export default function Home() {
     isPrivacyMode,
     activeMonth,
     isAuthenticating,
+    markSynced,
   ])
 
   // ── Guardar inmediatamente cuando el usuario sale de la app ───────────────
   // En mobile: cuando presiona Home, cambia de app, o bloquea la pantalla
   // Evita perder datos si la app se cierra antes del debounce de 2 segundos
+  // Fase A: también detecta snapshot stale cuando la tab vuelve a ser visible.
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'hidden' && dataLoadedRef.current) {
+      // ── HIDDEN: registrar timestamp + save inmediato ──────────────────────
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now()
+
+        if (!dataLoadedRef.current) return
+
         const saveUserId = userId || guestUserId
         if (!saveUserId) return
 
@@ -971,22 +1004,135 @@ export default function Home() {
           return
         }
         saveInProgressRef.current = true
+        const skipDeleteStale = postReloadSaveRef.current
+        if (skipDeleteStale) {
+          postReloadSaveRef.current = false
+          console.log('[VISIBILITY] 🛡️ postReloadSaveRef activo: skipDeleteStale=true')
+        }
         try {
           console.log('[VISIBILITY] 🔷 App ocultada, guardando en Supabase inmediatamente...', {
             userId: saveUserId,
             monthlyHistoryMonths: Object.keys(monthlyHistory).length,
           })
-          await saveUserData(saveUserId, dataToSave)
+          await saveUserData(saveUserId, dataToSave, { skipDeleteStale })
           console.log('[VISIBILITY] ✅ Guardado exitoso antes de salir de la app')
 
           setSyncError(null)
-          setLastSyncTime(Date.now())
+          markSynced()
         } catch (e) {
           const errorMsg = getErrorMessage(e)
           console.error('[VISIBILITY] ❌ Error guardando al salir:', e)
           setSyncError(`Error crítico al salir: ${errorMsg}`)
         } finally {
           saveInProgressRef.current = false
+        }
+
+        // ── VISIBLE: detección de snapshot stale (Fase A) ─────────────────
+      } else if (document.visibilityState === 'visible') {
+        const STALE_THRESHOLD_MS = 30_000
+        const hiddenAt = hiddenAtRef.current
+        hiddenAtRef.current = null
+
+        // No aplicar si: datos no cargados, tab no estuvo oculta el tiempo suficiente,
+        // o el usuario tiene una sheet de edición abierta (evita interrumpir la entrada)
+        if (
+          !dataLoadedRef.current ||
+          hiddenAt === null ||
+          Date.now() - hiddenAt < STALE_THRESHOLD_MS ||
+          sheetOpen
+        ) {
+          return
+        }
+
+        const refocusUserId = userId || guestUserId
+        if (!refocusUserId) return
+
+        console.log('[VISIBILITY-REFOCUS] 🔍 Tab visible tras >30s hidden, verificando datos...')
+
+        try {
+          // Consulta ligera: solo updated_at, no datos completos
+          const { data: remoteRecords, error } = await supabase
+            .from('monthly_records')
+            .select('month, updated_at')
+            .eq('user_id', refocusUserId)
+
+          if (error || !remoteRecords) {
+            console.warn(
+              '[VISIBILITY-REFOCUS] ⚠️ Query falló, manteniendo datos locales:',
+              error?.message
+            )
+            return
+          }
+
+          const myLastSync = lastSyncTimeRef.current
+          const hasNewer = remoteRecords.some(
+            (r) => myLastSync === null || new Date(r.updated_at).getTime() > myLastSync
+          )
+
+          if (!hasNewer) {
+            console.log('[VISIBILITY-REFOCUS] ✅ Datos locales frescos, no es necesario recargar')
+            return
+          }
+
+          console.log('[VISIBILITY-REFOCUS] 🔄 Hay datos más nuevos en Supabase, recargando...')
+          const remoteData = await loadUserData(refocusUserId)
+
+          if (!remoteData) {
+            console.warn(
+              '[VISIBILITY-REFOCUS] ⚠️ loadUserData devolvió null, manteniendo datos locales'
+            )
+            return
+          }
+
+          // Merge aditivo: añadir expenses/incomes del remote que no están en local.
+          // Nunca se eliminan datos locales (protege cambios no guardados durante hidden).
+          const merged: Record<string, MonthRecord> = { ...monthlyHistory }
+          let didAddNewData = false
+
+          for (const [month, remoteMonth] of Object.entries(remoteData.monthlyHistory ?? {})) {
+            const localMonth = merged[month]
+            if (!localMonth) {
+              // Mes completamente nuevo en remote — incorporar
+              merged[month] = remoteMonth
+              didAddNewData = true
+              continue
+            }
+            const localExpenseIds = new Set(localMonth.expenses.map((e) => e.id))
+            const newExpenses = remoteMonth.expenses.filter((e) => !localExpenseIds.has(e.id))
+            const localIncomeIds = new Set((localMonth.extraIncomes ?? []).map((i) => i.id))
+            const newIncomes = (remoteMonth.extraIncomes ?? []).filter(
+              (i) => !localIncomeIds.has(i.id)
+            )
+
+            if (newExpenses.length > 0 || newIncomes.length > 0) {
+              merged[month] = {
+                ...localMonth,
+                expenses:
+                  newExpenses.length > 0
+                    ? [...localMonth.expenses, ...newExpenses]
+                    : localMonth.expenses,
+                extraIncomes:
+                  newIncomes.length > 0
+                    ? [...(localMonth.extraIncomes ?? []), ...newIncomes]
+                    : (localMonth.extraIncomes ?? []),
+              }
+              didAddNewData = true
+            }
+          }
+
+          if (didAddNewData) {
+            setMonthlyHistory(merged)
+            postReloadSaveRef.current = true
+            console.log(
+              '[VISIBILITY-REFOCUS] ✅ Nuevos datos fusionados, postReloadSaveRef activado'
+            )
+          } else {
+            console.log('[VISIBILITY-REFOCUS] ✅ Sin datos nuevos tras merge aditivo')
+          }
+
+          markSynced()
+        } catch (e) {
+          console.warn('[VISIBILITY-REFOCUS] ⚠️ Error durante refocus check:', e)
         }
       }
     }
@@ -1003,6 +1149,8 @@ export default function Home() {
     countryCode,
     isPrivacyMode,
     activeMonth,
+    sheetOpen,
+    markSynced,
   ])
 
   // ── Safety net: re-fetch current month if empty after hydration ────────────
@@ -1111,8 +1259,13 @@ export default function Home() {
         return
       }
       saveInProgressRef.current = true
+      const skipDeleteStale = postReloadSaveRef.current
+      if (skipDeleteStale) {
+        postReloadSaveRef.current = false
+        console.log('[SAVE-NOW] 🛡️ postReloadSaveRef activo: skipDeleteStale=true')
+      }
       try {
-        await saveUserData(saveUserId, dataToSave)
+        await saveUserData(saveUserId, dataToSave, { skipDeleteStale })
         console.log('[SAVE-NOW] ✅ Guardado inmediato exitoso para userId:', saveUserId)
       } catch (e) {
         console.error('[SAVE-NOW] ❌ Error en guardado inmediato:', e)

@@ -16,7 +16,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
  * Stores to: users, pockets, monthly_records, expenses, extra_incomes, concept_map, learned_category_map
  * Accepts both authenticated user IDs and guest IDs
  */
-export async function saveUserData(userId: string, data: StoredData): Promise<void> {
+export async function saveUserData(
+  userId: string,
+  data: StoredData,
+  options?: { skipDeleteStale?: boolean }
+): Promise<void> {
   // Minimal validation: ensure userId is a non-empty string
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     throw new Error(`Invalid userId format: must be a non-empty string`)
@@ -95,11 +99,15 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
         console.log('[Supabase] ✅ Pockets guardados exitosamente')
         // Remove pockets that no longer exist in the user's list
         const currentPocketIds = data.pockets.map((p) => p.id)
-        await supabase
-          .from('pockets')
-          .delete()
-          .eq('user_id', userId)
-          .not('pocket_id', 'in', `(${currentPocketIds.join(',')})`)
+        if (!options?.skipDeleteStale) {
+          await supabase
+            .from('pockets')
+            .delete()
+            .eq('user_id', userId)
+            .not('pocket_id', 'in', `(${currentPocketIds.join(',')})`)
+        } else {
+          console.warn('[Supabase] ⚠️ skipDeleteStale: omitiendo delete de pockets obsoletos')
+        }
       }
     }
 
@@ -169,12 +177,18 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
         // data that the user never saw — the lesser evil is leaving orphans.
         const currentExpenseIds = monthRecord.expenses?.map((e) => e.id) ?? []
         if (currentExpenseIds.length > 0) {
-          await supabase
-            .from('expenses')
-            .delete()
-            .eq('user_id', userId)
-            .eq('month', monthKey)
-            .not('id', 'in', `(${currentExpenseIds.join(',')})`)
+          if (!options?.skipDeleteStale) {
+            await supabase
+              .from('expenses')
+              .delete()
+              .eq('user_id', userId)
+              .eq('month', monthKey)
+              .not('id', 'in', `(${currentExpenseIds.join(',')})`)
+          } else {
+            console.warn(
+              `[Supabase] ⚠️ skipDeleteStale: omitiendo delete de expenses en ${monthKey}`
+            )
+          }
         }
         // When currentExpenseIds is empty: skip deletion to avoid wiping data
         // that wasn't yet loaded into local state.
@@ -204,12 +218,18 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
         // Same guard as for expenses: skip deletion when local list is empty.
         const currentIncomeIds = monthRecord.extraIncomes?.map((i) => i.id) ?? []
         if (currentIncomeIds.length > 0) {
-          await supabase
-            .from('extra_incomes')
-            .delete()
-            .eq('user_id', userId)
-            .eq('month', monthKey)
-            .not('id', 'in', `(${currentIncomeIds.join(',')})`)
+          if (!options?.skipDeleteStale) {
+            await supabase
+              .from('extra_incomes')
+              .delete()
+              .eq('user_id', userId)
+              .eq('month', monthKey)
+              .not('id', 'in', `(${currentIncomeIds.join(',')})`)
+          } else {
+            console.warn(
+              `[Supabase] ⚠️ skipDeleteStale: omitiendo delete de extra_incomes en ${monthKey}`
+            )
+          }
         }
         // When currentIncomeIds is empty: skip deletion to avoid wiping data
         // that wasn't yet loaded into local state.
