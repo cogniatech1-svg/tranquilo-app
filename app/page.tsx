@@ -1513,10 +1513,10 @@ export default function Home() {
             savings: 0,
             expenses: [],
             extraIncomes: [],
-            pockets:
-              previousPockets.length > 0
-                ? previousPockets.map((p) => ({ ...p, budget: 0 }))
-                : DEFAULT_POCKETS.map((p) => ({ ...p, budget: 0 })),
+            // Heredar pockets completos (nombres, íconos y presupuestos) del mes anterior.
+            // Esto mantiene la continuidad financiera: el usuario no pierde su configuración
+            // al navegar a un mes nuevo sin datos en Supabase.
+            pockets: previousPockets.length > 0 ? previousPockets : DEFAULT_POCKETS,
           },
         }))
         console.log(`[handleChangeMonth] Creado ${newMonth} vacío (sin datos en Supabase)`)
