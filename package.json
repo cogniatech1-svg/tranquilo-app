@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:unit": "vitest run",
     "prepare": "husky"
   },
   "dependencies": {
@@ -32,7 +33,8 @@
     "lint-staged": "^15",
     "prettier": "^3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   },
   "lint-staged": {
     "*.{ts,tsx}": "eslint --fix",
