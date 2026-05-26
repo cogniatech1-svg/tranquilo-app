@@ -209,15 +209,14 @@ export function onAuthStateChanged(
 }
 
 /**
- * Generate a unique guest user ID as a valid UUID v4
- * Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx where x is any hex digit and y is 8, 9, A, or B
+ * Generate a unique guest user ID using the Web Crypto API.
+ * crypto.randomUUID() produces a standards-compliant UUID v4 backed by a
+ * CSPRNG — more robust than a Math.random() polyfill.
+ * Available in all modern browsers (Chrome 92+, Firefox 95+, Safari 15.4+)
+ * and in Node.js 19+ / Next.js 16 (Node 18+ runtime).
  */
 export function generateGuestUserId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0
-    const v = c === 'x' ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
+  return crypto.randomUUID()
 }
 
 /**
