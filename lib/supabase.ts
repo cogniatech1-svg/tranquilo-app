@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { StoredData, MonthRecord, UserProfile } from './types'
+import { parseStoredData } from './parseData'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -450,7 +451,7 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
       monthsLoaded: Object.keys(monthlyHistory).length,
     })
 
-    return storedData
+    return parseStoredData(storedData)
   } catch (error) {
     console.error('[Supabase] Failed to load user data:', error)
     return null

@@ -47,6 +47,7 @@ import {
   DEFAULT_POCKETS,
   getEmptyPocketsStructure,
 } from '../lib/dataMigration'
+import { parseStoredData } from '../lib/parseData'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import {
   saveUserData,
@@ -491,7 +492,7 @@ export default function Home() {
           const raw = localStorage.getItem(authStorageKey)
           if (raw) {
             try {
-              localStorageData = JSON.parse(raw) as StoredData
+              localStorageData = parseStoredData(JSON.parse(raw))
               usedStorageKey = authStorageKey
               console.log('[initializeApp] ✅ localStorage encontrado bajo ID autenticado:', {
                 key: authStorageKey,
@@ -511,7 +512,7 @@ export default function Home() {
           const raw = localStorage.getItem(guestStorageKey)
           if (raw) {
             try {
-              localStorageData = JSON.parse(raw) as StoredData
+              localStorageData = parseStoredData(JSON.parse(raw))
               usedStorageKey = guestStorageKey
               console.log('[initializeApp] ✅ localStorage encontrado bajo ID invitado:', {
                 key: guestStorageKey,
