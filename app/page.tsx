@@ -2187,6 +2187,8 @@ export default function Home() {
             profileData={profileData}
             onSaveProfile={handleSaveProfile}
             userId={userId || guestUserId}
+            isAuthenticated={!!userId}
+            onRequestLogin={() => setScreen('login')}
           />
         )}
       </div>

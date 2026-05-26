@@ -25,6 +25,8 @@ interface Props {
   profileData?: UserProfile
   onSaveProfile?: (profile: UserProfile) => Promise<void>
   userId?: string | null
+  isAuthenticated?: boolean
+  onRequestLogin?: () => void
 }
 
 export function ProfileScreen({
@@ -37,6 +39,8 @@ export function ProfileScreen({
   profileData: profileDataProp,
   onSaveProfile,
   userId,
+  isAuthenticated = true,
+  onRequestLogin,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -704,6 +708,68 @@ export function ProfileScreen({
             {profileData.email}
           </p>
         </div>
+
+        {/* BANNER GUEST — solo visible para usuarios sin cuenta */}
+        {!isAuthenticated && (
+          <div
+            style={{
+              margin: '16px 20px 0',
+              padding: '14px 16px',
+              background: 'rgba(13, 98, 89, 0.05)',
+              border: '1px solid rgba(13, 98, 89, 0.14)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}
+          >
+            <span style={{ fontSize: '18px', lineHeight: 1, marginTop: '1px', flexShrink: 0 }}>
+              💾
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                style={{
+                  margin: '0 0 2px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#0d6259',
+                  lineHeight: '1.4',
+                }}
+              >
+                Modo sin cuenta
+              </p>
+              <p
+                style={{
+                  margin: '0 0 10px',
+                  fontSize: '12px',
+                  color: '#4b5563',
+                  lineHeight: '1.5',
+                }}
+              >
+                Tus datos están guardados en este dispositivo. Crea una cuenta para conservarlos y
+                acceder a ellos desde cualquier dispositivo.
+              </p>
+              {onRequestLogin && (
+                <button
+                  onClick={onRequestLogin}
+                  style={{
+                    background: '#0d6259',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '7px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  Guardar mis datos
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* SECCIONES - Cards sutiles y profesionales */}
         <div

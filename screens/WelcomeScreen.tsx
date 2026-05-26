@@ -904,22 +904,37 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             </button>
 
             {/* Guest mode — de-emphasizado */}
-            <button
-              onClick={onGuestMode}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'rgba(255,255,255,0.65)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                transition: 'color 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
+            <div
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
             >
-              Continuar sin cuenta
-            </button>
+              <button
+                onClick={onGuestMode}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.65)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
+              >
+                Continuar sin cuenta
+              </button>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '10px',
+                  color: 'rgba(255,255,255,0.42)',
+                  textAlign: 'center',
+                  lineHeight: '1.4',
+                }}
+              >
+                Solo se guarda en este dispositivo
+              </p>
+            </div>
 
             {/* Volver */}
             <button
