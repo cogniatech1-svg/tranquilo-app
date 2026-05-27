@@ -725,6 +725,13 @@ export default function Home() {
       const effectiveId = currentUserId || guestUserId
       if (effectiveId !== loadedForUserRef.current) {
         dataLoadedRef.current = false
+        // Volver al skeleton: el snapshot en pantalla pertenece al usuario anterior,
+        // no al que está cargando ahora. hydrated=true solo debe ocurrir cuando
+        // el pipeline completo (load→merge→repair→setMonthlyHistory) terminó para
+        // el usuario ACTUAL. Sin este reset, Run 1 (OLD_GUEST) puede poner
+        // hydrated=true con datos del usuario equivocado antes de que Run 2 (uid real)
+        // haya completado su carga.
+        setHydrated(false)
       }
 
       // Only initialize once per user identity. Token refreshes keep the same userId
