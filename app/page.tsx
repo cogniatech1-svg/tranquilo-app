@@ -576,40 +576,27 @@ export default function Home() {
             })
           }
         } else if (localStorageData && data.monthlyHistory) {
-          // MERGE: If Supabase has history but localStorage also exists, merge them
-          // This handles cases where Supabase schema is incomplete (missing pockets_data column)
+          // MERGE: Supabase history + localStorage history ambos presentes.
           console.log('[initializeApp] 🔷 Supabase + localStorage ambos presentes, merging...')
 
-          // Check if Supabase data is missing pockets in any month
-          let supabaseIncomplete = false
-          for (const [month, monthData] of Object.entries(data.monthlyHistory)) {
-            if (!monthData.pockets || monthData.pockets.length === 0) {
-              supabaseIncomplete = true
-              break
-            }
-          }
-
-          if (supabaseIncomplete && localStorageData.monthlyHistory) {
-            console.log(
-              '[initializeApp] 🔷 Detectado: Supabase tiene pockets incompletos, fusionando con localStorage...'
-            )
-            // Merge: for each month in localStorage, if Supabase is missing pockets, use localStorage version
+          if (localStorageData.monthlyHistory) {
             for (const [month, lsMonthData] of Object.entries(localStorageData.monthlyHistory)) {
               if (!data.monthlyHistory[month]) {
+                // Mes ausente en Supabase: incorporar desde localStorage
                 data.monthlyHistory[month] = lsMonthData
-              } else if (
-                (!data.monthlyHistory[month].pockets ||
-                  data.monthlyHistory[month].pockets.length === 0) &&
-                lsMonthData.pockets &&
-                lsMonthData.pockets.length > 0
-              ) {
-                // Replace pockets from localStorage if Supabase has empty pockets
+                console.log(`[initializeApp] ✅ Mes ${month} agregado desde localStorage`)
+              } else if (lsMonthData.pockets && lsMonthData.pockets.length > 0) {
+                // FIX: Siempre preferir pockets per-month de localStorage sobre la tabla
+                // global pockets de Supabase. monthly_records no tiene columna pockets_data,
+                // por lo que todos los meses en Supabase heredan la misma tabla global
+                // (que puede estar stale si el último save fue desde otro mes). localStorage
+                // almacena pockets por mes y refleja el estado exacto de este dispositivo.
                 data.monthlyHistory[month].pockets = lsMonthData.pockets
-                console.log(
-                  `[initializeApp] ✅ Restaurado pockets para ${month} desde localStorage`
-                )
               }
             }
+            console.log(
+              '[initializeApp] ✅ Merge completado — pockets per-month de localStorage aplicados'
+            )
           }
         }
 
