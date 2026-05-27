@@ -86,45 +86,40 @@ export function normalizePocketId(id: string): string {
     .replace(/--+/g, '-')
 }
 
+/**
+ * Reparación técnica de pockets: normaliza IDs y elimina duplicados.
+ *
+ * Hace SOLO reparación estructural:
+ *   • Convierte `record.pockets` en `[]` si no es un array
+ *   • Normaliza el ID de cada pocket existente (normalizePocketId)
+ *   • Descarta duplicados por ID normalizado (gana la primera ocurrencia)
+ *
+ * NO hace (decisiones de producto, no de integridad técnica):
+ *   • Agregar pockets de ningún catálogo
+ *   • Reordenar los pockets del usuario
+ *   • Imponer un número mínimo de categorías
+ *
+ * La referencia a gastos huérfanos se resuelve después en sanitizeOrphanExpenses.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ensurePocketsComplete(record: any): any {
-  const existingPockets = record.pockets ?? []
-
-  // Create a map of normalized ID -> pocket from existing pockets
-  const pocketMap = new Map<string, Pocket>()
-  for (const p of existingPockets) {
-    const normalizedId = normalizePocketId(p.id)
-    if (!pocketMap.has(normalizedId)) {
-      // Normalize the pocket ID to ensure consistency
-      pocketMap.set(normalizedId, { ...p, id: normalizedId })
-    }
+function normalizePockets(record: any): any {
+  if (!Array.isArray(record.pockets)) {
+    record.pockets = []
+    return record
   }
 
-  // Add missing pockets from DEFAULT_POCKETS (but with budget: 0, not default budget)
-  for (const defaultPocket of DEFAULT_POCKETS) {
-    if (!pocketMap.has(defaultPocket.id)) {
-      pocketMap.set(defaultPocket.id, { ...defaultPocket, budget: 0 })
-    }
+  const seen = new Set<string>()
+  const normalized: Pocket[] = []
+
+  for (const p of record.pockets) {
+    if (!p || typeof p !== 'object') continue
+    const normalizedId = normalizePocketId(String(p.id ?? ''))
+    if (!normalizedId || seen.has(normalizedId)) continue
+    seen.add(normalizedId)
+    normalized.push({ ...p, id: normalizedId })
   }
 
-  // Build ordered array: DEFAULT_POCKETS first (preserving order),
-  // then any user-created custom pockets not in DEFAULT_POCKETS.
-  const defaultIds = new Set(DEFAULT_POCKETS.map((dp) => dp.id))
-  const finalPockets = [
-    ...DEFAULT_POCKETS.map((dp) => {
-      const found = pocketMap.get(dp.id)
-      return found ? found : { ...dp, budget: 0 }
-    }),
-    ...[...pocketMap.values()].filter((p) => !defaultIds.has(p.id)),
-  ]
-
-  const originalCount = existingPockets.length
-  const finalCount = finalPockets.length
-  if (originalCount !== finalCount) {
-    console.warn(`[dataMigration] Pockets repaired: ${originalCount} → ${finalCount}`)
-  }
-
-  record.pockets = finalPockets
+  record.pockets = normalized
   return record
 }
 
@@ -240,8 +235,18 @@ export function sanitizeOrphanExpenses(expenses: Expense[], pockets: Pocket[]): 
 }
 
 /**
- * Validate and repair a month record
- * Ensures it has all required fields and all 8 pockets
+ * Valida y repara un month record.
+ *
+ * Reparaciones técnicas aplicadas:
+ *   1. Normaliza IDs de pockets existentes (no agrega nuevos)
+ *   2. Repara campos obligatorios de cada gasto
+ *   3. Deduplica gastos idénticos (date + amount + concept)
+ *   4. Mueve gastos huérfanos a UNASSIGNED_POCKET_ID
+ *   5. Corrige formato de fechas (DD/MM/YYYY → YYYY-MM-DD)
+ *
+ * Lo que esta función NO hace:
+ *   • Agregar pockets de ningún catálogo
+ *   • Imponer un número mínimo de categorías
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function repairMonthRecord(record: any): MonthRecord {
@@ -249,8 +254,8 @@ export function repairMonthRecord(record: any): MonthRecord {
     record = {}
   }
 
-  // Ensure all 8 pockets exist
-  ensurePocketsComplete(record)
+  // Normalizar IDs técnicamente — sin reinyectar categorías del catálogo
+  normalizePockets(record)
 
   const repairedExpenses = repairExpenses(record.expenses ?? [])
   const deduplicatedExpenses = deduplicateExpenses(repairedExpenses)
@@ -312,16 +317,16 @@ function deduplicateExpenses(expenses: any[]): any[] {
 }
 
 /**
- * DATA REPAIR
+ * DATA REPAIR — reparación técnica de datos almacenados.
  *
- * Fixes common data corruption issues:
- * 1. Missing pockets (only 4 of 8 showing)
- * 2. Generic expense names ("Expense 1" instead of real names)
- * 3. Invalid data structures
- * 4. Missing required fields
- * 5. DUPLICATE EXPENSES (same date + amount + concept)
+ * Corrige únicamente corrupción estructural real:
+ *   1. Normaliza IDs de pockets existentes (sin agregar categorías nuevas)
+ *   2. Repara campos obligatorios de gastos con nombres genéricos/inválidos
+ *   3. Corrige estructuras de datos inválidas (null → fallback seguro)
+ *   4. Completa campos requeridos faltantes
+ *   5. Deduplica gastos idénticos (date + amount + concept)
  *
- * Called automatically during data initialization
+ * Invocado automáticamente durante la inicialización de datos.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function repairStoredData(data: any): StoredData {

@@ -78,7 +78,7 @@ export function parseStoredData(raw: unknown): StoredData {
   // repairStoredData maneja todos los casos que Zod rechaza:
   //   • null / string en campos numéricos → 0
   //   • Arrays faltantes → []
-  //   • Pockets incompletos → completa con DEFAULT_POCKETS
+  //   • Pockets con IDs no normalizados → normaliza IDs existentes
   //   • Fechas en formato incorrecto → convierte a YYYY-MM-DD
   //   • Gastos duplicados → deduplica
   return repairStoredData(raw)
