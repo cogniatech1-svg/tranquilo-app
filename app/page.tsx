@@ -47,6 +47,7 @@ import {
   DEFAULT_POCKETS,
   getEmptyPocketsStructure,
   UNASSIGNED_POCKET_ID,
+  generateStarterPockets,
 } from '../lib/dataMigration'
 import { parseStoredData } from '../lib/parseData'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
@@ -1901,6 +1902,10 @@ export default function Home() {
         savings = Math.max(0, incomeValue - budget)
       }
 
+      // Bolsillos de arranque: 50/30/20 cuando hay ingreso, DEFAULT_POCKETS si no.
+      const starterPockets = generateStarterPockets(incomeValue)
+      const initialPockets = starterPockets.length > 0 ? starterPockets : DEFAULT_POCKETS
+
       // Build monthlyHistory with April (from CSV if provided) and current month
       const history: Record<string, MonthRecord> = {}
 
@@ -1922,7 +1927,7 @@ export default function Home() {
         savings,
         expenses: [],
         extraIncomes: [],
-        pockets: DEFAULT_POCKETS,
+        pockets: initialPockets,
         manualBudget: undefined,
       }
 
@@ -1933,7 +1938,7 @@ export default function Home() {
       // Build and save complete user data to Supabase
       const initialData: StoredData = {
         monthlyHistory: history,
-        pockets: DEFAULT_POCKETS,
+        pockets: initialPockets,
         monthlyIncome: incomeValue,
         monthlySavings: savings,
         expenses: [],

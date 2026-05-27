@@ -30,6 +30,36 @@ export const DEFAULT_POCKETS: Pocket[] = [
 ]
 
 /**
+ * Genera 3 bolsillos de arranque para usuarios nuevos aplicando la regla 50/30/20:
+ *   - Hogar       (🏠) — 50 % del ingreso mensual  (necesidades)
+ *   - Recreación  (🎮) — 30 % del ingreso mensual  (deseos)
+ *   - Reserva     (🪙) — 20 % del ingreso mensual  (ahorro / futuro)
+ *
+ * Reglas:
+ *   • Los presupuestos se redondean hacia abajo al múltiplo de 1.000 más cercano.
+ *   • Si income ≤ 0 retorna [] — el llamador debe aplicar DEFAULT_POCKETS como
+ *     fallback para no mostrar 3 bolsillos en cero.
+ *   • Los IDs 'hogar' y 'recreacion' coinciden con DEFAULT_POCKETS, por lo que
+ *     ensurePocketsComplete los preserva con sus valores reales al hidratarse.
+ *   • El ID 'reserva' no existe en DEFAULT_POCKETS y representa una intención de
+ *     ahorro del usuario — es distinto del campo `savings` (income − presupuesto)
+ *     en MonthRecord y del carry-over acumulado.
+ *   • Solo se invoca desde handleOnboardingComplete. Cero impacto en usuarios ya
+ *     registrados (tienen ONBOARDING_FLAG puesto y nunca llegan a ese path).
+ */
+export function generateStarterPockets(income: number): Pocket[] {
+  if (income <= 0) return []
+
+  const floor1k = (n: number) => Math.floor(n / 1_000) * 1_000
+
+  return [
+    { id: 'hogar', name: 'Hogar', icon: '🏠', budget: floor1k(income * 0.5) },
+    { id: 'recreacion', name: 'Recreación', icon: '🎮', budget: floor1k(income * 0.3) },
+    { id: 'reserva', name: 'Reserva', icon: '🪙', budget: floor1k(income * 0.2) },
+  ]
+}
+
+/**
  * Get default pockets structure WITHOUT budget assignments (for new months)
  */
 export function getEmptyPocketsStructure(): Pocket[] {
