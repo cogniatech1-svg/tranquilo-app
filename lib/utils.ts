@@ -525,45 +525,66 @@ export function validateAmount(amount: number): boolean {
 export function parseAmount(text: string): number {
   const t = text.replace(/\$/g, '').trim()
 
-  // Support "6m" or "2 m" format (millions)
-  const mFormat = t.match(/(\d+(?:[.,]\d+)?)\s*m(?:illones?)?/i)
-  if (mFormat) {
-    const base = parseFloat(mFormat[1].replace(',', '.'))
+  // ── Slang colombiano: "30 lucas" = ×1.000, "1 palo" / "2 palos" = ×1.000.000 ──
+  // Checked first so they're not consumed by the generic number fallback
+  const lucasFormat = t.match(/(\d+(?:[.,]\d+)?)\s*lucas\b/i)
+  if (lucasFormat) {
+    const base = parseFloat(lucasFormat[1].replace(',', '.'))
+    const result = Math.round(base * 1000)
+    return validateAmount(result) ? result : 0
+  }
+
+  const paloFormat = t.match(/(\d+(?:[.,]\d+)?)\s*palos?\b/i)
+  if (paloFormat) {
+    const base = parseFloat(paloFormat[1].replace(',', '.'))
     const result = Math.round(base * 1000000)
     return validateAmount(result) ? result : 0
   }
 
-  // Support "6 mil" or "6mil" format (thousands with word)
-  const milFormat = t.match(/(\d+(?:[.,]\d+)?)\s*mil(?:es)?/i)
+  // ── "6 mil" / "25 mil" (thousands) — checked BEFORE millions ─────────────────
+  // CRITICAL: must run before mFormat. The original mFormat (/m(?:illones?)?/) captured
+  // the "m" in "mil", turning "25 mil" into 25.000.000 (1000× too large).
+  // Word boundary \b ensures "millones" is NOT matched here (after "mil" comes "l").
+  const milFormat = t.match(/(\d+(?:[.,]\d+)?)\s*mil(?:es)?\b/i)
   if (milFormat) {
     const base = parseFloat(milFormat[1].replace(',', '.'))
     const result = Math.round(base * 1000)
     return validateAmount(result) ? result : 0
   }
 
-  // Support "15k" or "15 k" format (thousands)
-  const kFormat = t.match(/(\d+(?:[.,]\d+)?)\s*k/i)
+  // ── "2 millones" / "1 millón" / "6m" (millions) ──────────────────────────────
+  // Explicit alternation + word boundary prevents matching the "m" in "mil".
+  // Also handles "millón" (with accent) which the original regex missed.
+  const mFormat = t.match(/(\d+(?:[.,]\d+)?)\s*(?:mill[oó]n(?:es)?|m)\b/i)
+  if (mFormat) {
+    const base = parseFloat(mFormat[1].replace(',', '.'))
+    const result = Math.round(base * 1000000)
+    return validateAmount(result) ? result : 0
+  }
+
+  // ── "15k" / "15 k" (thousands shorthand) ─────────────────────────────────────
+  const kFormat = t.match(/(\d+(?:[.,]\d+)?)\s*k\b/i)
   if (kFormat) {
     const base = parseFloat(kFormat[1].replace(',', '.'))
     const result = Math.round(base * 1000)
     return validateAmount(result) ? result : 0
   }
 
-  // Support "15.000" format (European thousands separator)
+  // ── "15.000" (European thousands separator) ───────────────────────────────────
   const col = t.match(/\d{1,3}(?:\.\d{3})+/)
   if (col) {
     const result = parseInt(col[0].replace(/\./g, ''), 10)
     return validateAmount(result) ? result : 0
   }
 
-  // Support "15,000" format (US thousands separator)
+  // ── "15,000" (US thousands separator) ────────────────────────────────────────
   const com = t.match(/\d{1,3}(?:,\d{3})+/)
   if (com) {
     const result = parseInt(com[0].replace(/,/g, ''), 10)
     return validateAmount(result) ? result : 0
   }
 
-  // Support plain numbers "15000"
+  // ── Plain numbers "15000" ─────────────────────────────────────────────────────
   const plain = t.match(/\d+/g)
   if (!plain) return 0
   const result = Math.max(...plain.map((n) => parseInt(n, 10)))
@@ -616,12 +637,16 @@ export function extractConcept(text: string): string {
     'sois',
   ])
 
-  // Remove amounts in various formats
+  // Remove amounts in all supported formats so only the concept words remain.
+  // Order mirrors parseAmount priority to avoid partial matches.
   const cleaned = text
-    .replace(/\$?\d+(?:[.,]\d+)?\s*(?:mil|millones?)/gi, '') // "6 mil", "2 millones"
-    .replace(/\$?\d+(?:[.,]\d+)?\s*[km]/gi, '') // "6k", "2m", "6 k", "2 m"
-    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '') // Numbers with separators (1.000, 1,000)
-    .replace(/\$?\d+/g, '') // Plain numbers
+    .replace(/\$?\d+(?:[.,]\d+)?\s*lucas\b/gi, '') // "30 lucas"
+    .replace(/\$?\d+(?:[.,]\d+)?\s*palos?\b/gi, '') // "1 palo", "2 palos"
+    .replace(/\$?\d+(?:[.,]\d+)?\s*mil(?:es)?\b/gi, '') // "25 mil", "800 mil"
+    .replace(/\$?\d+(?:[.,]\d+)?\s*(?:mill[oó]n(?:es)?|m)\b/gi, '') // "2 millones", "1 millón", "6m"
+    .replace(/\$?\d+(?:[.,]\d+)?\s*k\b/gi, '') // "15k"
+    .replace(/\$?\d{1,3}(?:[.,]\d{3})+/g, '') // "15.000", "15,000"
+    .replace(/\$?\d+/g, '') // plain numbers
     .toLowerCase()
     .trim()
 

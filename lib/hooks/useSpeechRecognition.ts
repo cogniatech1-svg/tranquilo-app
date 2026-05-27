@@ -2,6 +2,63 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 
+// ── Web Speech API minimal types ──────────────────────────────────────────────
+// The Web Speech API has no official @types package for the webkit-prefixed
+// variant.  We declare the subset this hook uses to avoid `any` while keeping
+// the file lightweight.
+
+interface SpeechRecognitionAlternative {
+  readonly transcript: string
+}
+
+interface SpeechRecognitionResult {
+  readonly length: number
+  readonly [index: number]: SpeechRecognitionAlternative
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number
+  readonly [index: number]: SpeechRecognitionResult
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error?: string
+}
+
+interface SpeechRecognitionInstance {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onstart: (() => void) | null
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  start(): void
+  stop(): void
+  abort(): void
+}
+
+interface SpeechRecognitionCtor {
+  new (): SpeechRecognitionInstance
+}
+
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionCtor
+  webkitSpeechRecognition?: SpeechRecognitionCtor
+}
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | undefined {
+  if (typeof window === 'undefined') return undefined
+  const win = window as SpeechRecognitionWindow
+  return win.SpeechRecognition ?? win.webkitSpeechRecognition
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface UseSpeechRecognitionOptions {
   language?: string
   onResult?: (text: string) => void
@@ -23,17 +80,35 @@ export function useSpeechRecognition({
 }: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const recognitionRef = useRef<any>(null)
 
+  // Lazy initializer: browser-support check runs once at mount, not inside an
+  // effect, so we avoid triggering `react-hooks/set-state-in-effect`.
+  const [error, setError] = useState<string | null>(() =>
+    getSpeechRecognitionCtor() ? null : 'Speech Recognition no soportado en este navegador'
+  )
+
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+
+  // Callback refs: keep latest callback without re-creating the recognition instance.
+  // When onResult/onError are inline functions in the parent, they get a new reference
+  // every render. Without refs, the useEffect below would re-run on each parent render,
+  // creating a new SpeechRecognition object and replacing recognitionRef.current while
+  // a recording session might still be in progress.
+  const onResultRef = useRef(onResult)
+  const onErrorRef = useRef(onError)
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      setError('Speech Recognition no soportado en este navegador')
-      return
-    }
+    onResultRef.current = onResult
+  }, [onResult])
+  useEffect(() => {
+    onErrorRef.current = onError
+  }, [onError])
 
-    const recognition = new SpeechRecognition()
+  // Create the SpeechRecognition instance only when language changes (not on every render).
+  useEffect(() => {
+    const SpeechRecognitionAPI = getSpeechRecognitionCtor()
+    if (!SpeechRecognitionAPI) return // error already set by useState initializer
+
+    const recognition = new SpeechRecognitionAPI()
     recognition.lang = language
     recognition.continuous = false
     recognition.interimResults = false
@@ -44,19 +119,19 @@ export function useSpeechRecognition({
       setTranscript('')
     }
 
-    recognition.onresult = (event: any) => {
-      const text = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('')
-
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let text = ''
+      for (let i = 0; i < event.results.length; i++) {
+        text += event.results[i][0].transcript
+      }
       setTranscript(text)
-      onResult?.(text)
+      onResultRef.current?.(text)
     }
 
-    recognition.onerror = (event: any) => {
-      const errorMsg = event.error || 'Error desconocido'
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      const errorMsg = event.error ?? 'Error desconocido'
       setError(errorMsg)
-      onError?.(errorMsg)
+      onErrorRef.current?.(errorMsg)
     }
 
     recognition.onend = () => {
@@ -64,7 +139,21 @@ export function useSpeechRecognition({
     }
 
     recognitionRef.current = recognition
-  }, [language, onResult, onError])
+
+    return () => {
+      // Null out handlers to prevent stale callbacks firing after cleanup
+      recognition.onstart = null
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+      // Abort any in-progress session when language changes or component unmounts
+      try {
+        recognition.abort()
+      } catch {
+        // already stopped — ignore
+      }
+    }
+  }, [language]) // Only language triggers recreation; callbacks use refs
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
