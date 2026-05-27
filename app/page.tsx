@@ -761,6 +761,16 @@ export default function Home() {
     // Only trigger once per userId — tracked via ref so it's not tied to render cycles.
     if (userId === authSavedForUserRef.current) return
 
+    // Guard: no migrar si el usuario no ha completado onboarding.
+    // Si onboarding no terminó, monthlyHistory puede contener datos stale de una sesión
+    // anterior (guest previo) — no hay nada válido que migrar a Supabase todavía.
+    // handleOnboardingComplete se encarga del save inicial cuando el usuario sí onboardea.
+    const onboardingDone = localStorage.getItem(`${ONBOARDING_FLAG}_${userId}`) === 'true'
+    if (!onboardingDone) {
+      console.log('[AUTH-SAVE] Skipping: usuario no ha completado onboarding, nada que migrar')
+      return
+    }
+
     if (userId) {
       // Defer if another save is already running — avoids concurrent saveUserData() calls that
       // could race on the delete-stale pass and silently remove recently-saved data.
