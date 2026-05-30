@@ -107,6 +107,31 @@ const KEYWORD_CATEGORY: Record<string, string> = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM CATEGORY IDs — IDs canónicos que el parser reconoce (Rol C)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * SYSTEM_CATEGORY_IDS — IDs canónicos que el parser de lenguaje natural reconoce.
+ *
+ * El parser (findCategory / KEYWORD_CATEGORY / CATEGORY_KEYWORDS) puede sugerir
+ * exactamente estos IDs como categoría de un gasto. Son independientes de los
+ * pockets que tenga configurados el usuario.
+ *
+ * Comportamiento actual: findCategory usa `check(id)` que requiere que el pocketId
+ * exista en los pockets del usuario. Si el usuario no tiene un pocket 'alimentacion',
+ * findCategory('pizza') retorna null aunque 'alimentacion' sea un SYSTEM_CATEGORY_ID.
+ *
+ * TODO Paso 2: refactorizar findCategory para retornar SYSTEM_CATEGORY_IDs aunque
+ *              el usuario no tenga ese pocket, dejando que la UI resuelva el match.
+ */
+export const SYSTEM_CATEGORY_IDS = new Set<string>([
+  'alimentacion', // ~25 keywords de comida/bebida
+  'recreacion', // ~18 keywords de ocio/entretenimiento
+  'hogar', // ~12 keywords de vivienda/hogar
+  'transporte', // ~14 keywords de movilidad
+  'salud', // ~14 keywords de salud/medicina
+])
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CATEGORY KEYWORDS BY TYPE (fuzzy match support)
 // For tolerating spelling variations: "almuuerzo" → "almuerzo" → "alimentacion"
 // ─────────────────────────────────────────────────────────────────────────────
@@ -522,8 +547,131 @@ export function validateAmount(amount: number): boolean {
   )
 }
 
+// Maps Spanish number words to their numeric value — used by parseAmount and extractConcept.
+// Covers the realistic range for spoken expense amounts in LATAM apps.
+const SPANISH_WORD_NUMS: Record<string, number> = {
+  un: 1,
+  uno: 1,
+  una: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  trece: 13,
+  catorce: 14,
+  quince: 15,
+  veinte: 20,
+  treinta: 30,
+  cuarenta: 40,
+  cincuenta: 50,
+  sesenta: 60,
+  setenta: 70,
+  ochenta: 80,
+  noventa: 90,
+  cien: 100,
+  ciento: 100,
+  cientos: 100,
+  doscientos: 200,
+  doscientas: 200,
+  trescientos: 300,
+  trescientas: 300,
+  cuatrocientos: 400,
+  cuatrocientas: 400,
+  quinientos: 500,
+  quinientas: 500,
+  seiscientos: 600,
+  seiscientas: 600,
+  setecientos: 700,
+  setecientas: 700,
+  ochocientos: 800,
+  ochocientas: 800,
+  novecientos: 900,
+  novecientas: 900,
+}
+const SPANISH_WORD_NUMS_PATTERN = Object.keys(SPANISH_WORD_NUMS).join('|')
+
+// Scale words (multipliers) recognized in compound Spanish numbers.
+const SPANISH_SCALE_WORDS = new Set(['mil', 'miles', 'millon', 'millón', 'millones'])
+
+/**
+ * Helper: Parse compound Spanish numbers written purely in words.
+ * Examples:
+ *   "dos mil quinientos" → 2500
+ *   "dos mil"            → 2000
+ *   "quinientos mil"     → 500000
+ *   "un millón dos mil quinientos" → 1002500
+ *
+ * Safety rules to avoid misreading articles/typos as amounts:
+ *   - If the text contains ANY digit, returns null (digit logic handles it).
+ *   - A lone small word like "un"/"dos"/"cinco" (value < 100, no scale word) is
+ *     rejected, so "un café 2000" is NOT read as 1.
+ *   - Only the longest contiguous run of number/scale words is evaluated, so the
+ *     number can appear anywhere ("almuerzo dos mil quinientos").
+ */
+function parseCompoundSpanishNumber(text: string): number | null {
+  // Only handle pure-word amounts; if there are digits, let digit parsers run.
+  if (/\d/.test(text)) return null
+
+  const words = text.toLowerCase().trim().split(/\s+/)
+
+  // Find the longest contiguous run of number/scale words anywhere in the text.
+  let bestRun: string[] = []
+  let curRun: string[] = []
+  for (const w of words) {
+    if (SPANISH_WORD_NUMS[w] !== undefined || SPANISH_SCALE_WORDS.has(w)) {
+      curRun.push(w)
+      if (curRun.length > bestRun.length) bestRun = [...curRun]
+    } else {
+      curRun = []
+    }
+  }
+  if (bestRun.length === 0) return null
+
+  // Evaluate the run, accumulating units then applying scale words.
+  let total = 0
+  let current = 0
+  let sawScale = false
+  for (const w of bestRun) {
+    if (SPANISH_WORD_NUMS[w] !== undefined) {
+      current += SPANISH_WORD_NUMS[w]
+    } else if (w === 'mil' || w === 'miles') {
+      if (current === 0) current = 1 // "mil" alone = 1000
+      total += current * 1000
+      current = 0
+      sawScale = true
+    } else {
+      // millón / millon / millones
+      if (current === 0) current = 1 // "millón" alone = 1,000,000
+      total += current * 1000000
+      current = 0
+      sawScale = true
+    }
+  }
+  total += current
+
+  // Reject ambiguous lone small words (articles, stray words) to avoid regressions.
+  const accept = sawScale || bestRun.length >= 2 || total >= 100
+  if (!accept) return null
+
+  return total > 0 ? total : null
+}
+
 export function parseAmount(text: string): number {
   const t = text.replace(/\$/g, '').trim()
+
+  // ── Números compuestos en palabras: "dos mil quinientos" = 2.500 ────────────────
+  // Check FIRST so compound numbers are not consumed by other patterns
+  const compoundNum = parseCompoundSpanishNumber(t)
+  if (compoundNum !== null) {
+    return validateAmount(compoundNum) ? compoundNum : 0
+  }
 
   // ── Slang colombiano: "30 lucas" = ×1.000, "1 palo" / "2 palos" = ×1.000.000 ──
   // Checked first so they're not consumed by the generic number fallback
@@ -539,6 +687,30 @@ export function parseAmount(text: string): number {
     const base = parseFloat(paloFormat[1].replace(',', '.'))
     const result = Math.round(base * 1000000)
     return validateAmount(result) ? result : 0
+  }
+
+  // ── Números en palabras: "dos mil" = 2.000, "cinco millones" = 5.000.000 ──────
+  // Must run before digit-based mil/millón checks so "dos mil" isn't treated as 0.
+  // Word boundary \b prevents matching inside longer words.
+  const wordMilMatch = t.match(
+    new RegExp(`\\b(${SPANISH_WORD_NUMS_PATTERN})\\s+mil(?:es)?\\b`, 'i')
+  )
+  if (wordMilMatch) {
+    const base = SPANISH_WORD_NUMS[wordMilMatch[1].toLowerCase()]
+    if (base) {
+      const result = base * 1000
+      return validateAmount(result) ? result : 0
+    }
+  }
+  const wordMillonMatch = t.match(
+    new RegExp(`\\b(${SPANISH_WORD_NUMS_PATTERN})\\s+mill[oó]n(?:es)?\\b`, 'i')
+  )
+  if (wordMillonMatch) {
+    const base = SPANISH_WORD_NUMS[wordMillonMatch[1].toLowerCase()]
+    if (base) {
+      const result = base * 1000000
+      return validateAmount(result) ? result : 0
+    }
   }
 
   // ── "6 mil" / "25 mil" (thousands) — checked BEFORE millions ─────────────────
@@ -642,6 +814,13 @@ export function extractConcept(text: string): string {
   const cleaned = text
     .replace(/\$?\d+(?:[.,]\d+)?\s*lucas\b/gi, '') // "30 lucas"
     .replace(/\$?\d+(?:[.,]\d+)?\s*palos?\b/gi, '') // "1 palo", "2 palos"
+    .replace(new RegExp(`\\b(${SPANISH_WORD_NUMS_PATTERN})\\s+mil(?:es)?\\b`, 'gi'), '') // "dos mil"
+    .replace(new RegExp(`\\b(${SPANISH_WORD_NUMS_PATTERN})\\s+mill[oó]n(?:es)?\\b`, 'gi'), '') // "dos millones"
+    // Palabras numéricas sueltas que sobran de un compuesto: "...quinientos", "ciento cincuenta"
+    .replace(
+      new RegExp(`\\b(?:${SPANISH_WORD_NUMS_PATTERN}|mil|miles|mill[oó]n|millones)\\b`, 'gi'),
+      ''
+    )
     .replace(/\$?\d+(?:[.,]\d+)?\s*mil(?:es)?\b/gi, '') // "25 mil", "800 mil"
     .replace(/\$?\d+(?:[.,]\d+)?\s*(?:mill[oó]n(?:es)?|m)\b/gi, '') // "2 millones", "1 millón", "6m"
     .replace(/\$?\d+(?:[.,]\d+)?\s*k\b/gi, '') // "15k"

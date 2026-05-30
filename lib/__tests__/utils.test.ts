@@ -65,6 +65,44 @@ describe('parseAmount', () => {
       expect(parseAmount('factura de luz 50.000')).toBe(50_000))
   })
 
+  // ── Números en palabras españolas: "dos mil", "cinco millones" ───────────
+  describe('palabras numéricas en español', () => {
+    it('"dos mil" → 2.000', () => expect(parseAmount('dos mil')).toBe(2_000))
+    it('"cinco mil" → 5.000', () => expect(parseAmount('cinco mil')).toBe(5_000))
+    it('"diez mil" → 10.000', () => expect(parseAmount('diez mil')).toBe(10_000))
+    it('"veinte mil" → 20.000', () => expect(parseAmount('veinte mil')).toBe(20_000))
+    it('"cincuenta mil" → 50.000', () => expect(parseAmount('cincuenta mil')).toBe(50_000))
+    it('"cien mil" → 100.000', () => expect(parseAmount('cien mil')).toBe(100_000))
+    it('"dos millones" → 2.000.000 (en palabras)', () =>
+      expect(parseAmount('dos millones')).toBe(2_000_000))
+    it('"tinto dos mil" → 2.000', () => expect(parseAmount('tinto dos mil')).toBe(2_000))
+    it('"mercado tres mil pesos" → 3.000', () =>
+      expect(parseAmount('mercado tres mil pesos')).toBe(3_000))
+  })
+
+  // ── Números compuestos en palabras: "dos mil quinientos" = 2.500 ──────────
+  describe('números compuestos en palabras', () => {
+    it('"dos mil quinientos" → 2.500', () => expect(parseAmount('dos mil quinientos')).toBe(2_500))
+    it('"tres mil quinientos" → 3.500', () =>
+      expect(parseAmount('tres mil quinientos')).toBe(3_500))
+    it('"quinientos mil" → 500.000', () => expect(parseAmount('quinientos mil')).toBe(500_000))
+    it('"ciento cincuenta mil" → 150.000', () =>
+      expect(parseAmount('ciento cincuenta mil')).toBe(150_000))
+    it('"un millón dos mil quinientos" → 1.002.500', () =>
+      expect(parseAmount('un millón dos mil quinientos')).toBe(1_002_500))
+    it('"almuerzo dos mil quinientos" → 2.500 (concepto + número)', () =>
+      expect(parseAmount('almuerzo dos mil quinientos')).toBe(2_500))
+    it('"doscientos cincuenta" → 250 (sin escala, multi-palabra)', () =>
+      expect(parseAmount('doscientos cincuenta')).toBe(250))
+  })
+
+  // ── Anti-regresión: artículos/palabras sueltas NO son montos ──────────────
+  describe('artículos no deben leerse como monto', () => {
+    it('"un café 2000" → 2.000 (no 1)', () => expect(parseAmount('un café 2000')).toBe(2_000))
+    it('"una pizza 15.000" → 15.000', () => expect(parseAmount('una pizza 15.000')).toBe(15_000))
+    it('"un almuerzo" → 0 (sin monto)', () => expect(parseAmount('un almuerzo')).toBe(0))
+  })
+
   // ── Inputs sin cantidad válida deben retornar 0 ───────────────────────────
   describe('sin monto válido → 0', () => {
     it('texto sin números', () => expect(parseAmount('mercado')).toBe(0))
@@ -108,5 +146,15 @@ describe('extractConcept', () => {
     it('"taxi 12k" → taxi', () => expect(extractConcept('taxi 12k')).toBe('taxi'))
     it('"2 millones de matrícula" → matrícula', () =>
       expect(extractConcept('2 millones de matrícula')).toBe('matrícula'))
+  })
+
+  // ── Números compuestos en palabras: concepto limpio ───────────────────────
+  describe('números compuestos — concepto sin residuos numéricos', () => {
+    it('"dos mil quinientos" → Gasto (sin concepto)', () =>
+      expect(extractConcept('dos mil quinientos')).toBe('Gasto'))
+    it('"almuerzo dos mil quinientos" → almuerzo', () =>
+      expect(extractConcept('almuerzo dos mil quinientos')).toBe('almuerzo'))
+    it('"mercado ciento cincuenta mil" → mercado', () =>
+      expect(extractConcept('mercado ciento cincuenta mil')).toBe('mercado'))
   })
 })
