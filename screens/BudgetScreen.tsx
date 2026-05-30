@@ -243,8 +243,9 @@ export function BudgetScreen({
               <button
                 onClick={() => {
                   setEditingSavings(true)
-                  setSavingsInput(String(monthlySavings))
-                  setSavingsPercentage(String(savingsPercentageValue))
+                  setSavingsInput(String(monthlyBudget))
+                  setBudgetEditMode('budget')
+                  setSavingsPercentage('')
                 }}
                 className="text-xs font-semibold transition-colors"
                 style={{ color: DS.primary }}
