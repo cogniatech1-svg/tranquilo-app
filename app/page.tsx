@@ -1690,7 +1690,8 @@ export default function Home() {
         existingRecord &&
         (existingRecord.expenses.length > 0 ||
           existingRecord.extraIncomes.length > 0 ||
-          existingRecord.income > 0)
+          existingRecord.income > 0 ||
+          existingRecord.pockets?.some((p) => p.budget > 0))
       if (hasRealData) {
         return
       }
@@ -1767,8 +1768,16 @@ export default function Home() {
           .then(([{ data: mr, error: mrErr }, { data: exps }]) => {
             if (mr && !mrErr) {
               // Mes encontrado en Supabase → cargarlo con gastos reales.
-              // Pockets: per-month from localStorage (most accurate) → inherited → fallback.
-              const resolvedPockets: Pocket[] = lsMonthPockets ?? inheritedPockets
+              // Pockets: pockets_data de Supabase (per-month) → localStorage → herencia → fallback.
+              let dbPockets: Pocket[] | null = null
+              if (mr.pockets_data) {
+                try {
+                  dbPockets = JSON.parse(mr.pockets_data)
+                } catch {
+                  // fall through
+                }
+              }
+              const resolvedPockets: Pocket[] = dbPockets ?? lsMonthPockets ?? inheritedPockets
 
               const monthRecord: MonthRecord = {
                 income: mr.income,
