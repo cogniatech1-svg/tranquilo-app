@@ -750,12 +750,17 @@ export default function Home() {
       authSavedForUserRef.current = userId // Mark immediately to prevent double-trigger
       console.log('[AUTH-SAVE] 🔄 Nuevo usuario autenticado detectado, haciendo save completo...')
       const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+      // Use the CURRENT MONTH's pockets for the legacy global 'pockets' field in Supabase.
+      // The Supabase 'pockets' table is global (no per-month column), so it must always reflect
+      // today's month. Using activeData.pockets (viewed month) contaminates Supabase's global
+      // pockets with historical data, causing other months to inherit wrong budgets on fresh load.
+      const currentMonthDataAuth = monthlyHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataAuth.pockets,
         monthlyHistory,
         conceptMap,
         learnedCategoryMap,
@@ -842,13 +847,15 @@ export default function Home() {
         `[AUTO-SAVE] Saving data for month ${activeMonth}. ManualBudget:`,
         activeData.manualBudget
       )
+      // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+      const currentMonthDataForSave = monthlyHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         // Datos del mes actual (para backward compatibility)
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataForSave.pockets,
         // ÚNICA FUENTE DE VERDAD
         monthlyHistory,
         // Metadatos
@@ -929,12 +936,14 @@ export default function Home() {
         if (!onboardingDone || Object.keys(monthlyHistory).length === 0) return
 
         const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+        // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+        const currentMonthDataOnHide = monthlyHistory[currentMonth] ?? activeData
         const dataToSave: StoredData = {
           monthlyIncome: activeData.income,
           monthlySavings: activeData.savings,
           expenses: activeData.expenses,
           extraIncomes: activeData.extraIncomes,
-          pockets: activeData.pockets,
+          pockets: currentMonthDataOnHide.pockets,
           monthlyHistory,
           conceptMap,
           learnedCategoryMap,
@@ -999,6 +1008,11 @@ export default function Home() {
   // the query returns immediately if Supabase also has 0 expenses.
   useEffect(() => {
     if (!hydrated) return
+    // Guard: don't fire before initializeApp has loaded real data.
+    // Without this, the safety-net triggers when hydrated=true but monthlyHistory is still empty
+    // (auth resolves → hydrated=true briefly → safety-net queries Supabase → sets global pockets
+    // for current month → overwrites per-month pockets with stale global ones → flicker).
+    if (!dataLoadedRef.current) return
     const saveUserId = userId || guestUserId
     if (!saveUserId) return
 
@@ -1067,12 +1081,14 @@ export default function Home() {
       }
 
       const activeData = updatedHistory[activeMonth] ?? getDefaultMonthRecord()
+      // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+      const currentMonthDataForSaveNow = updatedHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataForSaveNow.pockets,
         monthlyHistory: updatedHistory,
         conceptMap,
         learnedCategoryMap,
