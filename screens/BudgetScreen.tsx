@@ -131,8 +131,9 @@ export function BudgetScreen({
     }
   }
 
-  const savingsPercentageValue =
-    totalIncome > 0 ? Math.round((monthlySavings / totalIncome) * 100) : 0
+  const ahorroPlanificado = totalIncome - monthlyBudget
+  const ahorroPlanificadoRate =
+    totalIncome > 0 ? Math.round((ahorroPlanificado / totalIncome) * 100) : 0
 
   const addPocket = () => {
     if (!newName.trim()) return
@@ -293,16 +294,26 @@ export function BudgetScreen({
           </Card>
         )}
 
-        {/* ── 1.6. AHORRO AUTOMÁTICO (Read-only) ────────────────────────────────────── */}
+        {/* ── 1.6. AHORRO PLANIFICADO (Read-only) ────────────────────────────────────── */}
         {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
-              Ahorro automático
+              Ahorro planificado
             </p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(monthlySavings)}</p>
-            <p className="text-sm text-slate-500 mt-2 tabular-nums">
-              {savingsPercentageValue}% de tus ingresos
-            </p>
+            {monthlyBudget > 0 ? (
+              <>
+                <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {mm(ahorroPlanificado)}
+                </p>
+                <p className="text-sm text-slate-500 mt-2 tabular-nums">
+                  {ahorroPlanificadoRate}% de tus ingresos
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">
+                Configura un presupuesto para ver esta métrica
+              </p>
+            )}
           </Card>
         )}
 
