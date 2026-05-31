@@ -1507,7 +1507,12 @@ export default function Home() {
         existingRecord &&
         (existingRecord.expenses.length > 0 ||
           existingRecord.extraIncomes.length > 0 ||
-          existingRecord.income > 0)
+          existingRecord.income > 0 ||
+          // Presupuestos de bolsillos editados también son "datos reales".
+          // Sin esto, navegar a un mes con solo presupuestos editados (sin gastos ni ingresos)
+          // provoca una recarga de Supabase que puede sobrescribir los bolsillos con la
+          // versión anterior si saveNow todavía no terminó de escribir en localStorage.
+          existingRecord.pockets?.some((p) => p.budget > 0))
       if (hasRealData) {
         return
       }
