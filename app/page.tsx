@@ -15,7 +15,6 @@ import { InsightsScreen } from '../screens/InsightsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
 import { WelcomeScreen } from '../screens/WelcomeScreen'
-import { RecoveryScreen } from '../screens/RecoveryScreen'
 
 import { COUNTRIES, DS } from '../lib/config'
 import type { CountryCode, CountryConfig } from '../lib/config'
@@ -44,7 +43,7 @@ import { supabase } from '../lib/supabase'
 import {
   repairStoredData,
   repairMonthRecord,
-  DEFAULT_POCKETS,
+  LEGACY_FALLBACK_POCKETS,
   getEmptyPocketsStructure,
   UNASSIGNED_POCKET_ID,
   generateStarterPockets,
@@ -151,7 +150,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [guestUserId, setGuestUserId] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [screen, setScreen] = useState<'login' | 'recovery' | 'onboarding' | 'main'>('login')
+  const [screen, setScreen] = useState<'login' | 'onboarding' | 'main'>('login')
   const [profileData, setProfileData] = useState<import('../lib/types').UserProfile | undefined>(
     undefined
   )
@@ -677,7 +676,8 @@ export default function Home() {
               savings: rec.savings ?? 0,
               expenses: rec.expenses ?? [],
               extraIncomes: rec.extraIncomes ?? [],
-              pockets: rec.pockets && rec.pockets.length > 0 ? rec.pockets : DEFAULT_POCKETS,
+              pockets:
+                rec.pockets && rec.pockets.length > 0 ? rec.pockets : LEGACY_FALLBACK_POCKETS,
               manualBudget: rec.manualBudget,
             }
           }
@@ -882,13 +882,16 @@ export default function Home() {
         `[AUTO-SAVE] Saving data for month ${activeMonth}. ManualBudget:`,
         activeData.manualBudget
       )
+      // Use current month's pockets for the global Supabase pockets table (not active/viewed month).
+      // See saveNow for full explanation.
+      const currentMonthDataForSave = monthlyHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         // Datos del mes actual (para backward compatibility)
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataForSave.pockets,
         // ÚNICA FUENTE DE VERDAD
         monthlyHistory,
         // Metadatos
@@ -981,12 +984,14 @@ export default function Home() {
         if (!onboardingDone || Object.keys(monthlyHistory).length === 0) return
 
         const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+        // Use current month's pockets for the global Supabase pockets table. See saveNow for explanation.
+        const currentMonthDataOnHide = monthlyHistory[currentMonth] ?? activeData
         const dataToSave: StoredData = {
           monthlyIncome: activeData.income,
           monthlySavings: activeData.savings,
           expenses: activeData.expenses,
           extraIncomes: activeData.extraIncomes,
-          pockets: activeData.pockets,
+          pockets: currentMonthDataOnHide.pockets,
           monthlyHistory,
           conceptMap,
           learnedCategoryMap,
@@ -1166,6 +1171,11 @@ export default function Home() {
   // the query returns immediately if Supabase also has 0 expenses.
   useEffect(() => {
     if (!hydrated) return
+    // Guard: don't fire before initializeApp has loaded real data.
+    // Without this, the safety-net triggers when hydrated=true but monthlyHistory is still empty
+    // (auth resolves → hydrated=true briefly → safety-net queries Supabase → sets global pockets
+    // for current month → overwrites per-month pockets with stale global ones → flicker).
+    if (!dataLoadedRef.current) return
     const saveUserId = userId || guestUserId
     if (!saveUserId) return
 
@@ -1210,7 +1220,7 @@ export default function Home() {
             pockets:
               prev[currentMonth]?.pockets && prev[currentMonth].pockets.length > 0
                 ? prev[currentMonth].pockets
-                : DEFAULT_POCKETS,
+                : LEGACY_FALLBACK_POCKETS,
             manualBudget: mr.manual_budget ?? undefined,
           },
         }))
@@ -1234,12 +1244,18 @@ export default function Home() {
       }
 
       const activeData = updatedHistory[activeMonth] ?? getDefaultMonthRecord()
+      // Use the CURRENT MONTH's pockets for the legacy global 'pockets' field in Supabase.
+      // The Supabase 'pockets' table is global (no per-month column), so it must reflect
+      // today's configuration. Using activeData.pockets (the viewed month) would contaminate
+      // Supabase's global pockets with historical month data, causing other months to
+      // temporarily inherit wrong budgets on fresh load.
+      const currentMonthData = updatedHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthData.pockets,
         monthlyHistory: updatedHistory,
         conceptMap,
         learnedCategoryMap,
@@ -1700,7 +1716,7 @@ export default function Home() {
             // Heredar pockets completos (nombres, íconos y presupuestos) del mes anterior.
             // Esto mantiene la continuidad financiera: el usuario no pierde su configuración
             // al navegar a un mes nuevo sin datos en Supabase.
-            pockets: previousPockets.length > 0 ? previousPockets : DEFAULT_POCKETS,
+            pockets: previousPockets.length > 0 ? previousPockets : LEGACY_FALLBACK_POCKETS,
           },
         }))
         console.log(`[handleChangeMonth] Creado ${newMonth} vacío (sin datos en Supabase)`)
@@ -1730,7 +1746,7 @@ export default function Home() {
                       budget: p.budget,
                       icon: p.icon,
                     }))
-                  : DEFAULT_POCKETS
+                  : LEGACY_FALLBACK_POCKETS
 
               const monthRecord: MonthRecord = {
                 income: mr.income,
@@ -1901,7 +1917,7 @@ export default function Home() {
   }, [])
 
   const handleOnboardingComplete = useCallback(
-    async (code: CountryCode, budget: number, incomeValue: number, aprilData?: MonthRecord) => {
+    async (code: CountryCode, budget: number, incomeValue: number) => {
       // requireUserId() GARANTIZA un string válido (auth, guest existente, o nuevo guest)
       const currentUserId: string = await requireUserId()
 
@@ -1919,24 +1935,14 @@ export default function Home() {
         savings = Math.max(0, incomeValue - budget)
       }
 
-      // Bolsillos de arranque: 50/30/20 cuando hay ingreso, DEFAULT_POCKETS si no.
+      // Bolsillos de arranque: 50/30/20 cuando hay ingreso, LEGACY_FALLBACK_POCKETS si no.
+      // TODO Paso 3: cuando income=0, usar STARTER_POCKETS (catálogo mínimo de onboarding)
+      //              en lugar del catálogo técnico de reparación.
       const starterPockets = generateStarterPockets(incomeValue)
-      const initialPockets = starterPockets.length > 0 ? starterPockets : DEFAULT_POCKETS
+      const initialPockets = starterPockets.length > 0 ? starterPockets : LEGACY_FALLBACK_POCKETS
 
       // Build monthlyHistory with April (from CSV if provided) and current month
       const history: Record<string, MonthRecord> = {}
-
-      // Add April with CSV data if provided, otherwise empty
-      if (aprilData) {
-        history['2026-04'] = {
-          income: 0, // April is historical, no income tracking
-          savings: 0,
-          expenses: aprilData.expenses,
-          extraIncomes: aprilData.extraIncomes,
-          pockets: aprilData.pockets,
-          manualBudget: undefined,
-        }
-      }
 
       // Add current month
       history[thisMonth] = {
@@ -1982,20 +1988,6 @@ export default function Home() {
     },
     [userId, guestUserId]
   )
-
-  // ── Show recovery screen for data restoration ──────────────────────────────
-  if (screen === 'recovery' && userId) {
-    return (
-      <RecoveryScreen
-        userId={userId}
-        onRestored={() => {
-          // After restoration, show onboarding or main
-          const hasOnboarded = localStorage.getItem(`hasOnboarded_${userId}`) === 'true'
-          setScreen(hasOnboarded ? 'main' : 'onboarding')
-        }}
-      />
-    )
-  }
 
   // ── Wait for hydration ─────────────────────────────────────────────────────
   if (!hydrated || authLoading)
