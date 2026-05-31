@@ -103,7 +103,15 @@ function generateInsights(
   const daysLeft = daysInMonth - daysPassed
   const fm = (n: number) => formatMoney(n, config)
 
-  const lastMonthKey = Object.keys(monthlyHistory).sort().reverse()[0] ?? null
+  const thisMonthKey = (() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })()
+  const lastMonthKey =
+    Object.keys(monthlyHistory)
+      .filter((k) => k < thisMonthKey)
+      .sort()
+      .reverse()[0] ?? null
   const lastMonth = lastMonthKey ? monthlyHistory[lastMonthKey] : null
   const lastMonthTotal = lastMonth
     ? (lastMonth.expenses?.reduce((s, e) => s + e.amount, 0) ?? 0)
