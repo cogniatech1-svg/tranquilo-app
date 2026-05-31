@@ -123,8 +123,6 @@ export async function saveUserData(
             `[Supabase] Saving manual budget for ${monthKey}: ${monthRecord.manualBudget}`
           )
         }
-        // NOTE: Pockets are persisted in localStorage and monthly_records doesn't have a pockets_data column.
-        // Supabase schema only supports: income, savings, manual_budget, updated_at, user_id, month
         const monthRecordData: Record<string, unknown> = {
           user_id: userId,
           month: monthKey,
@@ -132,6 +130,10 @@ export async function saveUserData(
           savings: monthRecord.savings,
           manual_budget: monthRecord.manualBudget ?? null,
           updated_at: new Date().toISOString(),
+          pockets_data:
+            monthRecord.pockets && monthRecord.pockets.length > 0
+              ? JSON.stringify(monthRecord.pockets)
+              : null,
         }
 
         const { error: monthError } = await supabase
