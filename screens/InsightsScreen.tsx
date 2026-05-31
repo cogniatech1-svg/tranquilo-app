@@ -122,7 +122,9 @@ function generateInsights(
 
     if (primarySavings >= 0) {
       const vsLast =
-        lastSavings != null && lastSavings > 0 ? ` El mes pasado ahorraste ${fm(lastSavings)}.` : ''
+        lastSavings != null && lastSavings > 0
+          ? ` Ahorro real el mes pasado: ${fm(lastSavings)}.`
+          : ''
       const actionText =
         plannedSavings !== null
           ? projRate !== primaryRate
@@ -664,7 +666,7 @@ export function InsightsScreen({
 
   const { primary: primaryInsight, secondary: secondaryInsights } = useMemo(
     () => generateInsights(snapshot, expenses, pockets, spentByPocket, monthlyHistory, config),
-     
+
     [snapshot, expenses, pockets, spentByPocket, monthlyHistory, config]
   )
 
