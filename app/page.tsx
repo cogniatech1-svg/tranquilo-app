@@ -1723,6 +1723,36 @@ export default function Home() {
       }
 
       if (saveUserId) {
+        // ── Resolver pockets para el mes navegado ──────────────────────────────────
+        // NEVER use the global Supabase 'pockets' table here: that table is global
+        // (no per-month column) and always reflects the LAST SAVED month's budgets.
+        // Querying it for April when May was just saved would give April the wrong budgets.
+        //
+        // Priority:
+        //   1. Per-month pockets from localStorage (exact per-month budgets).
+        //   2. Previous-month inheritance (same logic as createEmptyMonth).
+        //   3. LEGACY_FALLBACK_POCKETS as last resort.
+        let lsMonthPockets: Pocket[] | null = null
+        try {
+          const lsRaw = localStorage.getItem(`${STORAGE_KEY}_${saveUserId}`)
+          const lsData: StoredData | null = lsRaw ? JSON.parse(lsRaw) : null
+          const pocketsFromLs = lsData?.monthlyHistory?.[newMonth]?.pockets
+          if (Array.isArray(pocketsFromLs) && pocketsFromLs.length > 0) {
+            lsMonthPockets = pocketsFromLs as Pocket[]
+          }
+        } catch {
+          // Ignore localStorage parse errors — fall through to inheritance
+        }
+
+        // Previous-month inheritance fallback (same logic as createEmptyMonth)
+        const inheritedPockets: Pocket[] = (() => {
+          const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
+          const prevMonth = sortedMonths.find((m) => m < newMonth)
+          return prevMonth && (monthlyHistory[prevMonth]?.pockets ?? []).length > 0
+            ? (monthlyHistory[prevMonth].pockets ?? LEGACY_FALLBACK_POCKETS)
+            : LEGACY_FALLBACK_POCKETS
+        })()
+
         // Intentar cargar el mes desde Supabase ANTES de crear uno vacío.
         // Mientras se carga, el mes NO está en monthlyHistory → el auto-save no lo toca.
         Promise.all([
@@ -1733,20 +1763,12 @@ export default function Home() {
             .eq('month', newMonth)
             .single(),
           supabase.from('expenses').select('*').eq('user_id', saveUserId).eq('month', newMonth),
-          supabase.from('pockets').select('*').eq('user_id', saveUserId),
         ])
-          .then(([{ data: mr, error: mrErr }, { data: exps }, { data: pocketsData }]) => {
+          .then(([{ data: mr, error: mrErr }, { data: exps }]) => {
             if (mr && !mrErr) {
-              // Mes encontrado en Supabase → cargarlo con sus gastos reales
-              const resolvedPockets =
-                (pocketsData || []).length > 0
-                  ? (pocketsData || []).map((p) => ({
-                      id: p.pocket_id,
-                      name: p.name,
-                      budget: p.budget,
-                      icon: p.icon,
-                    }))
-                  : LEGACY_FALLBACK_POCKETS
+              // Mes encontrado en Supabase → cargarlo con gastos reales.
+              // Pockets: per-month from localStorage (most accurate) → inherited → fallback.
+              const resolvedPockets: Pocket[] = lsMonthPockets ?? inheritedPockets
 
               const monthRecord: MonthRecord = {
                 income: mr.income,
