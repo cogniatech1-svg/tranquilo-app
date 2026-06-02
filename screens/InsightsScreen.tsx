@@ -534,7 +534,8 @@ function buildHistorial(
     const monthName = new Date(year, month - 1, 15).toLocaleDateString(config.locale, {
       month: 'long',
     })
-    const name = `${monthName} de ${year}`
+    const name =
+      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase() + ` de ${year}`
     const income = rec.income ?? 0
     const recSavings = rec.savings ?? 0
     const budget = Math.max(0, income - recSavings)
@@ -997,9 +998,7 @@ export function InsightsScreen({
                     {/* Month header row */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-800 capitalize">
-                          {m.name}
-                        </span>
+                        <span className="text-sm font-bold text-slate-800">{m.name}</span>
                         {m.isBest && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
                             Mejor mes
