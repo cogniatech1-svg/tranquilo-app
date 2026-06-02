@@ -24,7 +24,7 @@ interface Props {
 
 type Row =
   | { kind: 'expense'; date: string; data: Expense }
-  | { kind: 'income';  date: string; data: ExtraIncome }
+  | { kind: 'income'; date: string; data: ExtraIncome }
 
 export function TransactionsScreen({
   expenses,
@@ -44,25 +44,22 @@ export function TransactionsScreen({
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const isViewingPast = activeMonth !== realCurrentMonth
 
-  const totalSpent = useMemo(
-    () => expenses.reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  )
+  const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
 
   const grouped = useMemo(() => {
     const rows: Row[] = [
-      ...expenses.map(e => ({ kind: 'expense' as const, date: e.date, data: e })),
-      ...extraIncomes.map(i => ({ kind: 'income' as const, date: i.date, data: i })),
+      ...expenses.map((e) => ({ kind: 'expense' as const, date: e.date, data: e })),
+      ...extraIncomes.map((i) => ({ kind: 'income' as const, date: i.date, data: i })),
     ].sort((a, b) => b.date.localeCompare(a.date))
 
-    const today     = new Date()
+    const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(today.getDate() - 1)
 
     const map: Record<string, Row[]> = {}
     for (const row of rows) {
-      const key = row.date.slice(0, 10);
-      (map[key] ??= []).push(row)
+      const key = row.date.slice(0, 10)
+      ;(map[key] ??= []).push(row)
     }
 
     return Object.entries(map)
@@ -85,10 +82,19 @@ export function TransactionsScreen({
         let label: string
         if (d.toDateString() === today.toDateString()) label = 'Hoy'
         else if (d.toDateString() === yesterday.toDateString()) label = 'Ayer'
-        else label = d.toLocaleDateString(config.locale, { weekday: 'short', day: 'numeric', month: 'short' })
+        else
+          label = d.toLocaleDateString(config.locale, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+          })
 
-        const dayExpenses = items.filter(r => r.kind === 'expense').reduce((s, r) => s + r.data.amount, 0)
-        const dayIncome   = items.filter(r => r.kind === 'income').reduce((s, r) => s + r.data.amount, 0)
+        const dayExpenses = items
+          .filter((r) => r.kind === 'expense')
+          .reduce((s, r) => s + r.data.amount, 0)
+        const dayIncome = items
+          .filter((r) => r.kind === 'income')
+          .reduce((s, r) => s + r.data.amount, 0)
 
         return { label, items, dayExpenses, dayIncome }
       })
@@ -120,7 +126,6 @@ export function TransactionsScreen({
             <Icon name="plus" size={20} />
           </button>
         </div>
-
       </div>
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
@@ -184,34 +189,34 @@ export function TransactionsScreen({
                             +{mm(inc.amount)}
                           </p>
                           {inc.concept ? (
-                            <p className="text-xs text-green-600 truncate capitalize">{inc.concept}</p>
+                            <p className="text-xs text-green-600 truncate capitalize">
+                              {inc.concept}
+                            </p>
                           ) : (
                             <p className="text-xs text-green-500">Ingreso</p>
                           )}
                         </div>
-                        {!isViewingPast && (
-                          <div className="flex gap-0.5 shrink-0">
-                            <button
-                              onClick={() => onEditIncome(inc)}
-                              className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
-                            >
-                              <Icon name="edit" size={14} />
-                            </button>
-                            <button
-                              onClick={() => onDeleteExtraIncome(inc.id)}
-                              className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
-                            >
-                              <Icon name="trash" size={14} />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex gap-0.5 shrink-0">
+                          <button
+                            onClick={() => onEditIncome(inc)}
+                            className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                          >
+                            <Icon name="edit" size={14} />
+                          </button>
+                          <button
+                            onClick={() => onDeleteExtraIncome(inc.id)}
+                            className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                          >
+                            <Icon name="trash" size={14} />
+                          </button>
+                        </div>
                       </div>
                     )
                   }
 
                   const expense = row.data as Expense
-                  const pocket  = pockets.find(p => p.id === expense.pocketId)
-                  const pi      = pockets.findIndex(p => p.id === expense.pocketId)
+                  const pocket = pockets.find((p) => p.id === expense.pocketId)
+                  const pi = pockets.findIndex((p) => p.id === expense.pocketId)
                   return (
                     <TransactionItem
                       key={expense.id}
