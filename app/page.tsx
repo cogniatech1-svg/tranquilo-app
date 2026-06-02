@@ -1628,8 +1628,22 @@ export default function Home() {
         saveNow(updated)
         return updated
       })
+      // Delete directamente en Supabase por ID para el caso en que extraIncomes
+      // quede vacío y saveUserData omita el cleanup de registros obsoletos.
+      if (userId) {
+        supabase
+          .from('extra_incomes')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId)
+          .then(({ error }) => {
+            if (error) {
+              console.warn('[Supabase] ⚠️ Extra income not deleted from Supabase:', error.message)
+            }
+          })
+      }
     },
-    [activeMonth, getActiveMonthData, saveNow]
+    [activeMonth, getActiveMonthData, saveNow, userId]
   )
 
   const handleUpdateExtraIncome = useCallback(
