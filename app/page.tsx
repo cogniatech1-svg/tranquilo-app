@@ -693,7 +693,19 @@ export default function Home() {
             // activeMonth is what the user is viewing, currentMonth is what "today" is
           }
 
-          if (hasOnboarded) setScreen('main')
+          if (hasOnboarded) {
+            setScreen('main')
+          } else {
+            // Existing user on a fresh device (localStorage cleared, reinstall, or new browser).
+            // Supabase has real data → restore the onboarding flag and skip onboarding.
+            // Without this, the user would see onboarding, enter new values, and have them
+            // conflict with/overwrite their real Supabase data.
+            console.log(
+              '[initializeApp] ✅ Usuario existente en dispositivo sin flag — restaurando sesión directo a main'
+            )
+            localStorage.setItem(onboardingKey, 'true')
+            setScreen('main')
+          }
         } else {
           if (hasOnboarded) setScreen('main')
         }
