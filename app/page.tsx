@@ -1828,13 +1828,14 @@ export default function Home() {
         }
       }
 
-      // Add current month
+      // Add current month — pockets start at $0 so the user sets their own budgets
+      const emptyPockets = getEmptyPocketsStructure()
       history[thisMonth] = {
         income: incomeValue,
         savings,
         expenses: [],
         extraIncomes: [],
-        pockets: DEFAULT_POCKETS,
+        pockets: emptyPockets,
         manualBudget: undefined,
       }
 
@@ -1845,7 +1846,7 @@ export default function Home() {
       // Build and save complete user data to Supabase
       const initialData: StoredData = {
         monthlyHistory: history,
-        pockets: DEFAULT_POCKETS,
+        pockets: emptyPockets,
         monthlyIncome: incomeValue,
         monthlySavings: savings,
         expenses: [],
