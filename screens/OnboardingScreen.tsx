@@ -62,7 +62,7 @@ export function OnboardingScreen({ config, onComplete }: Props) {
       return
     }
     setError('')
-    setStep('csv')
+    setStep('confirm')
   }
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
