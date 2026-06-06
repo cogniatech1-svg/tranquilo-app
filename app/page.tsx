@@ -56,6 +56,7 @@ import {
   saveProfileData,
   validateDataPersistence,
   migrateGuestDataToAuthenticatedUser,
+  deleteAllUserData,
 } from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1498,11 +1499,16 @@ export default function Home() {
 
   const handleClearData = useCallback(() => {
     if (!userId) return
+
+    // 1. Limpiar localStorage inmediatamente
     const userStorageKey = `${STORAGE_KEY}_${userId}`
     localStorage.removeItem(userStorageKey)
     localStorage.removeItem(`${ONBOARDING_FLAG}_${userId}`)
+
+    // 2. Resetear estado React y volver a onboarding
     setConceptMap({})
     setLearnedCategoryMap({})
+    dataLoadedRef.current = false
     const thisMonth = getCurrentMonth()
     setCurrentMonth(thisMonth)
     setActiveMonth(thisMonth)
@@ -1510,6 +1516,11 @@ export default function Home() {
       [thisMonth]: getDefaultMonthRecord(),
     })
     setScreen('onboarding')
+
+    // 3. Borrar datos en Supabase en segundo plano (no bloquea la UI)
+    deleteAllUserData(userId).catch((err) => {
+      console.error('[handleClearData] Error borrando Supabase:', err)
+    })
   }, [userId])
 
   const handleChangeCountry = useCallback((code: CountryCode) => {

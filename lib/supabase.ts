@@ -874,3 +874,31 @@ export async function validateDataPersistence(userId: string): Promise<boolean> 
     return false
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE ALL USER DATA
+// Borra todos los datos financieros del usuario en Supabase.
+// NO borra la cuenta ni el perfil (tabla users) — el usuario sigue autenticado.
+// Se usa desde "Eliminar datos" en Perfil.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function deleteAllUserData(userId: string): Promise<void> {
+  console.log('[Supabase] 🗑️ Iniciando borrado completo para userId:', userId)
+  const tables = [
+    'expenses',
+    'extra_incomes',
+    'monthly_records',
+    'pockets',
+    'concept_map',
+    'learned_category_map',
+  ] as const
+
+  for (const table of tables) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId)
+    if (error) {
+      console.warn(`[Supabase] ⚠️ Error borrando ${table}:`, error.message)
+    } else {
+      console.log(`[Supabase] ✅ ${table} borrado`)
+    }
+  }
+  console.log('[Supabase] 🗑️ Borrado completo finalizado')
+}
