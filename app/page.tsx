@@ -46,6 +46,7 @@ import {
   repairMonthRecord,
   DEFAULT_POCKETS,
   getEmptyPocketsStructure,
+  generateStarterPockets,
 } from '../lib/dataMigration'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
 import {
@@ -1828,14 +1829,25 @@ export default function Home() {
         }
       }
 
-      // Add current month — pockets start at $0 so the user sets their own budgets
-      const emptyPockets = getEmptyPocketsStructure()
+      // Bolsillos de arranque: 3 bolsillos con regla 50/30/20 si hay ingreso,
+      // o los mismos 3 bolsillos en $0 si no hay ingreso.
+      // Solo 3 bolsillos iniciales — el usuario agrega más desde Presupuesto.
+      const starterPockets = generateStarterPockets(incomeValue)
+      const initialPockets =
+        starterPockets.length > 0
+          ? starterPockets
+          : [
+              { id: 'hogar', name: 'Hogar', icon: '🏠', budget: 0 },
+              { id: 'recreacion', name: 'Recreación', icon: '🎮', budget: 0 },
+              { id: 'reserva', name: 'Reserva', icon: '🪙', budget: 0 },
+            ]
+
       history[thisMonth] = {
         income: incomeValue,
         savings,
         expenses: [],
         extraIncomes: [],
-        pockets: emptyPockets,
+        pockets: initialPockets,
         manualBudget: undefined,
       }
 
@@ -1846,7 +1858,7 @@ export default function Home() {
       // Build and save complete user data to Supabase
       const initialData: StoredData = {
         monthlyHistory: history,
-        pockets: emptyPockets,
+        pockets: initialPockets,
         monthlyIncome: incomeValue,
         monthlySavings: savings,
         expenses: [],
