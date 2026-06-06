@@ -1829,10 +1829,13 @@ export default function Home() {
         }
       }
 
-      // Bolsillos de arranque: 3 bolsillos con regla 50/30/20 si hay ingreso,
-      // o los mismos 3 bolsillos en $0 si no hay ingreso.
-      // Solo 3 bolsillos iniciales — el usuario agrega más desde Presupuesto.
-      const starterPockets = generateStarterPockets(incomeValue)
+      // Bolsillos de arranque: 3 bolsillos con regla 50/30/20 aplicada al
+      // PRESUPUESTO del usuario (no al ingreso). El usuario definió cuánto
+      // planea gastar — ese es el total a distribuir entre bolsillos.
+      // Fallback: si no hay presupuesto, se usa el ingreso; si tampoco hay
+      // ingreso, 3 bolsillos en $0.
+      const budgetBase = budget > 0 ? budget : incomeValue
+      const starterPockets = generateStarterPockets(budgetBase)
       const initialPockets =
         starterPockets.length > 0
           ? starterPockets
