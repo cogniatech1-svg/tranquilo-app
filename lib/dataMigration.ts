@@ -30,6 +30,12 @@ export const DEFAULT_POCKETS: Pocket[] = [
 ]
 
 /**
+ * Alias de DEFAULT_POCKETS — nombre histórico usado en page.tsx como fallback
+ * cuando un mes no tiene bolsillos propios definidos.
+ */
+export const LEGACY_FALLBACK_POCKETS = DEFAULT_POCKETS
+
+/**
  * Genera 3 bolsillos de arranque para usuarios nuevos aplicando la regla 50/30/20:
  *   - Hogar       (🏠) — 50 % del ingreso mensual  (necesidades)
  *   - Recreación  (🎮) — 30 % del ingreso mensual  (deseos)

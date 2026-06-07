@@ -9,6 +9,7 @@ import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
 import { normalizePocketId } from '../lib/dataMigration'
 import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
+import { openTermsAndConditions } from '../legal/TermsAndConditions'
 
 interface PendingCsvData extends StoredData {
   newExpenses: Expense[]
@@ -566,7 +567,7 @@ export function ProfileScreen({
       ],
     },
     datos: {
-      title: 'Mis Datos',
+      title: 'Datos y Cuenta',
       icon: '📊',
       content: [
         {
@@ -582,11 +583,18 @@ export function ProfileScreen({
           type: 'button',
           handler: handleForceSyncToFirestore,
         },
+        // ── Separador visual — zona de riesgo ────────────────────────────────
+        { label: '', value: '', type: 'divider' },
         {
           label: 'Borrar todo',
           value: 'Eliminar datos',
           type: 'button-danger',
           handler: () => setConfirmClear(true),
+        },
+        {
+          label: 'Eliminar cuenta',
+          value: 'Disponible próximamente',
+          type: 'info-danger',
         },
       ],
     },
@@ -611,8 +619,8 @@ export function ProfileScreen({
       ],
     },
     privacidad: {
-      title: 'Privacidad y datos',
-      icon: '🔒',
+      title: 'Legal',
+      icon: '⚖️',
       content: [
         {
           label: 'Política de privacidad',
@@ -621,20 +629,10 @@ export function ProfileScreen({
           handler: openPrivacyPolicy,
         },
         {
-          label: 'Tratamiento de datos',
-          value: 'Cómo usamos tu información',
+          label: 'Términos y condiciones',
+          value: 'Ver términos',
           type: 'button',
-          handler: openPrivacyPolicy,
-        },
-        {
-          label: 'Exportar datos',
-          value: 'Disponible próximamente',
-          type: 'info',
-        },
-        {
-          label: 'Eliminar cuenta',
-          value: 'Disponible próximamente',
-          type: 'info-danger',
+          handler: openTermsAndConditions,
         },
       ],
     },
@@ -899,178 +897,191 @@ export function ProfileScreen({
                   )}
 
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {section.content.map((item: any, i: number) => (
-                    <div
-                      key={i}
-                      style={{
-                        marginBottom: i < section.content.length - 1 ? '16px' : 0,
-                        paddingBottom: i < section.content.length - 1 ? '16px' : 0,
-                        borderBottom: i < section.content.length - 1 ? '1px solid #f3f4f6' : 'none',
-                      }}
-                    >
-                      <label
+                  {section.content.map((item: any, i: number) =>
+                    item.type === 'divider' ? (
+                      <div
+                        key={i}
                         style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: '#6b7280',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          display: 'block',
-                          marginBottom: '6px',
+                          margin: '8px 0 16px',
+                          borderTop: '2px solid #F1F5F9',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        key={i}
+                        style={{
+                          marginBottom: i < section.content.length - 1 ? '16px' : 0,
+                          paddingBottom: i < section.content.length - 1 ? '16px' : 0,
+                          borderBottom:
+                            i < section.content.length - 1 ? '1px solid #f3f4f6' : 'none',
                         }}
                       >
-                        {item.label}
-                      </label>
-
-                      {/* Edit mode for Mi Perfil */}
-                      {section.key === 'perfil' && editingProfile && item.field ? (
-                        <input
-                          type={item.field === 'email' ? 'email' : 'text'}
-                          value={(editData as unknown as Record<string, string>)[item.field] || ''}
-                          onChange={(e) =>
-                            setEditData({ ...editData, [item.field]: e.target.value })
-                          }
+                        <label
                           style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #d1d5db',
-                            fontSize: '13px',
-                            fontFamily: 'inherit',
-                          }}
-                        />
-                      ) : item.type === 'image' ? (
-                        <div
-                          style={{
-                            width: '70px',
-                            height: '70px',
-                            background: '#f3f4f6',
-                            borderRadius: '10px',
-                            border: '2px dashed #d1d5db',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: '#6b7280',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            display: 'block',
+                            marginBottom: '6px',
                           }}
                         >
-                          <img
-                            src={item.value}
-                            alt="Avatar"
-                            style={{ width: '70px', height: '70px', objectFit: 'cover' }}
-                          />
-                        </div>
-                      ) : item.type === 'file-button' ? (
-                        <>
-                          <label
-                            htmlFor="csv-import-input"
-                            className="import-button"
+                          {item.label}
+                        </label>
+
+                        {/* Edit mode for Mi Perfil */}
+                        {section.key === 'perfil' && editingProfile && item.field ? (
+                          <input
+                            type={item.field === 'email' ? 'email' : 'text'}
+                            value={
+                              (editData as unknown as Record<string, string>)[item.field] || ''
+                            }
+                            onChange={(e) =>
+                              setEditData({ ...editData, [item.field]: e.target.value })
+                            }
                             style={{
                               width: '100%',
-                              display: 'block',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '13px',
+                              fontFamily: 'inherit',
+                            }}
+                          />
+                        ) : item.type === 'image' ? (
+                          <div
+                            style={{
+                              width: '70px',
+                              height: '70px',
+                              background: '#f3f4f6',
+                              borderRadius: '10px',
+                              border: '2px dashed #d1d5db',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <img
+                              src={item.value}
+                              alt="Avatar"
+                              style={{ width: '70px', height: '70px', objectFit: 'cover' }}
+                            />
+                          </div>
+                        ) : item.type === 'file-button' ? (
+                          <>
+                            <label
+                              htmlFor="csv-import-input"
+                              className="import-button"
+                              style={{
+                                width: '100%',
+                                display: 'block',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: '#0d6259',
+                                color: 'white',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {item.value}
+                            </label>
+                            <input
+                              id="csv-import-input"
+                              type="file"
+                              accept=".csv,text/csv,application/vnd.ms-excel"
+                              onChange={handleImportCSV}
+                              style={{ display: 'none' }}
+                            />
+                          </>
+                        ) : item.type === 'button' || item.type === 'button-danger' ? (
+                          <button
+                            onClick={item.handler}
+                            style={{
+                              width: '100%',
                               padding: '10px 14px',
                               borderRadius: '8px',
                               border: 'none',
-                              background: '#0d6259',
+                              background: item.type === 'button-danger' ? '#ef4444' : '#0d6259',
                               color: 'white',
                               fontSize: '13px',
                               fontWeight: 600,
                               cursor: 'pointer',
                               transition: 'all 0.2s',
-                              textAlign: 'center',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.opacity = '0.9'
+                              e.currentTarget.style.transform = 'scale(1.02)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.opacity = '1'
+                              e.currentTarget.style.transform = 'scale(1)'
                             }}
                           >
                             {item.value}
-                          </label>
-                          <input
-                            id="csv-import-input"
-                            type="file"
-                            accept=".csv,text/csv,application/vnd.ms-excel"
-                            onChange={handleImportCSV}
-                            style={{ display: 'none' }}
-                          />
-                        </>
-                      ) : item.type === 'button' || item.type === 'button-danger' ? (
-                        <button
-                          onClick={item.handler}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: item.type === 'button-danger' ? '#ef4444' : '#0d6259',
-                            color: 'white',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = '0.9'
-                            e.currentTarget.style.transform = 'scale(1.02)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = '1'
-                            e.currentTarget.style.transform = 'scale(1)'
-                          }}
-                        >
-                          {item.value}
-                        </button>
-                      ) : item.type === 'toggle' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <input
-                            type="checkbox"
-                            checked={item.toggleState ?? false}
-                            onChange={item.toggleHandler}
+                          </button>
+                        ) : item.type === 'toggle' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <input
+                              type="checkbox"
+                              checked={item.toggleState ?? false}
+                              onChange={item.toggleHandler}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: '#0d6259',
+                              }}
+                            />
+                            <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: 500 }}>
+                              {item.value}
+                            </span>
+                          </div>
+                        ) : item.type === 'select' ? (
+                          <select
                             style={{
-                              width: '18px',
-                              height: '18px',
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '13px',
+                              background: 'white',
+                              fontWeight: 500,
                               cursor: 'pointer',
-                              accentColor: '#0d6259',
                             }}
-                          />
-                          <span style={{ fontSize: '13px', color: '#4b5563', fontWeight: 500 }}>
+                          >
+                            <option>{item.value}</option>
+                          </select>
+                        ) : item.type === 'info' || item.type === 'info-danger' ? (
+                          <div
+                            style={{
+                              fontSize: '12px',
+                              color: item.type === 'info-danger' ? '#f87171' : '#9ca3af',
+                              fontWeight: 400,
+                              fontStyle: 'italic',
+                            }}
+                          >
                             {item.value}
-                          </span>
-                        </div>
-                      ) : item.type === 'select' ? (
-                        <select
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #d1d5db',
-                            fontSize: '13px',
-                            background: 'white',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <option>{item.value}</option>
-                        </select>
-                      ) : item.type === 'info' || item.type === 'info-danger' ? (
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: item.type === 'info-danger' ? '#f87171' : '#9ca3af',
-                            fontWeight: 400,
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          {item.value}
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            fontSize: '13px',
-                            color: '#374151',
-                            fontWeight: item.type === 'password' ? 600 : 500,
-                          }}
-                        >
-                          {item.value}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              fontSize: '13px',
+                              color: '#374151',
+                              fontWeight: item.type === 'password' ? 600 : 500,
+                            }}
+                          >
+                            {item.value}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
 
                   {/* Save/Cancel buttons for Mi Perfil edit mode */}
                   {section.key === 'perfil' && editingProfile && (
