@@ -272,7 +272,9 @@ export default function Home() {
           '[AUTH] 🔑 PASSWORD_RECOVERY recibido en root page → redirigiendo a /reset-password'
         )
         if (typeof window !== 'undefined') {
-          window.location.replace('/reset-password')
+          // ?recovery=1 indica a /reset-password que verifique la sesión activa
+          // aunque no haya ?code= ni #access_token= en la URL
+          window.location.replace('/reset-password?recovery=1')
         }
         return
       }

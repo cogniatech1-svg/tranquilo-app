@@ -60,21 +60,28 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    // Supabase JS v2 PKCE: el cliente puede intercambiar el ?code= ANTES de que
-    // este listener se registre (race condition en conexiones rápidas).
-    // Estrategia dual:
-    //   A) onAuthStateChange — captura PASSWORD_RECOVERY si llega a tiempo
-    //   B) getSession() — detecta si el intercambio ya ocurrió antes del montaje
-    let resolved = false
+  // Capturar la presencia del token/código en el momento exacto del render
+  // (ANTES del useEffect y ANTES de que Supabase limpie el hash con
+  // window.history.replaceState). Con flowType:'implicit', Supabase borra el
+  // #access_token= del hash en cuanto lo procesa; si lo capturamos en useState
+  // el inicializador corre sincrónicamente y lo ve antes de que desaparezca.
+  const [hasResetCode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const search = new URLSearchParams(window.location.search)
+    return (
+      search.has('code') || // flujo PKCE
+      search.has('recovery') || // redirect desde page.tsx tras interceptar PASSWORD_RECOVERY
+      window.location.hash.includes('access_token') // flujo implícito
+    )
+  })
 
-    // Detectar si la página fue abierta desde un enlace de recuperación.
-    // Flujo implícito: el token llega en el hash → #access_token=...&type=recovery
-    // Flujo PKCE (legado): el código llega en el query → ?code=...
-    const hasResetCode =
-      typeof window !== 'undefined' &&
-      (new URLSearchParams(window.location.search).has('code') ||
-        window.location.hash.includes('access_token'))
+  useEffect(() => {
+    // Estrategia de detección de recovery session (triple redundancia):
+    //   A) onAuthStateChange — captura PASSWORD_RECOVERY si llega a tiempo
+    //   B) getSession() inmediato — si Supabase ya procesó el hash/code antes del montaje
+    //   C) getSession() siempre — cubre el redirect desde page.tsx (?recovery=1)
+    //      donde no hay hash ni code pero la sesión de recovery ya está activa
+    let resolved = false
 
     // A) Listener de eventos auth
     const {
@@ -87,9 +94,10 @@ export default function ResetPasswordPage() {
       }
     })
 
-    // B) Si hay ?code= en la URL, verificar si la sesión ya fue establecida.
-    //    Cubre el caso donde el intercambio terminó antes de que el listener
-    //    fuera registrado.
+    // B + C) Verificar sesión existente en todos los casos con señal de recovery.
+    //   B: #access_token= o ?code= → Supabase pudo haber procesado antes del montaje
+    //   C: ?recovery=1 → page.tsx interceptó PASSWORD_RECOVERY y redirigió aquí;
+    //      la sesión de recovery ya está establecida pero el hash ya no existe
     if (hasResetCode) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session && !resolved) {
@@ -99,8 +107,8 @@ export default function ResetPasswordPage() {
       })
     }
 
-    // Si ninguna de las dos vías resuelve en RECOVERY_TIMEOUT_MS, el enlace es
-    // inválido, expirado o fue usado en otro dispositivo/sesión.
+    // Si ninguna vía resuelve en RECOVERY_TIMEOUT_MS, el enlace es inválido,
+    // expirado o fue usado en otro dispositivo/sesión.
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true
@@ -112,7 +120,7 @@ export default function ResetPasswordPage() {
       subscription.unsubscribe()
       clearTimeout(timeout)
     }
-  }, [])
+  }, [hasResetCode])
 
   const handleSubmit = async () => {
     setError('')
