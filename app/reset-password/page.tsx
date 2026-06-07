@@ -105,7 +105,16 @@ export default function ResetPasswordPage() {
     setLoading(true)
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) {
-      setError(`Error: ${updateError.message}`)
+      // Supabase devuelve este mensaje cuando la nueva contraseña es idéntica a la actual
+      const isSamePassword =
+        updateError.message.toLowerCase().includes('same') ||
+        updateError.message.toLowerCase().includes('different') ||
+        updateError.code === 'same_password'
+      setError(
+        isSamePassword
+          ? 'La nueva contraseña debe ser diferente a la actual'
+          : `Error al guardar: ${updateError.message}`
+      )
       setLoading(false)
     } else {
       setSuccess(true)
@@ -254,6 +263,7 @@ export default function ResetPasswordPage() {
             <input
               className="reset-input"
               type="password"
+              autoComplete="new-password"
               placeholder="Nueva contraseña (mín. 6 caracteres)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -262,6 +272,7 @@ export default function ResetPasswordPage() {
             <input
               className="reset-input"
               type="password"
+              autoComplete="new-password"
               placeholder="Confirmar contraseña"
               value={password2}
               onChange={(e) => setPassword2(e.target.value)}
@@ -298,6 +309,24 @@ export default function ResetPasswordPage() {
               }}
             >
               {loading ? 'Guardando...' : 'Establecer contraseña →'}
+            </button>
+
+            <button
+              onClick={() => router.replace('/')}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                padding: '13px',
+                borderRadius: '14px',
+                border: '1.5px solid rgba(255,255,255,0.35)',
+                background: 'transparent',
+                color: 'rgba(255,255,255,0.70)',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ← Volver al inicio
             </button>
           </>
         ) : (
