@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { signUp, logIn, signInWithGoogle, resetPasswordForEmail } from '../lib/auth'
 import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
+import { openTermsAndConditions } from '../legal/TermsAndConditions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WELCOME SCREEN
@@ -105,7 +106,7 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
     }
     if (authMode === 'signup') {
       if (!consentAccepted) {
-        setError('Debes aceptar la política de privacidad para continuar')
+        setError('Debes aceptar los términos y la política de privacidad para continuar')
         return
       }
       if (password.length < 6) {
@@ -687,10 +688,24 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setPrivacyModalOpen(true)
+                      openPrivacyPolicy()
                     }}
                   >
                     política de privacidad
+                  </span>{' '}
+                  y los{' '}
+                  <span
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openTermsAndConditions()
+                    }}
+                  >
+                    términos y condiciones
                   </span>
                 </p>
               </label>
@@ -957,6 +972,34 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
             >
               ← Volver
             </button>
+
+            {/* Pie legal — solo en login */}
+            {authMode === 'login' && (
+              <p
+                style={{
+                  margin: '10px 0 0 0',
+                  fontSize: '10px',
+                  color: 'rgba(255,255,255,0.38)',
+                  textAlign: 'center',
+                  lineHeight: 1.6,
+                }}
+              >
+                Al usar Tranquilo aceptas nuestros{' '}
+                <span
+                  style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                  onClick={openTermsAndConditions}
+                >
+                  Términos
+                </span>{' '}
+                y nuestra{' '}
+                <span
+                  style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                  onClick={openPrivacyPolicy}
+                >
+                  Política de Privacidad
+                </span>
+              </p>
+            )}
           </>
         )}
       </div>

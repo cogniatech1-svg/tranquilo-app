@@ -9,6 +9,7 @@ import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
 import { normalizePocketId } from '../lib/dataMigration'
 import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
+import { openTermsAndConditions } from '../legal/TermsAndConditions'
 
 interface PendingCsvData extends StoredData {
   newExpenses: Expense[]
@@ -566,7 +567,7 @@ export function ProfileScreen({
       ],
     },
     datos: {
-      title: 'Mis Datos',
+      title: 'Datos y Cuenta',
       icon: '📊',
       content: [
         {
@@ -611,8 +612,8 @@ export function ProfileScreen({
       ],
     },
     privacidad: {
-      title: 'Privacidad y datos',
-      icon: '🔒',
+      title: 'Legal',
+      icon: '⚖️',
       content: [
         {
           label: 'Política de privacidad',
@@ -621,15 +622,10 @@ export function ProfileScreen({
           handler: openPrivacyPolicy,
         },
         {
-          label: 'Tratamiento de datos',
-          value: 'Cómo usamos tu información',
+          label: 'Términos y condiciones',
+          value: 'Ver términos',
           type: 'button',
-          handler: openPrivacyPolicy,
-        },
-        {
-          label: 'Exportar datos',
-          value: 'Disponible próximamente',
-          type: 'info',
+          handler: openTermsAndConditions,
         },
         {
           label: 'Eliminar cuenta',
