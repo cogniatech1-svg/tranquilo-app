@@ -776,10 +776,21 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                       style={{
                         color: 'rgba(255,255,255,0.80)',
                         fontSize: '13px',
-                        margin: '0 0 16px 0',
+                        margin: '0 0 4px 0',
                       }}
                     >
-                      Revisa tu correo y sigue las instrucciones para establecer tu contraseña.
+                      Revisa tu correo en
+                    </p>
+                    <p
+                      style={{
+                        color: 'white',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        margin: '0 0 16px 0',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {forgotEmail}
                     </p>
                     <button
                       onClick={() => {

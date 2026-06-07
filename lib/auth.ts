@@ -104,14 +104,33 @@ export async function logOut(): Promise<void> {
 /**
  * Send password reset email
  * Works for any registered email, including Google OAuth accounts
+ *
+ * URL de redirect — orden de prioridad:
+ *   1. NEXT_PUBLIC_APP_URL (variable de entorno, definida en Vercel / .env.production)
+ *   2. window.location.origin  (fallback dinámico — funciona en cualquier dominio)
+ *
+ * ─── Supabase → Authentication → URL Configuration ───────────────────────────
+ * Allowed Redirect URLs — agregar exactamente estas entradas:
+ *   https://tranquilo-app.vercel.app/reset-password
+ *   http://localhost:3000/reset-password
+ *   http://localhost:3001/reset-password
+ *
+ * Si se configura un dominio personalizado (ej: app.tranquilo.co), agregar también:
+ *   https://app.tranquilo.co/reset-password
+ *
+ * Y actualizar NEXT_PUBLIC_APP_URL en Vercel → Settings → Environment Variables:
+ *   NEXT_PUBLIC_APP_URL=https://app.tranquilo.co
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 export async function resetPasswordForEmail(email: string): Promise<void> {
-  // Hardcoded para evitar mismatch con la lista de allowed redirect URLs de Supabase.
-  // En localhost se usa el origen dinámico; en producción siempre la URL canónica.
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const redirectTo = isLocalhost
-    ? `${window.location.origin}/reset-password`
-    : 'https://tranquilo-app-git-main-giannuzzos-projects.vercel.app/reset-password'
+  // Usa la URL canónica definida en .env.production / Vercel env vars.
+  // Fallback a window.location.origin garantiza que funcione en cualquier
+  // dominio sin cambios de código — localhost, staging y producción incluidos.
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+
+  const redirectTo = `${appUrl}/reset-password`
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
   if (error) {
     throw new Error(`Reset failed: ${error.message}`)
