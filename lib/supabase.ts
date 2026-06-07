@@ -50,7 +50,15 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       monthly_savings: data.monthlySavings,
       country_code: data.countryCode,
       is_privacy_mode: data.isPrivacyMode,
-      profile_data: data.profile ?? null,
+    }
+    // Only include profile_data when explicitly provided — prevents any of the financial
+    // auto-save paths (AUTO-SAVE, VISIBILITY, SAVE-NOW, AUTH-SAVE) from overwriting an
+    // existing Supabase profile with null when profileData state hasn't been loaded yet
+    // from Supabase (race condition during async initializeApp).
+    // The only intentional profile write goes through saveProfileData(), which uses a
+    // direct UPDATE and is not affected by this guard.
+    if (data.profile !== undefined) {
+      userRecord.profile_data = data.profile
     }
     if (userEmail) userRecord.email = userEmail
 
