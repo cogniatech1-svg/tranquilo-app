@@ -37,6 +37,25 @@ export function getEmptyPocketsStructure(): Pocket[] {
 }
 
 /**
+ * Genera 3 bolsillos de arranque para usuarios nuevos con regla 50/30/20:
+ *   - Hogar       (🏠) — 50 % del ingreso mensual  (necesidades)
+ *   - Recreación  (🎮) — 30 % del ingreso mensual  (deseos)
+ *   - Reserva     (🪙) — 20 % del ingreso mensual  (ahorro / futuro)
+ *
+ * Presupuestos redondeados al múltiplo de 1.000 más cercano.
+ * Retorna [] si income ≤ 0 — el llamador debe usar el fallback adecuado.
+ */
+export function generateStarterPockets(income: number): Pocket[] {
+  if (income <= 0) return []
+  const floor1k = (n: number) => Math.floor(n / 1_000) * 1_000
+  return [
+    { id: 'hogar', name: 'Hogar', icon: '🏠', budget: floor1k(income * 0.5) },
+    { id: 'recreacion', name: 'Recreación', icon: '🎮', budget: floor1k(income * 0.3) },
+    { id: 'reserva', name: 'Reserva', icon: '🪙', budget: floor1k(income * 0.2) },
+  ]
+}
+
+/**
  * Ensure all 8 pockets exist in a month record
  * If pockets are missing, add them with default budgets
  */
@@ -340,5 +359,10 @@ export function repairStoredData(data: any): StoredData {
     isPrivacyMode: data.isPrivacyMode ?? false,
     monthlyIncome: typeof data.monthlyIncome === 'number' ? data.monthlyIncome : undefined,
     monthlySavings: typeof data.monthlySavings === 'number' ? data.monthlySavings : undefined,
+    // Preserve profile data as-is — repairStoredData fixes financial structure only;
+    // profile fields (nombre, telefono, avatarUrl, etc.) do not need repair logic.
+    // Omitting this caused profile to be silently discarded whenever Zod validation
+    // triggered the repair path (e.g. due to a stale date format in expenses).
+    profile: data.profile ?? undefined,
   }
 }

@@ -47,6 +47,7 @@ import {
   DEFAULT_POCKETS,
   getEmptyPocketsStructure,
   UNASSIGNED_POCKET_ID,
+  generateStarterPockets,
 } from '../lib/dataMigration'
 import { parseStoredData } from '../lib/parseData'
 import { normalizePocketNames, capitalizeWords } from '../lib/migrations'
@@ -56,6 +57,7 @@ import {
   saveProfileData,
   validateDataPersistence,
   migrateGuestDataToAuthenticatedUser,
+  deleteAllUserData,
 } from '../lib/supabase'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -693,7 +695,19 @@ export default function Home() {
             // activeMonth is what the user is viewing, currentMonth is what "today" is
           }
 
-          if (hasOnboarded) setScreen('main')
+          if (hasOnboarded) {
+            setScreen('main')
+          } else {
+            // Existing user on a fresh device (localStorage cleared, reinstall, or new browser).
+            // Supabase has real data → restore the onboarding flag and skip onboarding.
+            // Without this, the user would see onboarding, enter new values, and have them
+            // conflict with/overwrite their real Supabase data.
+            console.log(
+              '[initializeApp] ✅ Usuario existente en dispositivo sin flag — restaurando sesión directo a main'
+            )
+            localStorage.setItem(onboardingKey, 'true')
+            setScreen('main')
+          }
         } else {
           if (hasOnboarded) setScreen('main')
         }
@@ -761,12 +775,17 @@ export default function Home() {
       saveInProgressRef.current = true
       console.log('[AUTH-SAVE] 🔄 Nuevo usuario autenticado detectado, haciendo save completo...')
       const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+      // Use the CURRENT MONTH's pockets for the legacy global 'pockets' field in Supabase.
+      // The Supabase 'pockets' table is global (no per-month column), so it must always reflect
+      // today's month. Using activeData.pockets (viewed month) contaminates Supabase's global
+      // pockets with historical data, causing other months to inherit wrong budgets on fresh load.
+      const currentMonthDataAuth = monthlyHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataAuth.pockets,
         monthlyHistory,
         conceptMap,
         learnedCategoryMap,
@@ -856,13 +875,15 @@ export default function Home() {
         `[AUTO-SAVE] Saving data for month ${activeMonth}. ManualBudget:`,
         activeData.manualBudget
       )
+      // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+      const currentMonthDataForSave = monthlyHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         // Datos del mes actual (para backward compatibility)
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataForSave.pockets,
         // ÚNICA FUENTE DE VERDAD
         monthlyHistory,
         // Metadatos
@@ -943,12 +964,14 @@ export default function Home() {
         if (!onboardingDone || Object.keys(monthlyHistory).length === 0) return
 
         const activeData = monthlyHistory[activeMonth] ?? getDefaultMonthRecord()
+        // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+        const currentMonthDataOnHide = monthlyHistory[currentMonth] ?? activeData
         const dataToSave: StoredData = {
           monthlyIncome: activeData.income,
           monthlySavings: activeData.savings,
           expenses: activeData.expenses,
           extraIncomes: activeData.extraIncomes,
-          pockets: activeData.pockets,
+          pockets: currentMonthDataOnHide.pockets,
           monthlyHistory,
           conceptMap,
           learnedCategoryMap,
@@ -1013,6 +1036,11 @@ export default function Home() {
   // the query returns immediately if Supabase also has 0 expenses.
   useEffect(() => {
     if (!hydrated) return
+    // Guard: don't fire before initializeApp has loaded real data.
+    // Without this, the safety-net triggers when hydrated=true but monthlyHistory is still empty
+    // (auth resolves → hydrated=true briefly → safety-net queries Supabase → sets global pockets
+    // for current month → overwrites per-month pockets with stale global ones → flicker).
+    if (!dataLoadedRef.current) return
     const saveUserId = userId || guestUserId
     if (!saveUserId) return
 
@@ -1081,12 +1109,14 @@ export default function Home() {
       }
 
       const activeData = updatedHistory[activeMonth] ?? getDefaultMonthRecord()
+      // Use current month's pockets for the global Supabase pockets table. See auth-save for explanation.
+      const currentMonthDataForSaveNow = updatedHistory[currentMonth] ?? activeData
       const dataToSave: StoredData = {
         monthlyIncome: activeData.income,
         monthlySavings: activeData.savings,
         expenses: activeData.expenses,
         extraIncomes: activeData.extraIncomes,
-        pockets: activeData.pockets,
+        pockets: currentMonthDataForSaveNow.pockets,
         monthlyHistory: updatedHistory,
         conceptMap,
         learnedCategoryMap,
@@ -1454,8 +1484,22 @@ export default function Home() {
         saveNow(updated)
         return updated
       })
+      // Delete directamente en Supabase por ID para el caso en que extraIncomes
+      // quede vacío y saveUserData omita el cleanup de registros obsoletos.
+      if (userId) {
+        supabase
+          .from('extra_incomes')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId)
+          .then(({ error }) => {
+            if (error) {
+              console.warn('[Supabase] ⚠️ Extra income not deleted from Supabase:', error.message)
+            }
+          })
+      }
     },
-    [activeMonth, getActiveMonthData, saveNow]
+    [activeMonth, getActiveMonthData, saveNow, userId]
   )
 
   const handleUpdateExtraIncome = useCallback(
@@ -1480,11 +1524,16 @@ export default function Home() {
 
   const handleClearData = useCallback(() => {
     if (!userId) return
+
+    // 1. Limpiar localStorage inmediatamente
     const userStorageKey = `${STORAGE_KEY}_${userId}`
     localStorage.removeItem(userStorageKey)
     localStorage.removeItem(`${ONBOARDING_FLAG}_${userId}`)
+
+    // 2. Resetear estado React y volver a onboarding
     setConceptMap({})
     setLearnedCategoryMap({})
+    dataLoadedRef.current = false
     const thisMonth = getCurrentMonth()
     setCurrentMonth(thisMonth)
     setActiveMonth(thisMonth)
@@ -1492,6 +1541,11 @@ export default function Home() {
       [thisMonth]: getDefaultMonthRecord(),
     })
     setScreen('onboarding')
+
+    // 3. Borrar datos en Supabase en segundo plano (no bloquea la UI)
+    deleteAllUserData(userId).catch((err) => {
+      console.error('[handleClearData] Error borrando Supabase:', err)
+    })
   }, [userId])
 
   const handleChangeCountry = useCallback((code: CountryCode) => {
@@ -1516,7 +1570,12 @@ export default function Home() {
         existingRecord &&
         (existingRecord.expenses.length > 0 ||
           existingRecord.extraIncomes.length > 0 ||
-          existingRecord.income > 0)
+          existingRecord.income > 0 ||
+          // Presupuestos de bolsillos editados también son "datos reales".
+          // Sin esto, navegar a un mes con solo presupuestos editados (sin gastos ni ingresos)
+          // provoca una recarga de Supabase que puede sobrescribir los bolsillos con la
+          // versión anterior si saveNow todavía no terminó de escribir en localStorage.
+          existingRecord.pockets?.some((p) => p.budget > 0))
       if (hasRealData) {
         return
       }
@@ -1549,6 +1608,36 @@ export default function Home() {
       }
 
       if (saveUserId) {
+        // ── Resolver pockets para el mes navegado ──────────────────────────────────
+        // NEVER use the global Supabase 'pockets' table here: that table is global
+        // (no per-month column) and always reflects the LAST SAVED month's budgets.
+        // Querying it for April when May was just saved would give April the wrong budgets.
+        //
+        // Priority:
+        //   1. Per-month pockets from localStorage (exact per-month budgets).
+        //   2. Previous-month inheritance (same logic as createEmptyMonth).
+        //   3. DEFAULT_POCKETS as last resort.
+        let lsMonthPockets: Pocket[] | null = null
+        try {
+          const lsRaw = localStorage.getItem(`${STORAGE_KEY}_${saveUserId}`)
+          const lsData: StoredData | null = lsRaw ? JSON.parse(lsRaw) : null
+          const pocketsFromLs = lsData?.monthlyHistory?.[newMonth]?.pockets
+          if (Array.isArray(pocketsFromLs) && pocketsFromLs.length > 0) {
+            lsMonthPockets = pocketsFromLs as Pocket[]
+          }
+        } catch {
+          // Ignore localStorage parse errors — fall through to inheritance
+        }
+
+        // Previous-month inheritance fallback (same logic as createEmptyMonth)
+        const inheritedPockets: Pocket[] = (() => {
+          const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
+          const prevMonth = sortedMonths.find((m) => m < newMonth)
+          return prevMonth && (monthlyHistory[prevMonth]?.pockets ?? []).length > 0
+            ? (monthlyHistory[prevMonth].pockets ?? DEFAULT_POCKETS)
+            : DEFAULT_POCKETS
+        })()
+
         // Intentar cargar el mes desde Supabase ANTES de crear uno vacío.
         // Mientras se carga, el mes NO está en monthlyHistory → el auto-save no lo toca.
         Promise.all([
@@ -1559,20 +1648,20 @@ export default function Home() {
             .eq('month', newMonth)
             .single(),
           supabase.from('expenses').select('*').eq('user_id', saveUserId).eq('month', newMonth),
-          supabase.from('pockets').select('*').eq('user_id', saveUserId),
         ])
-          .then(([{ data: mr, error: mrErr }, { data: exps }, { data: pocketsData }]) => {
+          .then(([{ data: mr, error: mrErr }, { data: exps }]) => {
             if (mr && !mrErr) {
-              // Mes encontrado en Supabase → cargarlo con sus gastos reales
-              const resolvedPockets =
-                (pocketsData || []).length > 0
-                  ? (pocketsData || []).map((p) => ({
-                      id: p.pocket_id,
-                      name: p.name,
-                      budget: p.budget,
-                      icon: p.icon,
-                    }))
-                  : DEFAULT_POCKETS
+              // Mes encontrado en Supabase → cargarlo con gastos reales.
+              // Pockets: pockets_data de Supabase (per-month) → localStorage → herencia → fallback.
+              let dbPockets: Pocket[] | null = null
+              if (mr.pockets_data) {
+                try {
+                  dbPockets = JSON.parse(mr.pockets_data)
+                } catch {
+                  // fall through
+                }
+              }
+              const resolvedPockets: Pocket[] = dbPockets ?? lsMonthPockets ?? inheritedPockets
 
               const monthRecord: MonthRecord = {
                 income: mr.income,
@@ -1776,13 +1865,28 @@ export default function Home() {
         }
       }
 
-      // Add current month
+      // Bolsillos de arranque: 3 bolsillos con regla 50/30/20 aplicada al
+      // PRESUPUESTO del usuario (no al ingreso). El usuario definió cuánto
+      // planea gastar — ese es el total a distribuir entre bolsillos.
+      // Fallback: si no hay presupuesto, se usa el ingreso; si tampoco hay
+      // ingreso, 3 bolsillos en $0.
+      const budgetBase = budget > 0 ? budget : incomeValue
+      const starterPockets = generateStarterPockets(budgetBase)
+      const initialPockets =
+        starterPockets.length > 0
+          ? starterPockets
+          : [
+              { id: 'hogar', name: 'Hogar', icon: '🏠', budget: 0 },
+              { id: 'recreacion', name: 'Recreación', icon: '🎮', budget: 0 },
+              { id: 'reserva', name: 'Reserva', icon: '🪙', budget: 0 },
+            ]
+
       history[thisMonth] = {
         income: incomeValue,
         savings,
         expenses: [],
         extraIncomes: [],
-        pockets: DEFAULT_POCKETS,
+        pockets: initialPockets,
         manualBudget: undefined,
       }
 
@@ -1793,7 +1897,7 @@ export default function Home() {
       // Build and save complete user data to Supabase
       const initialData: StoredData = {
         monthlyHistory: history,
-        pockets: DEFAULT_POCKETS,
+        pockets: initialPockets,
         monthlyIncome: incomeValue,
         monthlySavings: savings,
         expenses: [],

@@ -1203,35 +1203,57 @@ export function ProfileScreen({
                     <div
                       style={{
                         marginTop: '16px',
-                        paddingTop: '16px',
-                        borderTop: '1px solid #f3f4f6',
                         background: '#fee2e2',
-                        padding: '12px',
-                        borderRadius: '8px',
+                        padding: '14px',
+                        borderRadius: '10px',
+                        border: '1px solid #fca5a5',
                       }}
                     >
                       <p
                         style={{
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          color: '#dc2626',
-                          marginBottom: '8px',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#b91c1c',
+                          marginBottom: '6px',
                         }}
                       >
-                        ¿Estás seguro? Esta acción no se puede deshacer.
+                        ⚠️ Borrado permanente e irreversible
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#dc2626',
+                          marginBottom: '4px',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Se eliminarán <strong>todos</strong> tus gastos, ingresos, presupuestos e
+                        historial — tanto del dispositivo como de la nube.
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#dc2626',
+                          marginBottom: '12px',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Tu cuenta permanece activa, pero{' '}
+                        <strong>no hay forma de recuperar los datos</strong>.
                       </p>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => setConfirmClear(false)}
                           style={{
                             flex: 1,
-                            padding: '8px 12px',
+                            padding: '10px 12px',
                             borderRadius: '8px',
                             border: '1px solid #fecaca',
                             background: 'white',
                             fontSize: '13px',
                             fontWeight: 600,
                             cursor: 'pointer',
+                            color: '#374151',
                           }}
                         >
                           Cancelar
@@ -1243,17 +1265,17 @@ export function ProfileScreen({
                           }}
                           style={{
                             flex: 1,
-                            padding: '8px 12px',
+                            padding: '10px 12px',
                             borderRadius: '8px',
                             border: 'none',
-                            background: '#ef4444',
+                            background: '#dc2626',
                             color: 'white',
                             fontSize: '13px',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             cursor: 'pointer',
                           }}
                         >
-                          Borrar
+                          Sí, borrar todo
                         </button>
                       </div>
                     </div>

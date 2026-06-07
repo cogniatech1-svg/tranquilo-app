@@ -57,7 +57,15 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
       monthly_savings: data.monthlySavings,
       country_code: data.countryCode,
       is_privacy_mode: data.isPrivacyMode,
-      profile_data: data.profile ?? null,
+    }
+    // Only include profile_data when explicitly provided — prevents any of the financial
+    // auto-save paths (AUTO-SAVE, VISIBILITY, SAVE-NOW, AUTH-SAVE) from overwriting an
+    // existing Supabase profile with null when profileData state hasn't been loaded yet
+    // from Supabase (race condition during async initializeApp).
+    // The only intentional profile write goes through saveProfileData(), which uses a
+    // direct UPDATE and is not affected by this guard.
+    if (data.profile !== undefined) {
+      userRecord.profile_data = data.profile
     }
     if (userEmail) userRecord.email = userEmail
 
@@ -115,8 +123,6 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
             `[Supabase] Saving manual budget for ${monthKey}: ${monthRecord.manualBudget}`
           )
         }
-        // NOTE: Pockets are persisted in localStorage and monthly_records doesn't have a pockets_data column.
-        // Supabase schema only supports: income, savings, manual_budget, updated_at, user_id, month
         const monthRecordData: Record<string, unknown> = {
           user_id: userId,
           month: monthKey,
@@ -124,6 +130,10 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           savings: monthRecord.savings,
           manual_budget: monthRecord.manualBudget ?? null,
           updated_at: new Date().toISOString(),
+          pockets_data:
+            monthRecord.pockets && monthRecord.pockets.length > 0
+              ? JSON.stringify(monthRecord.pockets)
+              : null,
         }
 
         const { error: monthError } = await supabase
@@ -774,4 +784,32 @@ export async function validateDataPersistence(userId: string): Promise<boolean> 
     console.error('[Supabase] ❌ Validación error (exception):', e)
     return false
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE ALL USER DATA
+// Borra todos los datos financieros del usuario en Supabase.
+// NO borra la cuenta ni el perfil (tabla users) — el usuario sigue autenticado.
+// Se usa desde "Eliminar datos" en Perfil.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function deleteAllUserData(userId: string): Promise<void> {
+  console.log('[Supabase] 🗑️ Iniciando borrado completo para userId:', userId)
+  const tables = [
+    'expenses',
+    'extra_incomes',
+    'monthly_records',
+    'pockets',
+    'concept_map',
+    'learned_category_map',
+  ] as const
+
+  for (const table of tables) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId)
+    if (error) {
+      console.warn(`[Supabase] ⚠️ Error borrando ${table}:`, error.message)
+    } else {
+      console.log(`[Supabase] ✅ ${table} borrado`)
+    }
+  }
+  console.log('[Supabase] 🗑️ Borrado completo finalizado')
 }
