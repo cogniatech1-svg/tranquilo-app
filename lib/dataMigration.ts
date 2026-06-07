@@ -308,5 +308,10 @@ export function repairStoredData(data: any): StoredData {
     isPrivacyMode: data.isPrivacyMode ?? false,
     monthlyIncome: typeof data.monthlyIncome === 'number' ? data.monthlyIncome : undefined,
     monthlySavings: typeof data.monthlySavings === 'number' ? data.monthlySavings : undefined,
+    // Preserve profile data as-is — repairStoredData fixes financial structure only;
+    // profile fields (nombre, telefono, avatarUrl, etc.) do not need repair logic.
+    // Omitting this caused profile to be silently discarded whenever Zod validation
+    // triggered the repair path (e.g. due to a stale date format in expenses).
+    profile: data.profile ?? undefined,
   }
 }
