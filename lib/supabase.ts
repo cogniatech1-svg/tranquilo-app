@@ -9,7 +9,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase credentials in .env.local')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// flowType: 'implicit' — el token de recuperación va en el hash de la URL
+// (#access_token=...) en lugar de requerir un código PKCE verificado en
+// localStorage. Esto es esencial para el flujo de recuperación de contraseña
+// cuando el enlace del email se abre en un navegador diferente al de la PWA
+// (iOS y Android aíslan el localStorage de la PWA del navegador nativo).
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: 'implicit',
+  },
+})
 
 /**
  * Save user financial data to Supabase (normalized schema)

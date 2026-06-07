@@ -69,10 +69,12 @@ export default function ResetPasswordPage() {
     let resolved = false
 
     // Detectar si la página fue abierta desde un enlace de recuperación.
-    // El ?code= todavía está en la URL al montar (Supabase lo elimina
-    // con history.replaceState solo DESPUÉS del intercambio asíncrono).
+    // Flujo implícito: el token llega en el hash → #access_token=...&type=recovery
+    // Flujo PKCE (legado): el código llega en el query → ?code=...
     const hasResetCode =
-      typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('code')
+      typeof window !== 'undefined' &&
+      (new URLSearchParams(window.location.search).has('code') ||
+        window.location.hash.includes('access_token'))
 
     // A) Listener de eventos auth
     const {
