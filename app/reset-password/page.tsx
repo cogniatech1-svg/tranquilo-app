@@ -61,11 +61,20 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    // Supabase JS v2 procesa el ?code= (PKCE) al inicializar el cliente y
-    // dispara PASSWORD_RECOVERY en onAuthStateChange cuando el intercambio
-    // de código tiene éxito. Usamos este evento como fuente de verdad.
+    // Supabase JS v2 PKCE: el cliente puede intercambiar el ?code= ANTES de que
+    // este listener se registre (race condition en conexiones rápidas).
+    // Estrategia dual:
+    //   A) onAuthStateChange — captura PASSWORD_RECOVERY si llega a tiempo
+    //   B) getSession() — detecta si el intercambio ya ocurrió antes del montaje
     let resolved = false
 
+    // Detectar si la página fue abierta desde un enlace de recuperación.
+    // El ?code= todavía está en la URL al montar (Supabase lo elimina
+    // con history.replaceState solo DESPUÉS del intercambio asíncrono).
+    const hasResetCode =
+      typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('code')
+
+    // A) Listener de eventos auth
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
@@ -76,9 +85,20 @@ export default function ResetPasswordPage() {
       }
     })
 
-    // Si PASSWORD_RECOVERY no llega en RECOVERY_TIMEOUT_MS el enlace es
-    // inválido, expirado o fue procesado en otro browser/sesión.
-    // Mostramos error explícito en lugar de redirigir silenciosamente.
+    // B) Si hay ?code= en la URL, verificar si la sesión ya fue establecida.
+    //    Cubre el caso donde el intercambio terminó antes de que el listener
+    //    fuera registrado.
+    if (hasResetCode) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session && !resolved) {
+          resolved = true
+          setReady(true)
+        }
+      })
+    }
+
+    // Si ninguna de las dos vías resuelve en RECOVERY_TIMEOUT_MS, el enlace es
+    // inválido, expirado o fue usado en otro dispositivo/sesión.
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true
