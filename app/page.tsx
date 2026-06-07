@@ -263,6 +263,20 @@ export default function Home() {
 
       setAuthLoading(false)
 
+      // PASSWORD_RECOVERY en root page: ocurre cuando Supabase redirige al Site URL
+      // en lugar de al redirect URL configurado (/reset-password).
+      // En lugar de dejar que SIGNED_IN lo mande al dashboard, redirigimos
+      // a la ruta correcta para que el usuario pueda establecer su contraseña.
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log(
+          '[AUTH] 🔑 PASSWORD_RECOVERY recibido en root page → redirigiendo a /reset-password'
+        )
+        if (typeof window !== 'undefined') {
+          window.location.replace('/reset-password')
+        }
+        return
+      }
+
       // Single source of truth for auth-driven navigation.
       setScreen((prev) => {
         console.log(`[AUTH] 🔷 Screen transition logic: event=${event}, current screen=${prev}`)
