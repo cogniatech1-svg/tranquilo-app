@@ -1564,6 +1564,52 @@ export default function Home() {
     })
   }, [userId])
 
+  // ── Eliminar cuenta ───────────────────────────────────────────────────────
+  // Llama al API Route que borra todos los datos del usuario en Supabase y su
+  // cuenta de auth. userId se deriva exclusivamente del JWT validado en el servidor.
+  // Tras el éxito: limpia localStorage, llama a logOut() → SIGNED_OUT → 'login'.
+  const handleDeleteAccount = useCallback(async () => {
+    if (!userId) return
+
+    // 1. Obtener access_token de la sesión activa
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      throw new Error('Sesión expirada. Vuelve a iniciar sesión e intenta de nuevo.')
+    }
+
+    // 2. Llamar al API Route — borrado completo en Supabase
+    const response = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const result: { success: boolean; failedStep?: string } = await response.json()
+    if (!result.success) {
+      throw new Error(
+        `Error al eliminar la cuenta (${result.failedStep ?? 'unknown'}). Intenta de nuevo.`
+      )
+    }
+
+    // 3. Limpiar localStorage — claves user-scoped
+    localStorage.removeItem(`${STORAGE_KEY}_${userId}`)
+    localStorage.removeItem(`${ONBOARDING_FLAG}_${userId}`)
+    localStorage.removeItem(`${APRIL_RESTORED_FLAG}_${userId}`)
+
+    // 4. Limpiar localStorage — claves globales
+    localStorage.removeItem('tranquilo_profile')
+    localStorage.removeItem('explicitly_signed_out')
+    localStorage.removeItem('signing_in_with_google')
+
+    // 5. Cerrar sesión → SIGNED_OUT dispara el listener → navega a 'login'
+    //    logOut() también genera un nuevo guest_id y activa el guard de Android
+    await logOut()
+  }, [userId])
+
   const handleChangeCountry = useCallback((code: CountryCode) => {
     setCountryCode(code)
   }, [])
@@ -2336,6 +2382,7 @@ export default function Home() {
             userId={userId || guestUserId}
             isAuthenticated={!!userId}
             onRequestLogin={() => setScreen('login')}
+            onDeleteAccount={handleDeleteAccount}
           />
         )}
       </div>

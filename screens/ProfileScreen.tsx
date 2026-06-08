@@ -28,6 +28,8 @@ interface Props {
   userId?: string | null
   isAuthenticated?: boolean
   onRequestLogin?: () => void
+  /** Elimina permanentemente la cuenta y todos sus datos. Lanza excepción si falla. */
+  onDeleteAccount?: () => Promise<void>
 }
 
 export function ProfileScreen({
@@ -42,6 +44,7 @@ export function ProfileScreen({
   userId,
   isAuthenticated = true,
   onRequestLogin,
+  onDeleteAccount,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -87,6 +90,12 @@ export function ProfileScreen({
 
   // Data management
   const [confirmClear, setConfirmClear] = useState(false)
+
+  // Delete account modal state
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false)
+  const [deleteAccountChecked, setDeleteAccountChecked] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteAccountError, setDeleteAccountError] = useState('')
   const [importMessage, setImportMessage] = useState('')
   const [csvPreview, setCsvPreview] = useState<{ expenses: number; incomes: number } | null>(null)
   const [pendingCsvData, setPendingCsvData] = useState<PendingCsvData | null>(null)
@@ -627,11 +636,20 @@ export function ProfileScreen({
           type: 'button',
           handler: openTermsAndConditions,
         },
-        {
-          label: 'Eliminar cuenta',
-          value: 'Disponible próximamente',
-          type: 'info-danger',
-        },
+        ...(isAuthenticated && onDeleteAccount
+          ? [
+              {
+                label: 'Eliminar cuenta',
+                value: 'Eliminar mi cuenta',
+                type: 'button-danger' as const,
+                handler: () => {
+                  setConfirmDeleteAccount(true)
+                  setDeleteAccountChecked(false)
+                  setDeleteAccountError('')
+                },
+              },
+            ]
+          : []),
       ],
     },
   }
@@ -1272,6 +1290,163 @@ export function ProfileScreen({
                           }}
                         >
                           Sí, borrar todo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Modal: confirmación de eliminación de cuenta */}
+                  {section.key === 'privacidad' && confirmDeleteAccount && (
+                    <div
+                      style={{
+                        marginTop: '16px',
+                        background: '#fee2e2',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        border: '1px solid #fca5a5',
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          color: '#b91c1c',
+                          margin: '0 0 8px 0',
+                        }}
+                      >
+                        🗑️ Eliminar cuenta permanentemente
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#dc2626',
+                          margin: '0 0 4px 0',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Se eliminará de forma irreversible:
+                      </p>
+                      <ul
+                        style={{
+                          fontSize: '12px',
+                          color: '#dc2626',
+                          margin: '0 0 12px 0',
+                          paddingLeft: '18px',
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        <li>Todos tus gastos, ingresos y presupuestos</li>
+                        <li>Tu historial financiero completo</li>
+                        <li>Tu perfil y configuración</li>
+                        <li>Tu cuenta de acceso (no podrás iniciar sesión)</li>
+                      </ul>
+
+                      {/* Checkbox de confirmación explícita */}
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                          marginBottom: '14px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={deleteAccountChecked}
+                          onChange={(e) => setDeleteAccountChecked(e.target.checked)}
+                          disabled={deletingAccount}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            marginTop: '2px',
+                            flexShrink: 0,
+                            accentColor: '#dc2626',
+                            cursor: 'pointer',
+                          }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#b91c1c', lineHeight: 1.5 }}>
+                          Entiendo que esta acción es <strong>irreversible</strong> y no se puede
+                          deshacer
+                        </span>
+                      </label>
+
+                      {/* Mensaje de error */}
+                      {deleteAccountError ? (
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            color: '#b91c1c',
+                            background: '#fecaca',
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            margin: '0 0 12px 0',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {deleteAccountError}
+                        </p>
+                      ) : null}
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setConfirmDeleteAccount(false)
+                            setDeleteAccountChecked(false)
+                            setDeleteAccountError('')
+                          }}
+                          disabled={deletingAccount}
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #fecaca',
+                            background: 'white',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                            color: '#374151',
+                            opacity: deletingAccount ? 0.5 : 1,
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          disabled={!deleteAccountChecked || deletingAccount}
+                          onClick={async () => {
+                            if (!deleteAccountChecked || deletingAccount) return
+                            setDeletingAccount(true)
+                            setDeleteAccountError('')
+                            try {
+                              await onDeleteAccount?.()
+                              // Si llega aquí (raro, page.tsx redirige), cerrar modal
+                              setConfirmDeleteAccount(false)
+                            } catch (err) {
+                              setDeleteAccountError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Error inesperado. Intenta de nuevo.'
+                              )
+                            } finally {
+                              setDeletingAccount(false)
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background:
+                              !deleteAccountChecked || deletingAccount ? '#fca5a5' : '#dc2626',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor:
+                              !deleteAccountChecked || deletingAccount ? 'not-allowed' : 'pointer',
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          {deletingAccount ? 'Eliminando...' : 'Sí, eliminar mi cuenta'}
                         </button>
                       </div>
                     </div>
