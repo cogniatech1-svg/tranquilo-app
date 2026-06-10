@@ -1296,24 +1296,61 @@ export default function Home() {
     (payload: ExpensePayload) => {
       const { id, ...rest } = payload
 
-      setMonthlyHistory((prev) => {
-        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
-        const newExpenses = id
-          ? monthData.expenses.map((e) => (e.id === id ? { ...e, ...rest } : e))
-          : [...monthData.expenses, { id: createEntityId(), ...rest }]
+      // Derivar el mes destino desde la fecha del gasto (no desde activeMonth).
+      // Esto garantiza que un gasto con fecha en junio se guarde en junio,
+      // aunque el usuario esté viendo mayo.
+      const d = new Date(rest.date)
+      const targetMonth = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 
-        const updated = {
-          ...prev,
-          [activeMonth]: {
-            ...monthData,
-            expenses: newExpenses,
-          },
+      setMonthlyHistory((prev) => {
+        let updated: typeof prev
+
+        if (id) {
+          // EDICIÓN: si la fecha cambió de mes, mover el gasto al mes correcto
+          if (targetMonth !== activeMonth) {
+            const sourceData = prev[activeMonth] ?? getDefaultMonthRecord()
+            const targetData = prev[targetMonth] ?? getDefaultMonthRecord()
+            updated = {
+              ...prev,
+              [activeMonth]: {
+                ...sourceData,
+                expenses: sourceData.expenses.filter((e) => e.id !== id),
+              },
+              [targetMonth]: {
+                ...targetData,
+                expenses: [...targetData.expenses, { id, ...rest }],
+              },
+            }
+          } else {
+            // Mismo mes: actualizar en el lugar
+            const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
+            updated = {
+              ...prev,
+              [targetMonth]: {
+                ...monthData,
+                expenses: monthData.expenses.map((e) => (e.id === id ? { ...e, ...rest } : e)),
+              },
+            }
+          }
+        } else {
+          // NUEVO gasto: guardar en el mes que corresponde a la fecha del gasto
+          const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
+          updated = {
+            ...prev,
+            [targetMonth]: {
+              ...monthData,
+              expenses: [...monthData.expenses, { id: createEntityId(), ...rest }],
+            },
+          }
         }
-        console.log('[EXPENSE] 🔷 Nuevo gasto guardado:', {
+
+        console.log('[EXPENSE] 🔷 Gasto guardado:', {
           userId: userId || guestUserId,
           concept: rest.concept,
           amount: rest.amount,
-          month: activeMonth,
+          targetMonth,
+          activeMonth,
+          movedMonth: targetMonth !== activeMonth,
         })
         saveNow(updated)
         return updated
