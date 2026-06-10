@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // CAPACITOR POC: output estático requerido para bundle nativo
+  // ADVERTENCIA: bloqueado por app/api/delete-account/route.ts
+  // Ver resultado de `next build` para evidencia del error real
+  output: 'export',
+
   async headers() {
     return [
       {
