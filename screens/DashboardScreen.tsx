@@ -8,7 +8,6 @@ import { maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
-import { capitalizeWords } from '../lib/migrations'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -32,6 +31,8 @@ interface Props {
   userId?: string | null // Para sincronización Supabase Realtime
   isAuthenticated?: boolean // True si usuario autenticado, false si guest
   onRequestLogin?: () => void // Para navegar a login desde guest mode
+  /** Exporta todos los datos como CSV desde el estado en memoria (no localStorage) */
+  onExportCSV?: () => void
 }
 
 export function DashboardScreen({
@@ -49,6 +50,7 @@ export function DashboardScreen({
   userId,
   isAuthenticated,
   onRequestLogin,
+  onExportCSV,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -73,83 +75,9 @@ export function DashboardScreen({
   }, [])
 
   const handleExportCSV = () => {
-    console.log('[EXPORT HIT] handleExportCSV en DashboardScreen.tsx')
-    alert('EXPORT EJECUTADO')
-    // 1. DETECTAR KEY CORRECTA (user-scoped o guest)
-    let raw = null
-    const allKeys = Object.keys(localStorage)
-    const userKeys = allKeys.filter((k) => k.startsWith('tranquilo_v1_'))
-
-    if (userKeys.length > 0) {
-      raw = localStorage.getItem(userKeys[0])
-    } else {
-      raw = localStorage.getItem('tranquilo_v1')
-    }
-
-    const data = raw ? JSON.parse(raw) : { monthlyHistory: {} }
-
-    // 2. EXTRAER NOMBRES DE POCKETS DESDE monthlyHistory
-    const pocketNames: Record<string, string> = {}
-    for (const record of Object.values(data.monthlyHistory ?? {})) {
-      const rec = record as Record<string, unknown>
-      for (const p of (rec.pockets ?? []) as Array<{ id: string; name: string }>) {
-        pocketNames[p.id] = capitalizeWords(p.name)
-      }
-    }
-
-    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'pocketId', 'Monto', 'Descripción']]
-
-    // 3. EXTRAER DE monthlyHistory (nueva estructura)
-    for (const [, record] of Object.entries(data.monthlyHistory ?? {})) {
-      const rec = record as Record<string, unknown>
-      for (const e of (rec.expenses ?? []) as Array<{
-        date: string
-        pocketId: string
-        amount: number
-        concept?: string
-      }>) {
-        rows.push([
-          e.date.slice(0, 10),
-          'gasto',
-          pocketNames[e.pocketId] ?? e.pocketId ?? '',
-          e.pocketId ?? '',
-          String(e.amount),
-          e.concept ?? '',
-        ])
-      }
-      for (const i of (rec.extraIncomes ?? []) as Array<{
-        date: string
-        amount: number
-        concept?: string
-      }>) {
-        rows.push([
-          i.date.slice(0, 10),
-          'ingreso',
-          'Ingresos',
-          'ingresos',
-          String(i.amount),
-          i.concept ?? '',
-        ])
-      }
-    }
-
-    // 4. ORDENAR POR FECHA DESCENDENTE
-    const [header, ...body] = rows
-    body.sort((a, b) => b[0].localeCompare(a[0]))
-
-    // 5. GENERAR CSV CON BOM UTF-8 Y FORMATO EXCEL
-    const BOM = '\uFEFF'
-    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    console.log('[CSV DEBUG DashboardScreen]', rows.slice(0, 5))
-    const csvContent = BOM + [header, ...body].map((r) => r.map(escape).join(',')).join('\r\n')
-
-    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    // Delega al handler del padre (page.tsx) que lee desde el estado en memoria,
+    // no desde localStorage, garantizando datos siempre actualizados.
+    onExportCSV?.()
     setMenuOpen(false)
   }
   const isViewingPast = activeMonth !== realCurrentMonth

@@ -1575,6 +1575,61 @@ export default function Home() {
     [activeMonth, getActiveMonthData, saveNow]
   )
 
+  // ── Exportar CSV desde estado en memoria (fuente de verdad) ─────────────────
+  // Lee monthlyHistory directamente del estado React, NO de localStorage,
+  // para garantizar que los datos exportados estén siempre actualizados.
+  const handleExportCSV = useCallback(() => {
+    // Construir mapa pocketId → nombre desde todos los meses
+    const pocketNames: Record<string, string> = {}
+    for (const record of Object.values(monthlyHistory)) {
+      for (const p of record.pockets ?? []) {
+        pocketNames[p.id] = capitalizeWords(p.name)
+      }
+    }
+
+    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'pocketId', 'Monto', 'Descripción']]
+
+    for (const record of Object.values(monthlyHistory)) {
+      for (const e of record.expenses ?? []) {
+        rows.push([
+          e.date.slice(0, 10),
+          'gasto',
+          pocketNames[e.pocketId] ?? e.pocketId ?? '',
+          e.pocketId ?? '',
+          String(e.amount),
+          e.concept ?? '',
+        ])
+      }
+      for (const i of record.extraIncomes ?? []) {
+        rows.push([
+          i.date.slice(0, 10),
+          'ingreso',
+          'Ingresos',
+          'ingresos',
+          String(i.amount),
+          i.concept ?? '',
+        ])
+      }
+    }
+
+    const [header, ...body] = rows
+    body.sort((a, b) => b[0].localeCompare(a[0]))
+
+    const BOM = '﻿'
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const csvContent = BOM + [header, ...body].map((r) => r.map(escape).join(',')).join('\r\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [monthlyHistory])
+
   const handleClearData = useCallback(() => {
     if (!userId) return
 
@@ -2354,6 +2409,7 @@ export default function Home() {
             userId={userId || guestUserId}
             isAuthenticated={!!userId}
             onRequestLogin={() => setScreen('login')}
+            onExportCSV={handleExportCSV}
           />
         )}
         {activeTab === 'movimientos' && (
@@ -2420,6 +2476,7 @@ export default function Home() {
             isAuthenticated={!!userId}
             onRequestLogin={() => setScreen('login')}
             onDeleteAccount={handleDeleteAccount}
+            onExportCSV={handleExportCSV}
           />
         )}
       </div>

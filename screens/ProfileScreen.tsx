@@ -30,6 +30,8 @@ interface Props {
   onRequestLogin?: () => void
   /** Elimina permanentemente la cuenta y todos sus datos. Lanza excepción si falla. */
   onDeleteAccount?: () => Promise<void>
+  /** Exporta todos los datos como CSV desde el estado en memoria (no localStorage) */
+  onExportCSV?: () => void
 }
 
 export function ProfileScreen({
@@ -45,6 +47,7 @@ export function ProfileScreen({
   isAuthenticated = true,
   onRequestLogin,
   onDeleteAccount,
+  onExportCSV,
 }: Props) {
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -239,78 +242,9 @@ export function ProfileScreen({
   }
 
   const handleExportCSV = () => {
-    alert('EXPORT EJECUTADO (ProfileScreen)')
-    // Buscar la key correcta: primero intentar user-scoped, luego guest
-    let raw = null
-    const allKeys = Object.keys(localStorage)
-    const userKeys = allKeys.filter((k) => k.startsWith('tranquilo_v1_'))
-
-    if (userKeys.length > 0) {
-      // Si estás logueado, usar la key del usuario
-      raw = localStorage.getItem(userKeys[0])
-    } else {
-      // Si no estás logueado, usar la key guest
-      raw = localStorage.getItem('tranquilo_v1')
-    }
-
-    const data = raw ? JSON.parse(raw) : {}
-
-    const pocketNames: Record<string, string> = {}
-    for (const record of Object.values(data.monthlyHistory ?? {}) as MonthRecord[]) {
-      for (const p of record.pockets ?? []) {
-        pocketNames[p.id] = capitalizeWords(p.name)
-      }
-    }
-
-    const rows: string[][] = [['Fecha', 'Tipo', 'Categoría', 'pocketId', 'Monto', 'Descripción']]
-
-    // Extraer TODOS los gastos desde monthlyHistory
-    const allExpenses = Object.values(data.monthlyHistory || {})
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .flatMap((month: any) => month.expenses || [])
-
-    // Gastos de todos los meses
-    for (const e of allExpenses) {
-      rows.push([
-        e.date.slice(0, 10),
-        'gasto',
-        pocketNames[e.pocketId] ?? e.pocketId ?? '',
-        e.pocketId ?? '',
-        String(e.amount),
-        e.concept ?? '',
-      ])
-    }
-
-    // Ingresos extras de todos los meses
-    const allExtraIncomes = Object.values(data.monthlyHistory || {})
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .flatMap((month: any) => month.extraIncomes || [])
-
-    for (const i of allExtraIncomes) {
-      rows.push([
-        i.date.slice(0, 10),
-        'ingreso',
-        'Ingresos',
-        'ingresos',
-        String(i.amount),
-        i.concept ?? '',
-      ])
-    }
-
-    // Ordenar por fecha descendente
-    const [header, ...body] = rows
-    body.sort((a, b) => b[0].localeCompare(a[0]))
-
-    const BOM = '\uFEFF'
-    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    const csvContent = BOM + [header, ...body].map((r) => r.map(escape).join(',')).join('\r\n')
-    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tranquilo-datos-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    // Delega al handler del padre (page.tsx) que lee desde el estado en memoria,
+    // no desde localStorage, garantizando datos siempre actualizados.
+    onExportCSV?.()
   }
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
