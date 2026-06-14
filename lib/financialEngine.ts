@@ -46,6 +46,9 @@ export interface FinancialSnapshot {
   day: number
   daysInMonth: number
   savingsRate: number
+  // ── Ahorro disponible: totalIncome - totalExpenses (sin clamping) ──────────
+  availableSavings: number // puede ser negativo (déficit)
+  availableSavingsRate: number // % respecto a totalIncome; puede ser negativo
   // ── Phase 1: carry-over (display-only, no impact on existing metrics) ──────
   carryOver: number // accumulated balance from prior months (can be negative)
   totalAvailable: number // totalIncome + carryOver (real disposable cash this month)
@@ -177,9 +180,18 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
   const dailyAvailable = Math.max(0, remaining / daysLeft)
 
   // ────────────────────────────────────────────────────────────────
-  // 10. SAVINGS RATE: porcentaje de ingresos que se ahorra
+  // 10. SAVINGS RATE: porcentaje de ingresos que se ahorra (budget-based)
   // ────────────────────────────────────────────────────────────────
   const savingsRate = totalIncome > 0 ? Math.round((savings / totalIncome) * 100) : 0
+
+  // ────────────────────────────────────────────────────────────────
+  // 10b. AVAILABLE SAVINGS: lo que realmente queda libre (sin clamping)
+  //      = totalIncome - totalExpenses
+  //      Puede ser negativo (déficit). Sin relación con el presupuesto.
+  // ────────────────────────────────────────────────────────────────
+  const availableSavings = totalIncome - totalExpenses
+  const availableSavingsRate =
+    totalIncome > 0 ? Math.round((availableSavings / totalIncome) * 100) : 0
 
   // ────────────────────────────────────────────────────────────────
   // 11. STATUS: determinar estado según gasto vs presupuesto
@@ -217,6 +229,8 @@ export function calculateFinancialSnapshot(input: FinancialEngineInput): Financi
     day,
     daysInMonth,
     savingsRate,
+    availableSavings,
+    availableSavingsRate,
     carryOver,
     totalAvailable,
   }

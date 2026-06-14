@@ -117,38 +117,30 @@ function generateInsights(
     ? (lastMonth.expenses?.reduce((s, e) => s + e.amount, 0) ?? 0)
     : 0
 
-  // ── 0. Savings rate (priority when income is set) ─────────────────────────
+  // ── 0. Ahorro disponible (priority when income is set) ────────────────────
   if (monthlyIncome > 0 && daysPassed >= 3) {
-    const projSavings = monthlyIncome - projected
-    const plannedSavings = monthlyBudget > 0 ? monthlyIncome - monthlyBudget : null
-    // Primary savings number: budget-based (planned) when budget is set; otherwise projection
-    const primarySavings = plannedSavings !== null ? plannedSavings : projSavings
-    const primaryRate = Math.round((primarySavings / monthlyIncome) * 100)
-    const projRate = Math.round((projSavings / monthlyIncome) * 100)
+    const availableSavings = monthlyIncome - totalSpent
+    const availableRate = Math.round((availableSavings / monthlyIncome) * 100)
     const lastIncome = lastMonth?.income ?? 0
     const lastSavings = lastIncome > 0 ? lastIncome - lastMonthTotal : null
 
-    if (primarySavings >= 0) {
+    if (availableSavings >= 0) {
       const vsLast =
         lastSavings != null && lastSavings > 0
-          ? ` Ahorro real el mes pasado: ${fm(lastSavings)}.`
+          ? ` El mes pasado te quedaron libres ${fm(lastSavings)}.`
           : ''
+      const daysLeft = daysInMonth - daysPassed
       const actionText =
-        plannedSavings !== null
-          ? projRate !== primaryRate
-            ? `A tu ritmo actual proyectas ahorrar ${fm(projSavings)} (${projRate}%). ${projRate >= primaryRate ? 'Vas por encima del plan.' : 'Reduce gastos para alcanzar el plan.'}`
-            : `Mantén el gasto dentro del presupuesto para asegurar este ahorro.`
-          : primaryRate < 10
-            ? `Reducir ${fm(Math.max(0, projected * 0.1 - primarySavings))} más llevaría tu ahorro al 10%.`
-            : `Mantén el gasto por debajo de ${fm(dailyAvg)}/día para cerrar con este ahorro.`
+        availableRate < 10
+          ? `Reducir ${fm(Math.max(0, totalSpent * 0.1))} más llevaría tu ahorro al 10%.`
+          : daysLeft > 0
+            ? `Buen ritmo — quedan ${daysLeft} días para seguir sumando.`
+            : `Cerraste el mes con ${availableRate}% de tus ingresos ahorrados.`
       const insight: Insight = {
-        kind: primaryRate >= 10 ? 'positive' : 'info',
+        kind: availableRate >= 10 ? 'positive' : 'info',
         icon: '🏦',
-        title: `${plannedSavings !== null ? 'Ahorro planificado' : 'Ahorro proyectado'}: ${fm(primarySavings)} (${primaryRate}%)`,
-        body:
-          plannedSavings !== null
-            ? `Si gastas el presupuesto completo (${fm(monthlyBudget)}), ahorras ${fm(primarySavings)} de ${fm(monthlyIncome)}.${vsLast}`
-            : `Al ritmo de ${fm(dailyAvg)}/día gastarás ${fm(projected)} de ${fm(monthlyIncome)}.${vsLast}`,
+        title: `Ahorro disponible: ${fm(availableSavings)} (${availableRate}%)`,
+        body: `Gastaste ${fm(totalSpent)} de ${fm(monthlyIncome)} en ingresos totales.${vsLast}`,
         action: actionText,
       }
       if (insight.kind === 'positive') positives.push(insight)
@@ -157,14 +149,8 @@ function generateInsights(
       warnings.push({
         kind: 'warning',
         icon: '⚠️',
-        title:
-          plannedSavings !== null
-            ? `El presupuesto supera tus ingresos en ${fm(-primarySavings)}`
-            : `Proyección: gastarás ${fm(-primarySavings)} más de lo que recibes`,
-        body:
-          plannedSavings !== null
-            ? `Tu presupuesto (${fm(monthlyBudget)}) supera tus ingresos (${fm(monthlyIncome)}). Reduce el presupuesto para ahorrar.`
-            : `Al ritmo de ${fm(dailyAvg)}/día, el gasto proyectado (${fm(projected)}) supera tus ingresos (${fm(monthlyIncome)}).`,
+        title: `Déficit: gastaste ${fm(-availableSavings)} más que tus ingresos`,
+        body: `Tus gastos (${fm(totalSpent)}) superaron tus ingresos totales (${fm(monthlyIncome)}).`,
         action: `Reduce a ${fm(monthlyIncome / daysInMonth)}/día para no superar tus ingresos.`,
       })
     }

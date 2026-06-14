@@ -64,6 +64,8 @@ export function BudgetScreen({
     totalExpenses: totalSpent,
     budget: monthlyBudget,
     savings: monthlySavings,
+    availableSavings,
+    availableSavingsRate,
     carryOver,
     totalAvailable,
   } = snapshot
@@ -132,10 +134,6 @@ export function BudgetScreen({
       }
     }
   }
-
-  const ahorroPlanificado = totalIncome - monthlyBudget
-  const ahorroPlanificadoRate =
-    totalIncome > 0 ? Math.round((ahorroPlanificado / totalIncome) * 100) : 0
 
   const addPocket = () => {
     if (!newName.trim()) return
@@ -296,24 +294,38 @@ export function BudgetScreen({
           </Card>
         )}
 
-        {/* ── 1.6. AHORRO PLANIFICADO (Read-only) ────────────────────────────────────── */}
-        {totalIncome > 0 && !editingSavings && (
+        {/* ── 1.6. AHORRO DISPONIBLE (Read-only) ──────────────────────────────────────
+             Muestra lo que realmente queda libre: totalIncome - totalExpenses.
+             Solo visible cuando hay ingresos y al menos un gasto registrado.         */}
+        {totalIncome > 0 && totalSpent > 0 && !editingSavings && (
           <Card className="p-5">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
-              Ahorro planificado
+              Ahorro disponible
             </p>
-            {monthlyBudget > 0 ? (
+            {availableSavings >= 0 ? (
               <>
                 <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {mm(ahorroPlanificado)}
+                  {mm(availableSavings)}
                 </p>
                 <p className="text-sm text-slate-500 mt-2 tabular-nums">
-                  {ahorroPlanificadoRate}% de tus ingresos
+                  {availableSavingsRate}% de tus ingresos
                 </p>
               </>
             ) : (
-              <p className="text-sm text-slate-400">
-                Configura un presupuesto para ver esta métrica
+              <>
+                <p className="text-2xl font-bold tabular-nums" style={{ color: '#EF4444' }}>
+                  −{mm(-availableSavings)}
+                </p>
+                <p className="text-sm mt-2 font-medium" style={{ color: '#EF4444' }}>
+                  Déficit — gastaste más de tus ingresos
+                </p>
+              </>
+            )}
+            {monthlyBudget > 0 && (
+              <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">
+                {totalSpent > monthlyBudget
+                  ? `Exceso sobre presupuesto: +${mm(totalSpent - monthlyBudget)}`
+                  : `Disponible dentro del presupuesto: ${mm(monthlyBudget - totalSpent)}`}
               </p>
             )}
           </Card>
