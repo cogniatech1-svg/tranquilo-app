@@ -56,8 +56,8 @@ export function generateStarterPockets(income: number): Pocket[] {
 }
 
 /**
- * Ensure all 8 pockets exist in a month record
- * If pockets are missing, add them with default budgets
+ * Normaliza IDs de pockets y deduplica. NUNCA agrega bolsillos faltantes:
+ * la ausencia de un bolsillo es decisión del usuario, no corrupción.
  */
 /**
  * Normalize pocket ID: lowercase, remove accents, replace spaces with hyphens
@@ -89,23 +89,10 @@ function ensurePocketsComplete(record: any): any {
     }
   }
 
-  // Add missing pockets from DEFAULT_POCKETS (but with budget: 0, not default budget)
-  for (const defaultPocket of DEFAULT_POCKETS) {
-    if (!pocketMap.has(defaultPocket.id)) {
-      pocketMap.set(defaultPocket.id, { ...defaultPocket, budget: 0 })
-    }
-  }
-
-  // Build ordered array: DEFAULT_POCKETS first (preserving order),
-  // then any user-created custom pockets not in DEFAULT_POCKETS.
-  const defaultIds = new Set(DEFAULT_POCKETS.map((dp) => dp.id))
-  const finalPockets = [
-    ...DEFAULT_POCKETS.map((dp) => {
-      const found = pocketMap.get(dp.id)
-      return found ? found : { ...dp, budget: 0 }
-    }),
-    ...[...pocketMap.values()].filter((p) => !defaultIds.has(p.id)),
-  ]
+  // NO re-sembrar bolsillos "faltantes": un bolsillo ausente es una decisión
+  // del usuario (regla de negocio), no corrupción de datos. Esta función solo
+  // normaliza IDs y deduplica — nunca agrega ni elimina bolsillos.
+  const finalPockets = [...pocketMap.values()]
 
   const originalCount = existingPockets.length
   const finalCount = finalPockets.length
@@ -230,7 +217,7 @@ export function sanitizeOrphanExpenses(expenses: Expense[], pockets: Pocket[]): 
 
 /**
  * Validate and repair a month record
- * Ensures it has all required fields and all 8 pockets
+ * Ensures it has all required fields; respeta los bolsillos del usuario tal cual
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function repairMonthRecord(record: any): MonthRecord {
@@ -238,17 +225,16 @@ export function repairMonthRecord(record: any): MonthRecord {
     record = {}
   }
 
-  // Ensure all 8 pockets exist
+  // Normalizar IDs y deduplicar (no agrega ni elimina bolsillos)
   ensurePocketsComplete(record)
 
   const repairedExpenses = repairExpenses(record.expenses ?? [])
   const deduplicatedExpenses = deduplicateExpenses(repairedExpenses)
 
   // Resolve the final pockets array before sanitizing (so validIds are correct)
-  const finalPockets: Pocket[] =
-    Array.isArray(record.pockets) && record.pockets.length > 0
-      ? record.pockets
-      : getEmptyPocketsStructure()
+  // Un array vacío es estado legítimo (el usuario eliminó sus bolsillos);
+  // solo el tipo corrupto (no-array) se repara, y se repara a vacío.
+  const finalPockets: Pocket[] = Array.isArray(record.pockets) ? record.pockets : []
 
   const sanitizedExpenses = sanitizeOrphanExpenses(deduplicatedExpenses, finalPockets)
 
@@ -320,7 +306,7 @@ export function repairStoredData(data: any): StoredData {
       monthlyHistory: {},
       expenses: [],
       extraIncomes: [],
-      pockets: DEFAULT_POCKETS,
+      pockets: [],
     }
   }
 
@@ -348,10 +334,7 @@ export function repairStoredData(data: any): StoredData {
     monthlyHistory: repairedHistory,
     expenses: Array.isArray(data.expenses) ? data.expenses : [],
     extraIncomes: Array.isArray(data.extraIncomes) ? data.extraIncomes : [],
-    pockets:
-      data.pockets && Array.isArray(data.pockets) && data.pockets.length > 0
-        ? data.pockets
-        : DEFAULT_POCKETS,
+    pockets: Array.isArray(data.pockets) ? data.pockets : [],
     conceptMap: data.conceptMap ?? {},
     learnedCategoryMap: data.learnedCategoryMap ?? {},
     currentMonth: data.currentMonth ?? undefined,

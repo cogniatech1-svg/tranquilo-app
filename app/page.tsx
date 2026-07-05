@@ -44,8 +44,6 @@ import { supabase } from '../lib/supabase'
 import {
   repairStoredData,
   repairMonthRecord,
-  DEFAULT_POCKETS,
-  getEmptyPocketsStructure,
   UNASSIGNED_POCKET_ID,
   generateStarterPockets,
 } from '../lib/dataMigration'
@@ -420,12 +418,11 @@ export default function Home() {
     const previousData = previousMonth ? monthlyHistory[previousMonth] : null
     const defaultRecord = getDefaultMonthRecord()
 
-    // Si hay mes anterior, heredar pockets completos (nombres, íconos y presupuestos).
-    // Esto evita que un mes nuevo con budget=0 sobreescriba los presupuestos globales en Supabase.
-    // Si no hay mes anterior, usar estructura vacía.
+    // Si hay mes anterior, heredar pockets completos (nombres, íconos y presupuestos)
+    // tal cual — incluso vacíos: un array vacío es decisión del usuario (regla 5).
+    // Si no hay mes anterior, array vacío (nunca sembrar defaults).
     const prevPockets = previousData?.pockets
-    const pocketsToUse =
-      prevPockets && prevPockets.length > 0 ? prevPockets : getEmptyPocketsStructure()
+    const pocketsToUse = prevPockets ?? []
 
     return {
       ...defaultRecord,
@@ -689,7 +686,7 @@ export default function Home() {
               savings: rec.savings ?? 0,
               expenses: rec.expenses ?? [],
               extraIncomes: rec.extraIncomes ?? [],
-              pockets: rec.pockets && rec.pockets.length > 0 ? rec.pockets : DEFAULT_POCKETS,
+              pockets: rec.pockets ?? [],
               manualBudget: rec.manualBudget,
             }
           }
@@ -1098,10 +1095,7 @@ export default function Home() {
             savings: mr.savings ?? 0,
             expenses,
             extraIncomes: prev[currentMonth]?.extraIncomes ?? [],
-            pockets:
-              prev[currentMonth]?.pockets && prev[currentMonth].pockets.length > 0
-                ? prev[currentMonth].pockets
-                : DEFAULT_POCKETS,
+            pockets: prev[currentMonth]?.pockets ?? [],
             manualBudget: mr.manual_budget ?? undefined,
           },
         }))
@@ -1752,10 +1746,10 @@ export default function Home() {
             savings: 0,
             expenses: [],
             extraIncomes: [],
-            // Heredar pockets completos (nombres, íconos y presupuestos) del mes anterior.
-            // Esto mantiene la continuidad financiera: el usuario no pierde su configuración
-            // al navegar a un mes nuevo sin datos en Supabase.
-            pockets: previousPockets.length > 0 ? previousPockets : DEFAULT_POCKETS,
+            // Heredar pockets completos (nombres, íconos y presupuestos) del mes anterior,
+            // tal cual — copia exacta. Sin fallback a defaults: si el usuario eliminó
+            // bolsillos, el mes nuevo respeta esa decisión (regla 5).
+            pockets: previousPockets,
           },
         }))
         console.log(`[handleChangeMonth] Creado ${newMonth} vacío (sin datos en Supabase)`)
@@ -1770,7 +1764,7 @@ export default function Home() {
         // Priority:
         //   1. Per-month pockets from localStorage (exact per-month budgets).
         //   2. Previous-month inheritance (same logic as createEmptyMonth).
-        //   3. DEFAULT_POCKETS as last resort.
+        //   3. Sin mes anterior: array vacío (nunca sembrar defaults).
         let lsMonthPockets: Pocket[] | null = null
         try {
           const lsRaw = localStorage.getItem(`${STORAGE_KEY}_${saveUserId}`)
@@ -1787,9 +1781,7 @@ export default function Home() {
         const inheritedPockets: Pocket[] = (() => {
           const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
           const prevMonth = sortedMonths.find((m) => m < newMonth)
-          return prevMonth && (monthlyHistory[prevMonth]?.pockets ?? []).length > 0
-            ? (monthlyHistory[prevMonth].pockets ?? DEFAULT_POCKETS)
-            : DEFAULT_POCKETS
+          return prevMonth ? (monthlyHistory[prevMonth]?.pockets ?? []) : []
         })()
 
         // Intentar cargar el mes desde Supabase ANTES de crear uno vacío.
