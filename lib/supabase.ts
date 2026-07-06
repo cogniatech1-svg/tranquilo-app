@@ -139,10 +139,9 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
           savings: monthRecord.savings,
           manual_budget: monthRecord.manualBudget ?? null,
           updated_at: new Date().toISOString(),
-          pockets_data:
-            monthRecord.pockets && monthRecord.pockets.length > 0
-              ? JSON.stringify(monthRecord.pockets)
-              : null,
+          // Siempre serializar, incluso '[]': un mes con cero bolsillos es un
+          // estado legítimo del usuario y debe distinguirse de null (fila legacy).
+          pockets_data: monthRecord.pockets ? JSON.stringify(monthRecord.pockets) : null,
         }
 
         const { error: monthError } = await supabase
@@ -364,10 +363,8 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         continue
       }
 
-      // pockets_data column does not exist in monthly_records schema.
-      // Fallback: use global pockets loaded from the pockets table.
-      // When pockets_data is eventually added to the schema, this still works
-      // because it will be non-null and will take priority over the fallback.
+      // pockets_data es la fuente per-month. '[]' es un valor explícito y legítimo
+      // (el usuario eliminó todos sus bolsillos) y debe respetarse tal cual.
       let monthPockets: typeof pocketsData = []
       if (monthRecord.pockets_data) {
         try {
@@ -378,9 +375,10 @@ export async function loadUserData(userId: string): Promise<StoredData | null> {
         }
       }
 
-      // If no per-month pockets, use the global pockets from the pockets table
+      // Fallback a la tabla global SOLO para filas legacy (pockets_data = null,
+      // guardadas antes de que existiera el guardado per-month). Nunca para '[]'.
       const resolvedPockets =
-        monthPockets.length > 0
+        monthRecord.pockets_data != null
           ? monthPockets
           : (pocketsData || []).map((p) => ({
               id: p.pocket_id,
