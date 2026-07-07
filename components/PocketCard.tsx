@@ -35,18 +35,16 @@ export function PocketCard({
   expenseCount = 0,
 }: Props) {
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
-  const [editing, setEditing]       = useState(false)
-  const [draftName, setDraftName]   = useState(pocket.name)
-  const [draftBudget, setDraftBudget] = useState(
-    pocket.budget > 0 ? String(pocket.budget) : '',
-  )
-  const [draftIcon, setDraftIcon]   = useState(pocket.icon ?? '')
+  const [editing, setEditing] = useState(false)
+  const [draftName, setDraftName] = useState(pocket.name)
+  const [draftBudget, setDraftBudget] = useState(pocket.budget > 0 ? String(pocket.budget) : '')
+  const [draftIcon, setDraftIcon] = useState(pocket.icon ?? '')
   const [showPicker, setShowPicker] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const ratio = pocket.budget > 0 ? spent / pocket.budget : 0
-  const icon  = getPocketIcon(pocket.id, pocket.name, pocket.icon)
-  const pal   = getPocketPalette(pocket.id, pocketIndex)
+  const icon = getPocketIcon(pocket.id, pocket.name, pocket.icon)
+  const pal = getPocketPalette(pocket.id, pocketIndex)
 
   const previewIcon = draftIcon || guessIconFromName(draftName)
 
@@ -64,7 +62,7 @@ export function PocketCard({
   }
   const saveEdit = () => {
     const n = draftName.trim()
-    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget))
+    if (n && onEdit) onEdit(pocket.id, n, parseAmount(draftBudget), draftIcon || undefined)
     setEditing(false)
   }
 
@@ -80,21 +78,26 @@ export function PocketCard({
               className="w-11 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-xl transition-all active:scale-95 shrink-0 relative"
             >
               {previewIcon}
-              <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">✎</span>
+              <span className="absolute -bottom-1 -right-1 text-[10px] bg-teal-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                ✎
+              </span>
             </button>
             <input
               autoFocus
               value={draftName}
-              onChange={e => { setDraftName(e.target.value); setDraftIcon('') }}
-              onKeyDown={e => e.key === 'Enter' && saveEdit()}
+              onChange={(e) => {
+                setDraftName(e.target.value)
+                setDraftIcon('')
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
               placeholder="Nombre"
               className="flex-1 text-sm font-semibold text-slate-800 border-b border-teal-200 outline-none bg-transparent pb-1.5"
             />
           </div>
           <input
             value={draftBudget}
-            onChange={e => setDraftBudget(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && saveEdit()}
+            onChange={(e) => setDraftBudget(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
             placeholder="Presupuesto"
             inputMode="numeric"
             className="w-full text-sm text-slate-500 border-b border-slate-100 outline-none bg-transparent pb-1.5"
@@ -119,8 +122,8 @@ export function PocketCard({
     )
   }
 
-  const isOver   = pocket.budget > 0 && spent > pocket.budget
-  const excess   = isOver ? spent - pocket.budget : 0
+  const isOver = pocket.budget > 0 && spent > pocket.budget
+  const excess = isOver ? spent - pocket.budget : 0
   const leftover = !isOver && pocket.budget > 0 ? pocket.budget - spent : 0
 
   // ── Compact (dashboard inline) ─────────────────────────────────────────────
@@ -153,103 +156,97 @@ export function PocketCard({
   return (
     <>
       <Card className="p-4 overflow-hidden relative">
-      {/* Top accent strip — red when exceeded */}
-      <div
-        className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-        style={{ backgroundColor: isOver ? '#EF4444' : pal.bar }}
-      />
-      <div className="flex items-start justify-between gap-1 mb-3 mt-1">
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl leading-none select-none"
-            style={{ backgroundColor: pal.bg }}
-          >
-            {icon}
+        {/* Top accent strip — red when exceeded */}
+        <div
+          className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
+          style={{ backgroundColor: isOver ? '#EF4444' : pal.bar }}
+        />
+        <div className="flex items-start justify-between gap-1 mb-3 mt-1">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl leading-none select-none"
+              style={{ backgroundColor: pal.bg }}
+            >
+              {icon}
+            </div>
+            <span className="text-sm font-bold text-slate-800 leading-snug truncate">
+              {pocket.name}
+            </span>
           </div>
-          <span className="text-sm font-bold text-slate-800 leading-snug truncate">
-            {pocket.name}
-          </span>
+          {(onEdit || onDelete) && (
+            <div className="flex gap-0.5 shrink-0 pt-0.5">
+              {onEdit && (
+                <button
+                  onClick={openEdit}
+                  className="p-1.5 text-slate-500 hover:text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <Icon name="edit" size={12} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    // Si tiene presupuesto o gastos, mostrar confirmación
+                    if (pocket.budget > 0 || expenseCount > 0) {
+                      setShowDeleteConfirm(true)
+                    } else {
+                      // Si no tiene nada, eliminar directamente
+                      onDelete(pocket.id)
+                    }
+                  }}
+                  className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                >
+                  <Icon name="trash" size={12} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        {(onEdit || onDelete) && (
-          <div className="flex gap-0.5 shrink-0 pt-0.5">
+
+        {pocket.budget > 0 ? (
+          <>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span
+                className="text-base font-bold tabular-nums"
+                style={{ color: isOver ? '#EF4444' : '#0F172A' }}
+              >
+                {mm(spent)}
+              </span>
+              <span className="text-xs text-slate-500 tabular-nums">/ {mm(pocket.budget)}</span>
+            </div>
+            <ProgressBar ratio={ratio} thick={true} />
+            {isOver ? (
+              <p className="text-xs font-semibold text-red-600 mt-2">Exceso: {mm(excess)}</p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <p className="text-base font-bold text-slate-900 tabular-nums mb-2">{mm(spent)}</p>
             {onEdit && (
               <button
                 onClick={openEdit}
-                className="p-1.5 text-slate-500 hover:text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                className="text-xs font-bold hover:opacity-70 transition-opacity"
+                style={{ color: pal.text }}
               >
-                <Icon name="edit" size={12} />
+                + Definir presupuesto
               </button>
             )}
-            {onDelete && (
-              <button
-                onClick={() => {
-                  // Si tiene presupuesto o gastos, mostrar confirmación
-                  if (pocket.budget > 0 || expenseCount > 0) {
-                    setShowDeleteConfirm(true)
-                  } else {
-                    // Si no tiene nada, eliminar directamente
-                    onDelete(pocket.id)
-                  }
-                }}
-                className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
-              >
-                <Icon name="trash" size={12} />
-              </button>
-            )}
-          </div>
+          </>
         )}
-      </div>
+      </Card>
 
-      {pocket.budget > 0 ? (
-        <>
-          <div className="flex items-baseline gap-1 mb-2">
-            <span
-              className="text-base font-bold tabular-nums"
-              style={{ color: isOver ? '#EF4444' : '#0F172A' }}
-            >
-              {mm(spent)}
-            </span>
-            <span className="text-xs text-slate-500 tabular-nums">
-              / {mm(pocket.budget)}
-            </span>
-          </div>
-          <ProgressBar ratio={ratio} thick={true} />
-          {isOver ? (
-            <p className="text-xs font-semibold text-red-600 mt-2">
-              Exceso: {mm(excess)}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <p className="text-base font-bold text-slate-900 tabular-nums mb-2">
-            {mm(spent)}
-          </p>
-          {onEdit && (
-            <button
-              onClick={openEdit}
-              className="text-xs font-bold hover:opacity-70 transition-opacity"
-              style={{ color: pal.text }}
-            >
-              + Definir presupuesto
-            </button>
-          )}
-        </>
+      {/* Confirm delete modal */}
+      {showDeleteConfirm && (
+        <ConfirmDeletePocketModal
+          pocket={pocket}
+          gastoCount={expenseCount}
+          onConfirm={() => {
+            onDelete?.(pocket.id)
+            setShowDeleteConfirm(false)
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
-    </Card>
-
-    {/* Confirm delete modal */}
-    {showDeleteConfirm && (
-      <ConfirmDeletePocketModal
-        pocket={pocket}
-        gastoCount={expenseCount}
-        onConfirm={() => {
-          onDelete?.(pocket.id)
-          setShowDeleteConfirm(false)
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
-    )}
-  </>
+    </>
   )
 }
