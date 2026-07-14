@@ -577,10 +577,13 @@ export default function Home() {
           // This handles cases where Supabase schema is incomplete (missing pockets_data column)
           console.log('[initializeApp] 🔷 Supabase + localStorage ambos presentes, merging...')
 
-          // Check if Supabase data is missing pockets in any month
+          // Check if Supabase data is missing pockets in any month.
+          // "Missing" = pockets ausente (fila legacy sin per-month). Un array
+          // vacío ([]) NO es incompleto: es la decisión del usuario de tener
+          // cero bolsillos y debe respetarse, no rellenarse desde localStorage.
           let supabaseIncomplete = false
           for (const [month, monthData] of Object.entries(data.monthlyHistory)) {
-            if (!monthData.pockets || monthData.pockets.length === 0) {
+            if (!monthData.pockets) {
               supabaseIncomplete = true
               break
             }
@@ -595,12 +598,12 @@ export default function Home() {
               if (!data.monthlyHistory[month]) {
                 data.monthlyHistory[month] = lsMonthData
               } else if (
-                (!data.monthlyHistory[month].pockets ||
-                  data.monthlyHistory[month].pockets.length === 0) &&
+                !data.monthlyHistory[month].pockets &&
                 lsMonthData.pockets &&
                 lsMonthData.pockets.length > 0
               ) {
-                // Replace pockets from localStorage if Supabase has empty pockets
+                // Rescatar desde localStorage SOLO cuando Supabase no trae pockets
+                // (undefined = fila legacy). Un array vacío se respeta tal cual.
                 data.monthlyHistory[month].pockets = lsMonthData.pockets
                 console.log(
                   `[initializeApp] ✅ Restaurado pockets para ${month} desde localStorage`
