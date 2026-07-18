@@ -1,0 +1,17 @@
+{
+  "//": "tsconfig aislado para las Cloudflare Pages Functions (runtime Workers). Independiente del tsconfig del app (que usa lib DOM) para evitar choques de tipos globales (Request/Response).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": ["**/*.ts"]
+}
