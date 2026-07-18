@@ -1,0 +1,10 @@
+# Plantilla para .dev.vars (wrangler pages dev) — copiar a .dev.vars y rellenar.
+# .dev.vars está en .gitignore y NUNCA debe commitearse.
+# Estos valores los consume la Pages Function functions/api/delete-account.ts.
+#
+# NEXT_PUBLIC_* son públicos (ya van en el bundle cliente).
+# SUPABASE_SERVICE_ROLE_KEY es SECRETO — solo aquí (servidor), jamás en el cliente.
+
+NEXT_PUBLIC_SUPABASE_URL="https://<tu-proyecto>.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon-key>"
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
