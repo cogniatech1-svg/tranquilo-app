@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Static export SOLO cuando STATIC_EXPORT=1 (build para Cloudflare Pages / Android).
+  // Sin el flag → build normal (Vercel) con la ruta /api/delete-account activa.
+  // Nota: en export, headers() no aplica (se replica en public/_headers).
+  output: process.env.STATIC_EXPORT === '1' ? 'export' : undefined,
   async headers() {
     return [
       {
