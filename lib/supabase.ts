@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { StoredData, MonthRecord, UserProfile } from './types'
+import type { Investment, InvestmentPayment } from './types/investment'
 import { parseStoredData } from './parseData'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -808,6 +809,8 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     'pockets',
     'concept_map',
     'learned_category_map',
+    'investment_payments',
+    'investments',
   ] as const
 
   for (const table of tables) {
@@ -819,4 +822,131 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     }
   }
   console.log('[Supabase] 🗑️ Borrado completo finalizado')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVESTMENTS SYNC
+// Funciones independientes para las tablas investments e investment_payments.
+// No tocan StoredData ni ninguna otra tabla existente.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function saveInvestmentsData(
+  userId: string,
+  investments: Investment[],
+  payments: InvestmentPayment[]
+): Promise<void> {
+  // Upsert inversiones existentes
+  if (investments.length > 0) {
+    const { error } = await supabase.from('investments').upsert(
+      investments.map((inv) => ({
+        id: inv.id,
+        user_id: userId,
+        name: inv.name,
+        type: inv.type,
+        total_amount: inv.totalAmount ?? null,
+        start_date: inv.startDate,
+        notes: inv.notes ?? null,
+        has_interest: inv.hasInterest,
+        interest_rate: inv.interestRate ?? null,
+        interest_type: inv.interestType ?? null,
+        interest_frequency: inv.interestFrequency ?? null,
+        updated_at: inv.updatedAt,
+      })),
+      { onConflict: 'id' }
+    )
+    if (error) console.warn('[Supabase] ⚠️ Error guardando investments:', error.message)
+  }
+
+  // Borrar inversiones eliminadas localmente
+  const invIds = investments.map((i) => i.id)
+  if (invIds.length > 0) {
+    await supabase
+      .from('investments')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${invIds.join(',')})`)
+  } else {
+    // Sin inversiones locales → borrar todas las del usuario en Supabase
+    await supabase.from('investments').delete().eq('user_id', userId)
+  }
+
+  // Upsert pagos existentes
+  if (payments.length > 0) {
+    const { error } = await supabase.from('investment_payments').upsert(
+      payments.map((p) => ({
+        id: p.id,
+        investment_id: p.investmentId,
+        user_id: userId,
+        date: p.date,
+        amount: p.amount,
+        notes: p.notes ?? null,
+      })),
+      { onConflict: 'id' }
+    )
+    if (error) console.warn('[Supabase] ⚠️ Error guardando investment_payments:', error.message)
+  }
+
+  // Borrar pagos eliminados localmente
+  const pymtIds = payments.map((p) => p.id)
+  if (pymtIds.length > 0) {
+    await supabase
+      .from('investment_payments')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${pymtIds.join(',')})`)
+  } else {
+    // Sin pagos locales → borrar todos los del usuario en Supabase
+    await supabase.from('investment_payments').delete().eq('user_id', userId)
+  }
+}
+
+export async function loadInvestmentsData(
+  userId: string
+): Promise<{ investments: Investment[]; payments: InvestmentPayment[] } | null> {
+  const { data: invData, error: invError } = await supabase
+    .from('investments')
+    .select('*')
+    .eq('user_id', userId)
+
+  if (invError) {
+    console.warn('[Supabase] ⚠️ Error cargando investments:', invError.message)
+    return null
+  }
+
+  const { data: pymtData, error: pymtError } = await supabase
+    .from('investment_payments')
+    .select('*')
+    .eq('user_id', userId)
+
+  if (pymtError) {
+    console.warn('[Supabase] ⚠️ Error cargando investment_payments:', pymtError.message)
+    return null
+  }
+
+  return {
+    investments: (invData ?? []).map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      name: r.name,
+      type: r.type,
+      totalAmount: r.total_amount ?? undefined,
+      startDate: r.start_date,
+      notes: r.notes ?? undefined,
+      hasInterest: r.has_interest,
+      interestRate: r.interest_rate ?? undefined,
+      interestType: r.interest_type ?? undefined,
+      interestFrequency: r.interest_frequency ?? undefined,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })),
+    payments: (pymtData ?? []).map((r) => ({
+      id: r.id,
+      investmentId: r.investment_id,
+      userId: r.user_id,
+      date: r.date,
+      amount: r.amount,
+      notes: r.notes ?? undefined,
+      createdAt: r.created_at,
+    })),
+  }
 }

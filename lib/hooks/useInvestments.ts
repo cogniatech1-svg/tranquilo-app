@@ -1,13 +1,8 @@
 'use client'
 
-// DEUDA TÉCNICA: Esta implementación es localStorage-only.
-// Los datos de inversiones NO se sincronizan con Supabase.
-// Un usuario autenticado perderá sus inversiones al cambiar de dispositivo
-// o al limpiar el navegador hasta que se implemente la sincronización.
-// Pendiente antes de pasar a producción.
-
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Investment, InvestmentPayment } from '../types/investment'
+import { supabase, saveInvestmentsData, loadInvestmentsData } from '../supabase'
 
 const STORAGE_KEY = 'tranquilo_investments_v1'
 
@@ -47,15 +42,40 @@ export function useInvestments(userId: string | null) {
   const [investments, setInvestments] = useState<Investment[]>([])
   const [payments, setPayments] = useState<InvestmentPayment[]>([])
 
+  const syncedForUserRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!userId) return
     let active = true
-    Promise.resolve().then(() => {
+    ;(async () => {
+      // 1. localStorage primero: respuesta visual instantánea
+      const local = loadStore(userId)
       if (!active) return
-      const store = loadStore(userId)
-      setInvestments(store.investments)
-      setPayments(store.payments)
-    })
+      setInvestments(local.investments)
+      setPayments(local.payments)
+
+      // 2. Verificar si hay sesión autenticada
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!active) return
+      const isAuthenticated = !!session?.user && session.user.id === userId
+      if (!isAuthenticated) return
+
+      // 3. Migración one-shot: subir datos locales que aún no están en Supabase
+      if (local.investments.length > 0 && syncedForUserRef.current !== userId) {
+        await saveInvestmentsData(userId, local.investments, local.payments)
+        syncedForUserRef.current = userId
+      }
+
+      // 4. Supabase es fuente durable — cargar y reconciliar
+      const remote = await loadInvestmentsData(userId)
+      if (!active || !remote) return
+      setInvestments(remote.investments)
+      setPayments(remote.payments)
+      saveStore(userId, { investments: remote.investments, payments: remote.payments })
+      syncedForUserRef.current = userId
+    })()
     return () => {
       active = false
     }
@@ -64,7 +84,16 @@ export function useInvestments(userId: string | null) {
   const persist = useCallback(
     (invs: Investment[], pymts: InvestmentPayment[]) => {
       if (!userId) return
+      // localStorage: sincrónico, UI responde de inmediato
       saveStore(userId, { investments: invs, payments: pymts })
+      // Supabase: asincrónico y no bloqueante
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const isAuthenticated = !!session?.user && session.user.id === userId
+        if (!isAuthenticated) return
+        saveInvestmentsData(userId, invs, pymts).catch((e) =>
+          console.warn('[useInvestments] Error sync Supabase:', e)
+        )
+      })
     },
     [userId]
   )
