@@ -12,6 +12,7 @@ import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { calculateCarryOver } from '../lib/carryOver'
 import { InsightsScreen } from '../screens/InsightsScreen'
+import { InvestmentsScreen } from '../screens/InvestmentsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
 import { WelcomeScreen } from '../screens/WelcomeScreen'
@@ -174,6 +175,44 @@ export default function Home() {
 
   const config: CountryConfig = COUNTRIES[countryCode]
 
+  // ── RESET TOTAL DE ESTADO DE USUARIO ───────────────────────────────────────
+  // Principio: "un cambio de usuario = iniciar una aplicación completamente nueva".
+  // Destruye TODO el estado en memoria perteneciente al usuario anterior, el perfil
+  // global cacheado en localStorage y los refs-guard de carga/guardado. Se invoca en
+  // el límite de autenticación (logout o cambio a otro usuario autenticado) ANTES de
+  // que corran initializeApp y AUTH-SAVE, de modo que no exista ningún residuo que
+  // leer o persistir bajo el nuevo userId.
+  const resetUserScopedState = useCallback(() => {
+    console.log('[AUTH] 🧹 Reset total de estado de usuario (cambio de identidad)')
+    // Datos financieros y de perfil (estado React)
+    setProfileData(undefined)
+    setMonthlyHistory({})
+    setConceptMap({})
+    setLearnedCategoryMap({})
+    setCountryCode('CO')
+    setIsPrivacyMode(false)
+    setActiveMonth(getCurrentMonth())
+    setCurrentMonth(getCurrentMonth())
+    // Vista / UI transitoria
+    setActiveTab('inicio')
+    setSheetOpen(false)
+    setEditingExpense(null)
+    setEditingIncome(null)
+    setDefaultSheetType(null)
+    setSyncError(null)
+    setLastSyncTime(null)
+    setIsSyncing(false)
+    setIsAuthenticating(false)
+    // Perfil global cacheado (NO está user-scoped: fuente del leak de perfil entre cuentas)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tranquilo_profile')
+    }
+    // Refs-guard: forzar recarga limpia para el próximo usuario y re-armar AUTH-SAVE
+    dataLoadedRef.current = false
+    loadedForUserRef.current = null
+    authSavedForUserRef.current = null
+  }, [])
+
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
   const handleAuth = useCallback(
     async (event: AuthChangeEvent, user: AuthUser | null) => {
@@ -213,6 +252,23 @@ export default function Home() {
         } catch (error) {
           console.error(`[AUTH] ❌ Error fetching session:`, error)
         }
+      }
+
+      // ── CAMBIO DE IDENTIDAD → RESET TOTAL (app nueva) ──────────────────────
+      // Se destruye el estado del usuario anterior ANTES de cargar/guardar el nuevo.
+      //   • SIGNED_OUT  → fin de sesión (incluye el paso previo de cualquier A→B).
+      //   • SIGNED_IN con un usuario autenticado DISTINTO al último cargado, sin que
+      //     el previo fuera el invitado en curso (eso sería una migración guest→auth,
+      //     que SÍ debe conservar los datos del invitado para migrarlos).
+      const prevLoadedId = loadedForUserRef.current
+      const isSignOut = event === 'SIGNED_OUT'
+      const isDifferentAuthUser =
+        !!currentUser &&
+        !!prevLoadedId &&
+        prevLoadedId !== currentUser.uid &&
+        prevLoadedId !== guestUserId
+      if (isSignOut || isDifferentAuthUser) {
+        resetUserScopedState()
       }
 
       // Store authenticated user state if present
@@ -379,7 +435,7 @@ export default function Home() {
         }
       })
     },
-    [guestUserId]
+    [guestUserId, resetUserScopedState]
   )
 
   // ── AUTH STATE LISTENER ────────────────────────────────────────────────────
@@ -776,6 +832,18 @@ export default function Home() {
     // Only trigger once per userId — tracked via ref so it's not tied to render cycles.
     if (userId === authSavedForUserRef.current) return
 
+    // DEFENSA DE INTEGRIDAD (independiente del batching): solo se persiste si los
+    // datos en memoria pertenecen al usuario actual. loadedForUserRef===userId es la
+    // carga normal; loadedForUserRef===guestUserId es la migración guest→auth (única
+    // en la que el estado cargado es de otra id de forma legítima). Cualquier otro
+    // caso = residuo de otro usuario → se aborta antes de escribir bajo el userId actual.
+    if (loadedForUserRef.current !== userId && loadedForUserRef.current !== guestUserId) {
+      console.warn(
+        '[AUTH-SAVE] ⛔ Estado en memoria no pertenece al usuario actual — guardado abortado'
+      )
+      return
+    }
+
     if (userId) {
       // Defer if another save is already running — avoids concurrent saveUserData() calls that
       // could race on the delete-stale pass and silently remove recently-saved data.
@@ -828,6 +896,7 @@ export default function Home() {
     }
   }, [
     userId,
+    guestUserId,
     hydrated,
     monthlyHistory,
     activeMonth,
@@ -2453,6 +2522,13 @@ export default function Home() {
             pockets={pockets}
             spentByPocket={spentByPocket}
             monthlyHistory={monthlyHistory}
+            config={config}
+            isPrivacyMode={isPrivacyMode}
+          />
+        )}
+        {activeTab === 'inversiones' && (
+          <InvestmentsScreen
+            userId={userId || guestUserId}
             config={config}
             isPrivacyMode={isPrivacyMode}
           />
