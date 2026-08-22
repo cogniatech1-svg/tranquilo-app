@@ -12,6 +12,7 @@ import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { calculateCarryOver } from '../lib/carryOver'
 import { InsightsScreen } from '../screens/InsightsScreen'
+import { InvestmentsScreen } from '../screens/InvestmentsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
 import { WelcomeScreen } from '../screens/WelcomeScreen'
@@ -2521,6 +2522,13 @@ export default function Home() {
             pockets={pockets}
             spentByPocket={spentByPocket}
             monthlyHistory={monthlyHistory}
+            config={config}
+            isPrivacyMode={isPrivacyMode}
+          />
+        )}
+        {activeTab === 'inversiones' && (
+          <InvestmentsScreen
+            userId={userId || guestUserId}
             config={config}
             isPrivacyMode={isPrivacyMode}
           />

@@ -20,7 +20,7 @@
 
 import type { CountryCode } from './config'
 
-export type TabId = 'inicio' | 'movimientos' | 'presupuesto' | 'insights' | 'perfil'
+export type TabId = 'inicio' | 'movimientos' | 'presupuesto' | 'insights' | 'perfil' | 'inversiones'
 export type CalmState = 'tranquilo' | 'ajustado' | 'riesgo' | 'neutral'
 
 export interface Pocket {
