@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  ...(process.env.STATIC_EXPORT === '1' ? { output: 'export' } : {}),
   async headers() {
     return [
       {
