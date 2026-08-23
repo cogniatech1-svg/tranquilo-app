@@ -71,9 +71,13 @@ export function useInvestments(userId: string | null) {
       // 4. Supabase es fuente durable — cargar y reconciliar
       const remote = await loadInvestmentsData(userId)
       if (!active || !remote) return
-      setInvestments(remote.investments)
-      setPayments(remote.payments)
-      saveStore(userId, { investments: remote.investments, payments: remote.payments })
+      const remoteHasData = remote.investments.length > 0 || remote.payments.length > 0
+      const localHasData = local.investments.length > 0 || local.payments.length > 0
+      if (remoteHasData || !localHasData) {
+        setInvestments(remote.investments)
+        setPayments(remote.payments)
+        saveStore(userId, { investments: remote.investments, payments: remote.payments })
+      }
       syncedForUserRef.current = userId
     })()
     return () => {
