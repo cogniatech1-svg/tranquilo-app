@@ -235,7 +235,9 @@ export function BudgetScreen({
             {grossIncome === 0 ? (
               <p className="text-2xl font-bold text-slate-400">Toca para configurar</p>
             ) : (
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(grossIncome)}</p>
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                {mm(totalIncome + investmentPaymentsThisMonth)}
+              </p>
             )}
           </Card>
         )}
@@ -282,7 +284,7 @@ export function BudgetScreen({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-900">Disponible para gastar</span>
                   <span className="text-xs font-bold text-slate-900 tabular-nums">
-                    {mm(Math.max(0, grossIncome - plannedSavings - investmentPaymentsThisMonth))}
+                    {mm(Math.max(0, totalIncome - plannedSavings))}
                   </span>
                 </div>
               </div>
