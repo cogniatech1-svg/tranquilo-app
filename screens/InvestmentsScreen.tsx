@@ -7,12 +7,25 @@ import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { Icon } from '../components/ui/Icon'
 import { DS, formatMoney, maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import { useInvestments } from '../lib/hooks/useInvestments'
 import { calculateInvestmentStats, calculatePortfolioSummary } from '../lib/investmentEngine'
-import type { InvestmentType, InterestType, InterestFrequency } from '../lib/types/investment'
+import type {
+  Investment,
+  InvestmentPayment,
+  InvestmentType,
+  InterestType,
+  InterestFrequency,
+} from '../lib/types/investment'
 
 interface Props {
-  userId: string | null
+  investments: Investment[]
+  payments: InvestmentPayment[]
+  addInvestment: (data: Omit<Investment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void
+  deleteInvestment: (id: string) => void
+  addPayment: (
+    investmentId: string,
+    data: Omit<InvestmentPayment, 'id' | 'investmentId' | 'userId' | 'createdAt'>
+  ) => void
+  removePayment: (paymentId: string) => void
   config: CountryConfig
   isPrivacyMode?: boolean
 }
@@ -28,10 +41,16 @@ function typeLabel(type: InvestmentType) {
   return TYPE_OPTIONS.find((o) => o.value === type) ?? TYPE_OPTIONS[3]
 }
 
-export function InvestmentsScreen({ userId, config, isPrivacyMode = false }: Props) {
-  const { investments, payments, addInvestment, deleteInvestment, addPayment, removePayment } =
-    useInvestments(userId)
-
+export function InvestmentsScreen({
+  investments,
+  payments,
+  addInvestment,
+  deleteInvestment,
+  addPayment,
+  removePayment,
+  config,
+  isPrivacyMode = false,
+}: Props) {
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const fmt = (n: number) => formatMoney(n, config)
 

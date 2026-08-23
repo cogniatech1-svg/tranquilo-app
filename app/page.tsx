@@ -13,6 +13,7 @@ import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { calculateCarryOver } from '../lib/carryOver'
 import { InsightsScreen } from '../screens/InsightsScreen'
 import { InvestmentsScreen } from '../screens/InvestmentsScreen'
+import { useInvestments } from '../lib/hooks/useInvestments'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { OnboardingScreen } from '../screens/OnboardingScreen'
 import { WelcomeScreen } from '../screens/WelcomeScreen'
@@ -158,6 +159,20 @@ export default function Home() {
   const [currentMonth, setCurrentMonth] = useState<string>(getCurrentMonth)
 
   const [activeMonth, setActiveMonth] = useState<string>(getCurrentMonth)
+
+  const {
+    investments,
+    payments: investmentPayments,
+    addInvestment,
+    deleteInvestment,
+    addPayment,
+    removePayment,
+  } = useInvestments(userId || guestUserId)
+
+  const investmentPaymentsThisMonth = investmentPayments
+    .filter((p) => p.date.startsWith(activeMonth))
+    .reduce((sum, p) => sum + p.amount, 0)
+
   const [isPrivacyMode, setIsPrivacyMode] = useState(false)
   const [learnedCategoryMap, setLearnedCategoryMap] = useState<Record<string, string>>({})
   // Force Vercel rebuild - cache invalidation marker v2
@@ -2513,6 +2528,7 @@ export default function Home() {
             isViewingPast={isViewingPast}
             isPrivacyMode={isPrivacyMode}
             cumulativeSavings={cumulativeSavings}
+            investmentPaymentsThisMonth={investmentPaymentsThisMonth}
           />
         )}
         {activeTab === 'insights' && (
@@ -2528,7 +2544,12 @@ export default function Home() {
         )}
         {activeTab === 'inversiones' && (
           <InvestmentsScreen
-            userId={userId || guestUserId}
+            investments={investments}
+            payments={investmentPayments}
+            addInvestment={addInvestment}
+            deleteInvestment={deleteInvestment}
+            addPayment={addPayment}
+            removePayment={removePayment}
             config={config}
             isPrivacyMode={isPrivacyMode}
           />

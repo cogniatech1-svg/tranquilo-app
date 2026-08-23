@@ -36,6 +36,7 @@ interface Props {
   isPrivacyMode?: boolean
   manualBudget?: number // Para saber si hay presupuesto manual activo
   cumulativeSavings?: { totalByYear: Record<number, number>; total: number }
+  investmentPaymentsThisMonth?: number
 }
 
 export function BudgetScreen({
@@ -57,6 +58,7 @@ export function BudgetScreen({
   onAddPocket,
   isPrivacyMode = false,
   cumulativeSavings,
+  investmentPaymentsThisMonth = 0,
 }: Props) {
   // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
   const {
@@ -741,6 +743,42 @@ export function BudgetScreen({
         {/* ── DISPONIBLE REAL (carry-over) ─────────────────────────────────── */}
         {/* At the bottom: shows accumulated balance/deficit from prior months.
             Visible whenever carryOver ≠ 0, regardless of whether income is set. */}
+        {/* ── PAGOS DE INVERSIONES DEL MES ──────────────────────────────────── */}
+        {investmentPaymentsThisMonth > 0 && (
+          <Card className="p-5 border-l-4 border-amber-400">
+            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
+              Inversiones este mes
+            </p>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Pagos del mes</span>
+                <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                  −{mm(investmentPaymentsThisMonth)}
+                </span>
+              </div>
+              {totalAvailable > 0 && (
+                <>
+                  <div className="h-px bg-slate-100" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Disponible neto</span>
+                    <span
+                      className="text-sm font-bold tabular-nums"
+                      style={{
+                        color:
+                          totalAvailable - investmentPaymentsThisMonth >= 0 ? '#0d9488' : '#EF4444',
+                      }}
+                    >
+                      {totalAvailable - investmentPaymentsThisMonth >= 0
+                        ? mm(totalAvailable - investmentPaymentsThisMonth)
+                        : `−${mm(investmentPaymentsThisMonth - totalAvailable)}`}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        )}
+
         {!editingIncome && carryOver !== 0 && (
           <Card className="p-5 border-l-4 border-teal-600">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
