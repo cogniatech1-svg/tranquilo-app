@@ -37,6 +37,8 @@ interface Props {
   manualBudget?: number // Para saber si hay presupuesto manual activo
   cumulativeSavings?: { totalByYear: Record<number, number>; total: number }
   investmentPaymentsThisMonth?: number
+  grossIncome?: number
+  plannedSavings?: number
 }
 
 export function BudgetScreen({
@@ -59,6 +61,8 @@ export function BudgetScreen({
   isPrivacyMode = false,
   cumulativeSavings,
   investmentPaymentsThisMonth = 0,
+  grossIncome = 0,
+  plannedSavings = 0,
 }: Props) {
   // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
   const {
@@ -214,7 +218,7 @@ export function BudgetScreen({
             className="p-5 cursor-pointer active:opacity-80"
             onClick={() => {
               setEditingIncome(true)
-              setIncomeInput(totalIncome > 0 ? String(totalIncome) : '')
+              setIncomeInput(grossIncome > 0 ? String(grossIncome) : '')
             }}
           >
             <div className="flex items-start justify-between mb-4">
@@ -228,16 +232,16 @@ export function BudgetScreen({
                 Editar
               </span>
             </div>
-            {totalIncome === 0 ? (
+            {grossIncome === 0 ? (
               <p className="text-2xl font-bold text-slate-400">Toca para configurar</p>
             ) : (
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(totalIncome)}</p>
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">{mm(grossIncome)}</p>
             )}
           </Card>
         )}
 
         {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
-        {totalIncome > 0 && !editingSavings && (
+        {grossIncome > 0 && !editingSavings && (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-5">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
@@ -256,6 +260,34 @@ export function BudgetScreen({
                 Editar
               </button>
             </div>
+
+            {/* Desglose de deducciones — solo cuando hay pagos de inversión */}
+            {investmentPaymentsThisMonth > 0 && (
+              <div className="mb-5 space-y-2">
+                {plannedSavings > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">− Ahorro programado</span>
+                    <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                      −{mm(plannedSavings)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">− Inversiones del mes</span>
+                  <span className="text-xs font-semibold text-amber-600 tabular-nums">
+                    −{mm(investmentPaymentsThisMonth)}
+                  </span>
+                </div>
+                <div className="h-px bg-slate-100" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900">Disponible para gastar</span>
+                  <span className="text-xs font-bold text-slate-900 tabular-nums">
+                    {mm(Math.max(0, grossIncome - plannedSavings - investmentPaymentsThisMonth))}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               {/* Presupuesto */}
               <div className="text-center">
@@ -299,7 +331,7 @@ export function BudgetScreen({
         {/* ── 1.6. AHORRO DISPONIBLE (Read-only) ──────────────────────────────────────
              Muestra lo que realmente queda libre: totalIncome - totalExpenses.
              Solo visible cuando hay ingresos y al menos un gasto registrado.         */}
-        {totalIncome > 0 && totalSpent > 0 && !editingSavings && (
+        {grossIncome > 0 && totalSpent > 0 && !editingSavings && (
           <Card className="p-5">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
               Ahorro disponible
@@ -743,42 +775,6 @@ export function BudgetScreen({
         {/* ── DISPONIBLE REAL (carry-over) ─────────────────────────────────── */}
         {/* At the bottom: shows accumulated balance/deficit from prior months.
             Visible whenever carryOver ≠ 0, regardless of whether income is set. */}
-        {/* ── PAGOS DE INVERSIONES DEL MES ──────────────────────────────────── */}
-        {investmentPaymentsThisMonth > 0 && (
-          <Card className="p-5 border-l-4 border-amber-400">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
-              Inversiones este mes
-            </p>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Pagos del mes</span>
-                <span className="text-sm font-semibold text-slate-700 tabular-nums">
-                  −{mm(investmentPaymentsThisMonth)}
-                </span>
-              </div>
-              {totalAvailable > 0 && (
-                <>
-                  <div className="h-px bg-slate-100" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900">Disponible neto</span>
-                    <span
-                      className="text-sm font-bold tabular-nums"
-                      style={{
-                        color:
-                          totalAvailable - investmentPaymentsThisMonth >= 0 ? '#0d9488' : '#EF4444',
-                      }}
-                    >
-                      {totalAvailable - investmentPaymentsThisMonth >= 0
-                        ? mm(totalAvailable - investmentPaymentsThisMonth)
-                        : `−${mm(investmentPaymentsThisMonth - totalAvailable)}`}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
-        )}
-
         {!editingIncome && carryOver !== 0 && (
           <Card className="p-5 border-l-4 border-teal-600">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">

@@ -72,12 +72,16 @@ export function useInvestments(userId: string | null) {
       const remote = await loadInvestmentsData(userId)
       if (!active || !remote) return
       setInvestments(remote.investments)
-      // Payments: solo sobreescribir si Supabase tiene payments, o si local también está vacío.
-      // Si Supabase retorna [] pero localStorage tiene pagos, el sync falló — conservar local.
+      // Re-leer localStorage aquí: el usuario puede haber agregado pagos mientras
+      // este effect esperaba la respuesta de Supabase (local capturado arriba es viejo).
+      const freshLocal = loadStore(userId)
       const remoteHasPayments = remote.payments.length > 0
-      const localHasPayments = local.payments.length > 0
-      const finalPayments =
-        remoteHasPayments || !localHasPayments ? remote.payments : local.payments
+      const freshLocalHasPayments = freshLocal.payments.length > 0
+      const finalPayments = remoteHasPayments
+        ? remote.payments
+        : freshLocalHasPayments
+          ? freshLocal.payments
+          : []
       setPayments(finalPayments)
       saveStore(userId, { investments: remote.investments, payments: finalPayments })
       syncedForUserRef.current = userId

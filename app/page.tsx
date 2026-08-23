@@ -1309,13 +1309,23 @@ export default function Home() {
         expenses,
         extraIncomes,
         pockets,
-        monthlyIncome: income,
+        monthlyIncome: Math.max(0, (income ?? 0) - investmentPaymentsThisMonth),
         monthlySavings: savings,
         currentMonth: activeMonth,
         manualBudget,
         carryOver,
       }),
-    [expenses, extraIncomes, pockets, income, savings, activeMonth, manualBudget, carryOver]
+    [
+      expenses,
+      extraIncomes,
+      pockets,
+      income,
+      savings,
+      activeMonth,
+      manualBudget,
+      carryOver,
+      investmentPaymentsThisMonth,
+    ]
   )
 
   // ── Cumulative Savings Calculation ─────────────────────────────────────────
@@ -2529,6 +2539,8 @@ export default function Home() {
             isPrivacyMode={isPrivacyMode}
             cumulativeSavings={cumulativeSavings}
             investmentPaymentsThisMonth={investmentPaymentsThisMonth}
+            grossIncome={income ?? 0}
+            plannedSavings={savings ?? 0}
           />
         )}
         {activeTab === 'insights' && (
