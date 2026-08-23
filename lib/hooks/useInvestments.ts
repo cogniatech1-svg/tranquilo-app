@@ -71,13 +71,15 @@ export function useInvestments(userId: string | null) {
       // 4. Supabase es fuente durable — cargar y reconciliar
       const remote = await loadInvestmentsData(userId)
       if (!active || !remote) return
-      const remoteHasData = remote.investments.length > 0 || remote.payments.length > 0
-      const localHasData = local.investments.length > 0 || local.payments.length > 0
-      if (remoteHasData || !localHasData) {
-        setInvestments(remote.investments)
-        setPayments(remote.payments)
-        saveStore(userId, { investments: remote.investments, payments: remote.payments })
-      }
+      setInvestments(remote.investments)
+      // Payments: solo sobreescribir si Supabase tiene payments, o si local también está vacío.
+      // Si Supabase retorna [] pero localStorage tiene pagos, el sync falló — conservar local.
+      const remoteHasPayments = remote.payments.length > 0
+      const localHasPayments = local.payments.length > 0
+      const finalPayments =
+        remoteHasPayments || !localHasPayments ? remote.payments : local.payments
+      setPayments(finalPayments)
+      saveStore(userId, { investments: remote.investments, payments: finalPayments })
       syncedForUserRef.current = userId
     })()
     return () => {
