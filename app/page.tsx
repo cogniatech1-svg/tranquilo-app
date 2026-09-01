@@ -1190,7 +1190,8 @@ export default function Home() {
       .catch((err) => {
         console.warn('[SAFETY-NET] Error fetching current month from Supabase:', err)
       })
-  }, [hydrated, currentMonth, userId, guestUserId, monthlyHistory])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, currentMonth, userId, guestUserId])
 
   // ── Guardar en Supabase inmediatamente (para acciones críticas) ──────────
   const saveNow = useCallback(

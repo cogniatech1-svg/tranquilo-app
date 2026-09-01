@@ -232,7 +232,7 @@ export function BudgetScreen({
                 Editar
               </span>
             </div>
-            {grossIncome === 0 ? (
+            {totalIncome === 0 ? (
               <p className="text-2xl font-bold text-slate-400">Toca para configurar</p>
             ) : (
               <p className="text-2xl font-bold text-slate-900 tabular-nums">
@@ -243,7 +243,7 @@ export function BudgetScreen({
         )}
 
         {/* ── 1.5. EDITABLE BUDGET (Presupuesto a gastar) ────────────────────────────────────── */}
-        {grossIncome > 0 && !editingSavings && (
+        {totalIncome > 0 && !editingSavings && (
           <Card className="p-5">
             <div className="flex items-start justify-between mb-5">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
@@ -333,7 +333,7 @@ export function BudgetScreen({
         {/* ── 1.6. AHORRO DISPONIBLE (Read-only) ──────────────────────────────────────
              Muestra lo que realmente queda libre: totalIncome - totalExpenses.
              Solo visible cuando hay ingresos y al menos un gasto registrado.         */}
-        {grossIncome > 0 && totalSpent > 0 && !editingSavings && (
+        {totalIncome > 0 && totalSpent > 0 && !editingSavings && (
           <Card className="p-5">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500 mb-4">
               Ahorro disponible
