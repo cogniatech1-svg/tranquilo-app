@@ -79,7 +79,21 @@ export async function saveUserData(userId: string, data: StoredData): Promise<vo
     }
     if (userEmail) userRecord.email = userEmail
 
-    const { error: userError } = await supabase.from('users').upsert(userRecord)
+    let { error: userError } = await supabase.from('users').upsert(userRecord)
+
+    // Condicion de carrera conocida: AUTO-SAVE y AUTH-SAVE (guest→auth) pueden
+    // intentar crear la fila de este mismo usuario casi al mismo tiempo. El
+    // upsert solo resuelve el conflicto sobre "id" (el default); si la fila aun
+    // no existe, Postgres puede lanzar el unique de "email" durante la ventana
+    // de escritura concurrente aunque ambas escrituras sean la misma fila. Para
+    // cuando esto ocurre la fila ya existe (la creo el otro guardado), asi que
+    // reintentar el mismo upsert ahora sí coincide por "id" y actualiza normal.
+    if (userError?.code === '23505' && userError.message?.includes('users_email_key')) {
+      console.warn(
+        '[Supabase] ⚠️ Conflicto de email por guardado concurrente, reintentando upsert...'
+      )
+      ;({ error: userError } = await supabase.from('users').upsert(userRecord))
+    }
 
     if (userError) {
       console.error(
@@ -518,6 +532,9 @@ export async function migrateGuestDataToAuthenticatedUser(
     }
 
     let totalMigrated = 0
+    // Meses del invitado que no se pudieron mover porque la cuenta autenticada
+    // ya los tenia. Si queda alguno, la limpieza final NO debe ejecutarse.
+    let monthsNotMigrated = 0
 
     // 2. Migrate users record metadata
     console.log('[Supabase] 🟡 Migrating users record...')
@@ -528,11 +545,60 @@ export async function migrateGuestDataToAuthenticatedUser(
       .single()
 
     if (guestUserData) {
-      const { error: userUpdateError } = await supabase.from('users').upsert({
-        ...guestUserData,
+      // Solo se migran los campos de contenido. Se excluyen de forma deliberada:
+      //  - "email": el correo del invitado es "guest_<id>@tranquilo.local" y
+      //    pertenece a la fila del invitado. Escribirlo en la fila del usuario
+      //    autenticado choca contra el unique "users_email_key" (o le deja un
+      //    correo de invitado). El correo correcto es el de la sesion.
+      //  - "created_at": pertenece a la fila destino, no a la del invitado.
+      //  - "updated_at": esa columna no existe en el esquema real; enviarla
+      //    hacia PostgREST devuelve PGRST204 y anula toda esta escritura.
+      const migratedFields: Record<string, unknown> = {
+        country_code: guestUserData.country_code,
+        monthly_income: guestUserData.monthly_income,
+        monthly_savings: guestUserData.monthly_savings,
+        is_privacy_mode: guestUserData.is_privacy_mode,
+        profile_data: guestUserData.profile_data,
+      }
+      // Nunca sobrescribir con vacio lo que el usuario autenticado ya tenga.
+      for (const key of Object.keys(migratedFields)) {
+        if (migratedFields[key] === null || migratedFields[key] === undefined) {
+          delete migratedFields[key]
+        }
+      }
+
+      // El correo debe ser el de la sesion autenticada, no el del invitado.
+      const {
+        data: { session: migrationSession },
+      } = await supabase.auth.getSession()
+      const authenticatedEmail =
+        migrationSession?.user?.id === newAuthenticatedUserId ? migrationSession.user.email : null
+
+      const userMigrationRecord: Record<string, unknown> = {
         id: newAuthenticatedUserId,
-        updated_at: new Date().toISOString(),
-      })
+        ...migratedFields,
+      }
+      if (authenticatedEmail) {
+        userMigrationRecord.email = authenticatedEmail
+      }
+
+      let { error: userUpdateError } = await supabase.from('users').upsert(userMigrationRecord)
+
+      // Misma condicion de carrera documentada en saveUserData (mas abajo en este
+      // archivo): un upsert con ON CONFLICT(id) puede chocar contra el unique de
+      // "email" si la fila del usuario autenticado aun no existe y otra escritura
+      // concurrente (AUTO-SAVE/AUTH-SAVE) esta creandola al mismo tiempo. Mismo
+      // fix: reintentar una vez, para cuando la fila ya existe y el upsert
+      // coincide por "id".
+      if (
+        userUpdateError?.code === '23505' &&
+        userUpdateError.message?.includes('users_email_key')
+      ) {
+        console.warn(
+          '[Supabase] ⚠️ Conflicto de email por guardado concurrente en migracion, reintentando upsert...'
+        )
+        ;({ error: userUpdateError } = await supabase.from('users').upsert(userMigrationRecord))
+      }
 
       if (userUpdateError) {
         console.warn(
@@ -617,19 +683,45 @@ export async function migrateGuestDataToAuthenticatedUser(
     }
 
     if (guestMonths && guestMonths.length > 0) {
-      const { error: updateMonthsError } = await supabase
+      // monthly_records tiene un unique (user_id, month). Si la cuenta
+      // autenticada ya registro alguno de esos meses, reapuntar en bloque
+      // falla con 23505 (monthly_records_user_id_month_key) y aborta toda la
+      // migracion. Se mueven unicamente los meses que la cuenta autenticada
+      // todavia no tiene; los demas se conservan bajo el id invitado.
+      const { data: authExistingMonths } = await supabase
         .from('monthly_records')
-        .update({ user_id: newAuthenticatedUserId })
-        .eq('user_id', guestUserId)
+        .select('month')
+        .eq('user_id', newAuthenticatedUserId)
 
-      if (updateMonthsError) {
-        const errorMsg = `Failed to update monthly records: ${updateMonthsError.message}`
-        console.error('[Supabase]', errorMsg)
-        return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+      const takenMonths = new Set((authExistingMonths || []).map((m) => m.month))
+      const movableMonths = guestMonths.filter((m) => !takenMonths.has(m.month))
+      monthsNotMigrated = guestMonths.length - movableMonths.length
+
+      if (movableMonths.length > 0) {
+        const { error: updateMonthsError } = await supabase
+          .from('monthly_records')
+          .update({ user_id: newAuthenticatedUserId })
+          .eq('user_id', guestUserId)
+          .in(
+            'month',
+            movableMonths.map((m) => m.month)
+          )
+
+        if (updateMonthsError) {
+          const errorMsg = `Failed to update monthly records: ${updateMonthsError.message}`
+          console.error('[Supabase]', errorMsg)
+          return { success: false, itemsMigrated: totalMigrated, error: errorMsg }
+        }
+
+        totalMigrated += movableMonths.length
+        console.log(`[Supabase] ✅ ${movableMonths.length} monthly records migrated`)
       }
 
-      totalMigrated += guestMonths.length
-      console.log(`[Supabase] ✅ ${guestMonths.length} monthly records migrated`)
+      if (monthsNotMigrated > 0) {
+        console.warn(
+          `[Supabase] ⚠️ ${monthsNotMigrated} mes(es) del invitado no se movieron porque la cuenta autenticada ya los tiene. Se conservan bajo el id invitado y NO se borran.`
+        )
+      }
     }
 
     // 6. Migrate concept_map
@@ -701,6 +793,20 @@ export async function migrateGuestDataToAuthenticatedUser(
     }
 
     // 9. DELETE guest data only after validation passes
+    // Guarda adicional: si quedo algun mes sin migrar (porque la cuenta
+    // autenticada ya lo tenia), esos registros siguen siendo los unicos
+    // ejemplares bajo el id invitado. Borrarlos seria perdida de datos.
+    if (monthsNotMigrated > 0) {
+      console.warn(
+        `[Supabase] ⚠️ Se omite la limpieza de datos del invitado: ${monthsNotMigrated} mes(es) quedaron sin migrar y se conservan.`
+      )
+      console.log('[Supabase] 🟢 ✅ Guest→auth migration complete (sin limpieza):', {
+        itemsMigrated: totalMigrated,
+        monthsNotMigrated,
+      })
+      return { success: true, itemsMigrated: totalMigrated }
+    }
+
     console.log('[Supabase] 🟡 Limpiando datos del guest (después de validación)...')
     try {
       await supabase.from('expenses').delete().eq('user_id', guestUserId)
