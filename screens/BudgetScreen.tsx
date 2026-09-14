@@ -12,12 +12,18 @@ import { InsightDonut } from '../components/InsightDonut'
 import { DS, maskMoney, getPocketPalette, getPocketIcon } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, Pocket } from '../lib/types'
+import type { Investment, InvestmentPayment } from '../lib/types/investment'
 import type { FinancialSnapshot } from '../lib/financialEngine'
 import { parseAmount } from '../lib/utils'
 import { MonthNavigator } from '../components/MonthNavigator'
 import { EmojiPicker } from '../components/EmojiPicker'
 import { guessIconFromName } from '../lib/config'
 import { parseDateString } from '../lib/insightsEngine'
+import { TYPE_OPTIONS } from './InvestmentsScreen'
+
+// Color fijo para la sección "Inversiones del mes" — deliberadamente distinto
+// de POCKET_PALETTE para que nunca se confunda visualmente con un bolsillo.
+const INVESTMENT_COLOR = { bg: '#E0E7FF', text: '#4338CA', bar: '#6366F1' }
 
 interface Props {
   snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
@@ -42,6 +48,8 @@ interface Props {
   investmentPaymentsThisMonth?: number
   grossIncome?: number
   plannedSavings?: number
+  investments?: Investment[]
+  investmentPayments?: InvestmentPayment[]
 }
 
 export function BudgetScreen({
@@ -67,6 +75,8 @@ export function BudgetScreen({
   investmentPaymentsThisMonth = 0,
   grossIncome = 0,
   plannedSavings = 0,
+  investments = [],
+  investmentPayments = [],
 }: Props) {
   // EXTRAER DEL SNAPSHOT (ÚNICA FUENTE DE VERDAD)
   const {
@@ -96,6 +106,7 @@ export function BudgetScreen({
   const [newIcon, setNewIcon] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
+  const [expandedInvestment, setExpandedInvestment] = useState<string | null>(null)
 
   const autoIcon = guessIconFromName(newName)
   const selectedIcon = newIcon || autoIcon
@@ -197,6 +208,26 @@ export function BudgetScreen({
       }),
     [spentByPocketList]
   )
+
+  // ── Inversiones del mes (independiente de bolsillos; ver ANT sobre no tocar financialEngine) ──
+  const investmentBreakdownList = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const p of investmentPayments) {
+      if (!p.date.startsWith(activeMonth)) continue
+      totals.set(p.investmentId, (totals.get(p.investmentId) ?? 0) + p.amount)
+    }
+    return Array.from(totals.entries())
+      .map(([investmentId, spent]) => {
+        const inv = investments.find((i) => i.id === investmentId)
+        return {
+          investmentId,
+          spent,
+          name: inv?.name ?? 'Inversión',
+          type: inv?.type,
+        }
+      })
+      .sort((a, b) => b.spent - a.spent)
+  }, [investmentPayments, investments, activeMonth])
 
   return (
     <div className="pb-6">
@@ -843,6 +874,104 @@ export function BudgetScreen({
               </Card>
             </div>
           </>
+        )}
+
+        {/* ── Inversiones del mes ──────────────────────────────────────────── */}
+        {investmentBreakdownList.length > 0 && (
+          <div>
+            <SectionHeader>Inversiones del mes</SectionHeader>
+            <p className="text-xs text-slate-500 mb-3 -mt-2">
+              Ya se descontó de tu ingreso disponible — no afecta tus bolsillos.
+            </p>
+            <Card className="overflow-hidden">
+              {investmentBreakdownList.map(({ investmentId, name, type, spent }, idx) => {
+                const icon = TYPE_OPTIONS.find((o) => o.value === type)?.emoji ?? '📈'
+                const isExpanded = expandedInvestment === investmentId
+                const monthPayments = investmentPayments
+                  .filter((p) => p.investmentId === investmentId && p.date.startsWith(activeMonth))
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                const isLast = idx === investmentBreakdownList.length - 1
+
+                return (
+                  <div key={investmentId} className={!isLast ? 'border-b border-slate-100' : ''}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedInvestment(isExpanded ? null : investmentId)}
+                      className="w-full flex items-center gap-3 p-5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                    >
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-base leading-none shrink-0 select-none"
+                        style={{ backgroundColor: INVESTMENT_COLOR.bg }}
+                      >
+                        {icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-sm font-bold text-slate-800 truncate">{name}</span>
+                          <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
+                            {mm(spent)}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className="text-slate-300 shrink-0 text-lg transition-transform duration-200"
+                        style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                      >
+                        ›
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-slate-100 bg-slate-50/70">
+                        {monthPayments.length === 0 ? (
+                          <p className="text-xs text-slate-500 text-center py-4">
+                            Sin pagos este mes
+                          </p>
+                        ) : (
+                          <div className="divide-y divide-slate-100">
+                            {monthPayments.map((p) => {
+                              const d = parseDateString(p.date) || new Date()
+                              const dateStr = d.toLocaleDateString(config.locale, {
+                                day: 'numeric',
+                                month: 'short',
+                              })
+                              return (
+                                <div
+                                  key={p.id}
+                                  className="flex items-center justify-between px-5 py-3 gap-3"
+                                >
+                                  <span className="text-[10px] text-slate-500 font-medium shrink-0 w-12">
+                                    {dateStr}
+                                  </span>
+                                  <span className="text-xs text-slate-700 flex-1 truncate capitalize">
+                                    {p.notes || name}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
+                                    {mm(p.amount)}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                            <div className="flex justify-between items-center px-5 py-2.5 bg-slate-100/80">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                {monthPayments.length} pago{monthPayments.length !== 1 ? 's' : ''}
+                              </span>
+                              <span
+                                className="text-xs font-bold tabular-nums"
+                                style={{ color: INVESTMENT_COLOR.text }}
+                              >
+                                {mm(spent)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </Card>
+          </div>
         )}
 
         {/* ── Exceeded pockets impact ──────────────────────────────────────── */}
