@@ -2,13 +2,10 @@ import { Icon, type IconName } from './ui/Icon'
 import { DS } from '../lib/config'
 import type { TabId } from '../lib/types'
 
-// TODO: 6 tabs excede el máximo recomendado para móvil (5).
-// Revisar layout o consolidar tabs antes de producción.
 const TABS: { id: TabId; icon: IconName; label: string }[] = [
   { id: 'inicio', icon: 'home', label: 'Inicio' },
   { id: 'movimientos', icon: 'list', label: 'Movimientos' },
   { id: 'presupuesto', icon: 'wallet', label: 'Presupuesto' },
-  { id: 'insights', icon: 'chart', label: 'Insights' },
   { id: 'inversiones', icon: 'sparkle', label: 'Inversiones' },
   { id: 'perfil', icon: 'user', label: 'Perfil' },
 ]

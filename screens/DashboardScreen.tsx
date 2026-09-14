@@ -6,8 +6,9 @@ import { Icon } from '../components/ui/Icon'
 import { Card } from '../components/ui/Card'
 import { maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { CalmState, Expense, Pocket } from '../lib/types'
+import type { CalmState, Expense, MonthRecord, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
+import { generateInsights, type InsightKind } from '../lib/insightsEngine'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -16,11 +17,18 @@ const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   neutral: { dot: '#4ADE80', label: 'Vas bien' },
 }
 
+const KIND_STYLE: Record<InsightKind, { border: string; bg: string; action: string }> = {
+  warning: { border: '#EF4444', bg: '#FFF5F5', action: '#B91C1C' },
+  positive: { border: '#22C55E', bg: '#F0FDF4', action: '#15803D' },
+  info: { border: '#0EA5E9', bg: '#F0F9FF', action: '#0369A1' },
+}
+
 interface Props {
   snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
   expenses: Expense[]
   pockets: Pocket[]
   spentByPocket: Record<string, number>
+  monthlyHistory: Record<string, MonthRecord>
   config: CountryConfig
   activeMonth: string
   realCurrentMonth: string
@@ -40,6 +48,7 @@ export function DashboardScreen({
   expenses,
   pockets,
   spentByPocket,
+  monthlyHistory,
   config,
   activeMonth,
   realCurrentMonth,
@@ -98,6 +107,11 @@ export function DashboardScreen({
     day: 'numeric',
     month: 'long',
   })
+
+  const { primary: primaryInsight, secondary: secondaryInsights } = useMemo(
+    () => generateInsights(snapshot, expenses, pockets, spentByPocket, monthlyHistory, config),
+    [snapshot, expenses, pockets, spentByPocket, monthlyHistory, config]
+  )
 
   return (
     <div className="pb-8">
@@ -317,6 +331,86 @@ export function DashboardScreen({
               </div>
             ))}
           </Card>
+        </div>
+      )}
+
+      {/* ── Insight cards ────────────────────────────────────────────────── */}
+      {primaryInsight && (
+        <div className="px-4 mt-6">
+          <SectionHeader>Este mes</SectionHeader>
+
+          {/* Primary insight — destacado */}
+          {(() => {
+            const s = KIND_STYLE[primaryInsight.kind]
+            return (
+              <div
+                className="rounded-2xl overflow-hidden flex mb-3"
+                style={{
+                  background: s.bg,
+                  border: `2px solid ${s.border}`,
+                  boxShadow: '0 4px 12px rgba(15,23,42,.12)',
+                }}
+              >
+                <div className="w-1.5 shrink-0" style={{ background: s.border }} />
+                <div className="flex-1 px-5 py-4">
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <span className="text-2xl leading-none mt-0.5 shrink-0">
+                      {primaryInsight.icon}
+                    </span>
+                    <p className="text-base font-bold text-slate-900 leading-snug">
+                      {primaryInsight.title}
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-3 pl-8">
+                    {primaryInsight.body}
+                  </p>
+                  <p
+                    className="text-sm font-semibold leading-snug pl-8"
+                    style={{ color: s.action }}
+                  >
+                    → {primaryInsight.action}
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Secondary insights — compactos */}
+          {secondaryInsights.length > 0 && (
+            <div className="space-y-2">
+              {secondaryInsights.map((ins, i) => {
+                const s = KIND_STYLE[ins.kind]
+                return (
+                  <div
+                    key={i}
+                    className="rounded-2xl overflow-hidden flex"
+                    style={{
+                      background: s.bg,
+                      border: `1px solid ${s.border}22`,
+                      boxShadow: '0 1px 4px rgba(15,23,42,.06)',
+                    }}
+                  >
+                    <div className="w-1 shrink-0" style={{ background: s.border }} />
+                    <div className="flex-1 px-4 py-3">
+                      <div className="flex items-start gap-2 mb-1">
+                        <span className="text-sm leading-none mt-0.5 shrink-0">{ins.icon}</span>
+                        <p className="text-xs font-bold text-slate-900 leading-snug">{ins.title}</p>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed mb-1.5 pl-5">
+                        {ins.body}
+                      </p>
+                      <p
+                        className="text-[11px] font-semibold leading-snug pl-5"
+                        style={{ color: s.action }}
+                      >
+                        → {ins.action}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

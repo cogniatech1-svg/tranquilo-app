@@ -1,27 +1,30 @@
 'use client'
 
 // Rebuild trigger
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { PrimaryButton } from '../components/ui/PrimaryButton'
 import { PocketCard } from '../components/PocketCard'
 import { Icon } from '../components/ui/Icon'
-import { DS, maskMoney } from '../lib/config'
+import { InsightDonut } from '../components/InsightDonut'
+import { DS, maskMoney, getPocketPalette, getPocketIcon } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type { Pocket } from '../lib/types'
+import type { Expense, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
 import { parseAmount } from '../lib/utils'
 import { MonthNavigator } from '../components/MonthNavigator'
 import { EmojiPicker } from '../components/EmojiPicker'
 import { guessIconFromName } from '../lib/config'
+import { parseDateString } from '../lib/insightsEngine'
 
 interface Props {
   snapshot: FinancialSnapshot // ÚNICA FUENTE DE VERDAD
   pockets: Pocket[]
   spentByPocket: Record<string, number>
   expenseCountByPocket: Record<string, number>
+  expenses: Expense[]
   config: CountryConfig
   activeMonth: string
   realCurrentMonth: string
@@ -46,6 +49,7 @@ export function BudgetScreen({
   pockets,
   spentByPocket,
   expenseCountByPocket,
+  expenses,
   config,
   activeMonth,
   realCurrentMonth,
@@ -91,6 +95,7 @@ export function BudgetScreen({
   const [newBudget, setNewBudget] = useState('')
   const [newIcon, setNewIcon] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
 
   const autoIcon = guessIconFromName(newName)
   const selectedIcon = newIcon || autoIcon
@@ -170,6 +175,28 @@ export function BudgetScreen({
   )
   const totalExcess = exceededPockets.reduce((s, p) => s + (spentByPocket[p.id] ?? 0) - p.budget, 0)
   const budgetRemaining = monthlyBudget > 0 ? monthlyBudget - totalSpent : null
+
+  // ── Gasto por bolsillo (spending breakdown, distinto de la distribución del presupuesto) ──
+  const spentByPocketList = useMemo(
+    () =>
+      pockets
+        .map((p, i) => ({ ...p, spent: spentByPocket[p.id] ?? 0, palIdx: i }))
+        .filter((p) => p.spent > 0)
+        .sort((a, b) => b.spent - a.spent),
+    [pockets, spentByPocket]
+  )
+  const totalSpentByPocket = useMemo(
+    () => spentByPocketList.reduce((s, p) => s + p.spent, 0),
+    [spentByPocketList]
+  )
+  const spendingDonutSegments = useMemo(
+    () =>
+      spentByPocketList.map((p) => {
+        const pal = getPocketPalette(p.id, p.palIdx)
+        return { name: p.name, value: p.spent, color: pal.bar }
+      }),
+    [spentByPocketList]
+  )
 
   return (
     <div className="pb-6">
@@ -677,6 +704,146 @@ export function BudgetScreen({
             })}
           </div>
         </div>
+
+        {/* ── Gasto por bolsillo ────────────────────────────────────────────── */}
+        {spentByPocketList.length > 0 && (
+          <>
+            <div>
+              <SectionHeader>Gasto por bolsillo</SectionHeader>
+              <Card className="p-5">
+                <InsightDonut segments={spendingDonutSegments} />
+              </Card>
+            </div>
+
+            <div>
+              <Card className="overflow-hidden">
+                {spentByPocketList.map(
+                  ({ id, name, budget, spent, palIdx, icon: storedIcon }, idx) => {
+                    const shareRatio = spent / (totalSpentByPocket || 1)
+                    const budgetRatio = budget > 0 ? spent / budget : 0
+                    const pct =
+                      budget > 0 ? Math.round(budgetRatio * 100) : Math.round(shareRatio * 100)
+                    const pctLabel = budget > 0 ? 'del presupuesto' : 'del total'
+                    const icon = getPocketIcon(id, name, storedIcon)
+                    const pal = getPocketPalette(id, palIdx)
+                    const isExpanded = expandedPocket === id
+                    const pocketExpenses = expenses
+                      .filter((e) => e.pocketId === id)
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                    const isLast = idx === spentByPocketList.length - 1
+
+                    return (
+                      <div key={id} className={!isLast ? 'border-b border-slate-100' : ''}>
+                        {/* Header row — clickeable */}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPocket(isExpanded ? null : id)}
+                          className="w-full flex items-center gap-3 p-5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                        >
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center text-base leading-none shrink-0 select-none"
+                            style={{ backgroundColor: pal.bg }}
+                          >
+                            {icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2 mb-2">
+                              <span className="text-sm font-bold text-slate-800 truncate">
+                                {name}
+                              </span>
+                              <div className="flex items-baseline gap-2 shrink-0">
+                                <span className="text-sm font-bold text-slate-900 tabular-nums">
+                                  {mm(spent)}
+                                </span>
+                                <span className="text-[10px] font-bold" style={{ color: pal.text }}>
+                                  {pct}% {pctLabel}
+                                </span>
+                              </div>
+                            </div>
+                            <ProgressBar
+                              ratio={budget > 0 ? budgetRatio : shareRatio}
+                              thick
+                              color={budget > 0 ? undefined : pal.bar}
+                            />
+                            {budget > 0 && budget - spent > 0 && (
+                              <p
+                                className="text-[10px] mt-1 tabular-nums font-semibold"
+                                style={{ color: pal.text }}
+                              >
+                                {mm(budget - spent)} Disponible de {mm(budget)}
+                              </p>
+                            )}
+                            {budget > 0 && budget - spent <= 0 && (
+                              <p className="text-[10px] mt-1 tabular-nums font-semibold text-red-500">
+                                Excedido en {mm(spent - budget)}
+                              </p>
+                            )}
+                          </div>
+                          {/* Chevron */}
+                          <span
+                            className="text-slate-300 shrink-0 text-lg transition-transform duration-200"
+                            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                          >
+                            ›
+                          </span>
+                        </button>
+
+                        {/* Expanded expense list */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 bg-slate-50/70">
+                            {pocketExpenses.length === 0 ? (
+                              <p className="text-xs text-slate-500 text-center py-4">
+                                Sin movimientos en esta categoría
+                              </p>
+                            ) : (
+                              <div className="divide-y divide-slate-100">
+                                {pocketExpenses.map((e) => {
+                                  const d = parseDateString(e.date) || new Date()
+                                  const dateStr = d.toLocaleDateString(config.locale, {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })
+                                  return (
+                                    <div
+                                      key={e.id}
+                                      className="flex items-center justify-between px-5 py-3 gap-3"
+                                    >
+                                      <span className="text-[10px] text-slate-500 font-medium shrink-0 w-12">
+                                        {dateStr}
+                                      </span>
+                                      <span className="text-xs text-slate-700 flex-1 truncate capitalize">
+                                        {e.concept}
+                                      </span>
+                                      <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
+                                        {mm(e.amount)}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                                <div className="flex justify-between items-center px-5 py-2.5 bg-slate-100/80">
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                    {pocketExpenses.length} movimiento
+                                    {pocketExpenses.length !== 1 ? 's' : ''}
+                                  </span>
+                                  <span
+                                    className="text-xs font-bold tabular-nums"
+                                    style={{ color: pal.text }}
+                                  >
+                                    {mm(spent)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                )}
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* ── Exceeded pockets impact ──────────────────────────────────────── */}
         {exceededPockets.length > 0 && (

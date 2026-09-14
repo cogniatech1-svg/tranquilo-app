@@ -37,6 +37,9 @@ dev-server.log
 # vercel
 .vercel
 
+# backups de datos reales (Fase 1 RLS) - nunca commitear
+/backups/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
