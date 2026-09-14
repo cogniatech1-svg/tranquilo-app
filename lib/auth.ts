@@ -35,7 +35,10 @@ export async function signUp(email: string, password: string): Promise<AuthUser>
   logger.debug(`[Auth.signUp] ✅ Signup successful for: ${data.user.email} (${userId})`)
 
   // Create user profile in users table
-  const { error: insertError } = await supabase.from('users').insert({
+  // upsert (no insert): evita una condicion de carrera con el auto-guardado
+  // (lib/supabase.ts saveUserData), que puede intentar escribir la misma fila
+  // casi al mismo tiempo tras el signUp y chocar contra el unique de email.
+  const { error: insertError } = await supabase.from('users').upsert({
     id: userId,
     email: data.user.email,
   })

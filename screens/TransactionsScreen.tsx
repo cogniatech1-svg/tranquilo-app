@@ -1,10 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { Icon } from '../components/ui/Icon'
 import { TransactionItem } from '../components/TransactionItem'
-import { maskMoney, DS } from '../lib/config'
+import { SectionHeader } from '../components/ui/SectionHeader'
+import { ProgressBar } from '../components/ui/ProgressBar'
+import { maskMoney, DS, POCKET_PALETTE } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { Expense, ExtraIncome, Pocket } from '../lib/types'
+import { parseDateString } from '../lib/insightsEngine'
 
 interface Props {
   expenses: Expense[]
@@ -43,8 +46,25 @@ export function TransactionsScreen({
 }: Props) {
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const isViewingPast = activeMonth !== realCurrentMonth
+  const [expandedConcept, setExpandedConcept] = useState<string | null>(null)
 
   const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
+
+  const byConcept = useMemo(() => {
+    const map: Record<string, Expense[]> = {}
+    for (const e of expenses) {
+      const k = e.concept.toLowerCase()
+      ;(map[k] ??= []).push(e)
+    }
+    return Object.entries(map)
+      .map(([concept, items]) => ({
+        concept,
+        amount: items.reduce((s, e) => s + e.amount, 0),
+        items: items.sort((a, b) => b.date.localeCompare(a.date)),
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 8)
+  }, [expenses])
 
   const grouped = useMemo(() => {
     const rows: Row[] = [
@@ -148,92 +168,177 @@ export function TransactionsScreen({
             </button>
           </Card>
         ) : (
-          grouped.map(({ label, items, dayExpenses, dayIncome }) => (
-            <div key={label}>
-              {/* Date group header */}
-              <div className="flex items-center gap-3 mb-3">
-                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-500 shrink-0">
-                  {label}
-                </p>
-                <div className="flex-1 h-px bg-slate-100" />
-                <div className="flex items-center gap-2 shrink-0">
-                  {dayIncome > 0 && (
-                    <span className="text-xs font-bold text-green-600 tabular-nums">
-                      +{mm(dayIncome)}
-                    </span>
-                  )}
-                  {dayExpenses > 0 && (
-                    <span className="text-xs font-bold text-slate-600 tabular-nums">
-                      {mm(dayExpenses)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <Card className="overflow-hidden">
-                {items.map((row, i) => {
-                  const isLast = i === items.length - 1
-
-                  if (row.kind === 'income') {
-                    const inc = row.data as ExtraIncome
+          <>
+            {/* ── Top gastos ────────────────────────────────────────────────── */}
+            {byConcept.length > 0 && (
+              <div>
+                <SectionHeader>Top gastos</SectionHeader>
+                <Card className="overflow-hidden">
+                  {byConcept.map(({ concept, amount, items }, i) => {
+                    const pal = POCKET_PALETTE[i % POCKET_PALETTE.length]
+                    const isExpanded = expandedConcept === concept
+                    const isLast = i === byConcept.length - 1
                     return (
-                      <div
-                        key={inc.id}
-                        className={`flex items-center gap-3 px-4 py-3.5 bg-green-50/70 ${!isLast ? 'border-b border-green-100' : ''}`}
-                      >
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-100 text-xl shrink-0 select-none">
-                          💚
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-green-800 tabular-nums">
-                            +{mm(inc.amount)}
-                          </p>
-                          {inc.concept ? (
-                            <p className="text-xs text-green-600 truncate capitalize">
-                              {inc.concept}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-green-500">Ingreso</p>
-                          )}
-                        </div>
-                        <div className="flex gap-0.5 shrink-0">
-                          <button
-                            onClick={() => onEditIncome(inc)}
-                            className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                      <div key={concept} className={!isLast ? 'border-b border-slate-100' : ''}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedConcept(isExpanded ? null : concept)}
+                          className="w-full flex items-center gap-3 p-5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                        >
+                          <div
+                            className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-bold text-white"
+                            style={{ backgroundColor: pal.bar }}
                           >
-                            <Icon name="edit" size={14} />
-                          </button>
-                          <button
-                            onClick={() => onDeleteExtraIncome(inc.id)}
-                            className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <span className="text-sm text-slate-700 capitalize truncate font-semibold">
+                                {concept}
+                              </span>
+                              <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
+                                {mm(amount)}
+                              </span>
+                            </div>
+                            <ProgressBar ratio={amount / (totalSpent || 1)} color={pal.bar} />
+                          </div>
+                          <span
+                            className="text-slate-300 shrink-0 text-lg transition-transform duration-200"
+                            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                           >
-                            <Icon name="trash" size={14} />
-                          </button>
-                        </div>
+                            ›
+                          </span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 bg-slate-50/70">
+                            <div className="divide-y divide-slate-100">
+                              {items.map((e) => {
+                                const d = parseDateString(e.date) || new Date()
+                                const dateStr = d.toLocaleDateString(config.locale, {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })
+                                return (
+                                  <div
+                                    key={e.id}
+                                    className="flex items-center justify-between px-5 py-3 gap-3"
+                                  >
+                                    <span className="text-[10px] text-slate-500 font-medium shrink-0 w-12">
+                                      {dateStr}
+                                    </span>
+                                    <span className="text-xs text-slate-700 flex-1 truncate capitalize">
+                                      {e.concept}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
+                                      {mm(e.amount)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
-                  }
+                  })}
+                  <div className="border-t border-slate-100 px-5 py-3.5 flex items-center justify-between bg-slate-50/50">
+                    <span className="text-sm font-bold text-slate-500">Total</span>
+                    <span className="text-sm font-bold text-slate-900 tabular-nums">
+                      {mm(totalSpent)}
+                    </span>
+                  </div>
+                </Card>
+              </div>
+            )}
 
-                  const expense = row.data as Expense
-                  const pocket = pockets.find((p) => p.id === expense.pocketId)
-                  const pi = pockets.findIndex((p) => p.id === expense.pocketId)
-                  return (
-                    <TransactionItem
-                      key={expense.id}
-                      expense={expense}
-                      pocket={pocket}
-                      pocketIndex={pi}
-                      config={config}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      showDivider={!isLast}
-                      isPrivacyMode={isPrivacyMode}
-                    />
-                  )
-                })}
-              </Card>
-            </div>
-          ))
+            {grouped.map(({ label, items, dayExpenses, dayIncome }) => (
+              <div key={label}>
+                {/* Date group header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-500 shrink-0">
+                    {label}
+                  </p>
+                  <div className="flex-1 h-px bg-slate-100" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    {dayIncome > 0 && (
+                      <span className="text-xs font-bold text-green-600 tabular-nums">
+                        +{mm(dayIncome)}
+                      </span>
+                    )}
+                    {dayExpenses > 0 && (
+                      <span className="text-xs font-bold text-slate-600 tabular-nums">
+                        {mm(dayExpenses)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <Card className="overflow-hidden">
+                  {items.map((row, i) => {
+                    const isLast = i === items.length - 1
+
+                    if (row.kind === 'income') {
+                      const inc = row.data as ExtraIncome
+                      return (
+                        <div
+                          key={inc.id}
+                          className={`flex items-center gap-3 px-4 py-3.5 bg-green-50/70 ${!isLast ? 'border-b border-green-100' : ''}`}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-100 text-xl shrink-0 select-none">
+                            💚
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-green-800 tabular-nums">
+                              +{mm(inc.amount)}
+                            </p>
+                            {inc.concept ? (
+                              <p className="text-xs text-green-600 truncate capitalize">
+                                {inc.concept}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-green-500">Ingreso</p>
+                            )}
+                          </div>
+                          <div className="flex gap-0.5 shrink-0">
+                            <button
+                              onClick={() => onEditIncome(inc)}
+                              className="p-1.5 text-slate-500 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                              <Icon name="edit" size={14} />
+                            </button>
+                            <button
+                              onClick={() => onDeleteExtraIncome(inc.id)}
+                              className="p-1.5 text-slate-500 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                            >
+                              <Icon name="trash" size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    const expense = row.data as Expense
+                    const pocket = pockets.find((p) => p.id === expense.pocketId)
+                    const pi = pockets.findIndex((p) => p.id === expense.pocketId)
+                    return (
+                      <TransactionItem
+                        key={expense.id}
+                        expense={expense}
+                        pocket={pocket}
+                        pocketIndex={pi}
+                        config={config}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        showDivider={!isLast}
+                        isPrivacyMode={isPrivacyMode}
+                      />
+                    )
+                  })}
+                </Card>
+              </div>
+            ))}
+          </>
         )}
       </div>
     </div>

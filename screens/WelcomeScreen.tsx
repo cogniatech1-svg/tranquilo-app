@@ -958,7 +958,8 @@ export function WelcomeScreen({ onLoginSuccess, onGuestMode }: WelcomeScreenProp
                   lineHeight: '1.4',
                 }}
               >
-                Solo se guarda en este dispositivo
+                Se respalda mientras uses este dispositivo. Inicia sesión con tu correo para no
+                perderlo si cambias de equipo
               </p>
             </div>
 

@@ -11,7 +11,6 @@ import { TransactionsScreen } from '../screens/TransactionsScreen'
 import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { calculateCarryOver } from '../lib/carryOver'
-import { InsightsScreen } from '../screens/InsightsScreen'
 import { InvestmentsScreen } from '../screens/InvestmentsScreen'
 import { useInvestments } from '../lib/hooks/useInvestments'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -137,6 +136,10 @@ export default function Home() {
   const authSavedForUserRef = useRef<string | null>(null)
   // Mutex: prevents concurrent Supabase saves (upsert+delete-stale is not safe under concurrency)
   const saveInProgressRef = useRef(false)
+  // Tracks which userId already triggered the guest→auth migration (prevents double-fire:
+  // React invoca dos veces las funciones updater de setState en dev/Strict Mode, y este
+  // efecto async no puede vivir dentro de un updater sin duplicarse).
+  const migrationTriggeredForUserRef = useRef<string | null>(null)
 
   const [hydrated, setHydrated] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -226,6 +229,7 @@ export default function Home() {
     dataLoadedRef.current = false
     loadedForUserRef.current = null
     authSavedForUserRef.current = null
+    migrationTriggeredForUserRef.current = null
   }, [])
 
   // ── HANDLE AUTH: Update state when auth changes ────────────────────────────
@@ -348,6 +352,70 @@ export default function Home() {
         return
       }
 
+      // Disparar migración guest→auth UNA sola vez por usuario real, FUERA del
+      // updater de setScreen: React (Strict Mode, dev) invoca dos veces las
+      // funciones updater pasadas a setState para detectar impurezas. Este
+      // efecto (llamada async a Supabase) vivía dentro de ese updater y se
+      // duplicaba en cada login, causando dos ejecuciones paralelas de
+      // migrateGuestDataToAuthenticatedUser (lib/supabase.ts) — cada una con
+      // su propio upsert a "users" — que chocaban contra el unique de email.
+      if (
+        event === 'SIGNED_IN' &&
+        currentUser &&
+        guestUserId &&
+        guestUserId !== currentUser.uid &&
+        migrationTriggeredForUserRef.current !== currentUser.uid
+      ) {
+        migrationTriggeredForUserRef.current = currentUser.uid
+        console.log(
+          `[Auth] 🔄 INICIANDO migración: invitado (${guestUserId}) → autenticado (${currentUser.uid})...`
+        )
+        setIsAuthenticating(true)
+
+        migrateGuestDataToAuthenticatedUser(guestUserId, currentUser.uid)
+          .then(async (result) => {
+            if (result.success) {
+              console.log(
+                `[Auth] ✅ Migración Supabase completa: ${result.itemsMigrated} items migrados`
+              )
+
+              // CRITICAL: After Supabase migration, ensure ALL data is saved with the new authenticated userId
+              // This includes pockets which may have been in guest localStorage
+              console.log(
+                `[Auth] 🔄 FASE 2: Guardando datos completos con nuevo userId autenticado...`
+              )
+
+              // Load current data to verify migration success
+              try {
+                const migratedData = await loadUserData(currentUser.uid)
+                if (migratedData) {
+                  console.log(`[Auth] ✅ Datos verificados de Supabase post-migración:`, {
+                    monthsCount: migratedData.monthlyHistory
+                      ? Object.keys(migratedData.monthlyHistory).length
+                      : 0,
+                    hasProfile: !!migratedData.profile,
+                  })
+                }
+              } catch (verifyError) {
+                console.warn(
+                  `[Auth] ⚠️ No se pudo verificar datos post-migración (no bloqueante):`,
+                  verifyError
+                )
+              }
+
+              setGuestUserId(null)
+            } else {
+              console.warn(`[Auth] ⚠️ Migración falló: ${result.error}`)
+            }
+          })
+          .catch((error) => {
+            console.error('[Auth] ❌ Error inesperado en migración:', error)
+          })
+          .finally(() => {
+            setIsAuthenticating(false)
+          })
+      }
+
       // Single source of truth for auth-driven navigation.
       setScreen((prev) => {
         console.log(`[AUTH] 🔷 Screen transition logic: event=${event}, current screen=${prev}`)
@@ -363,57 +431,6 @@ export default function Home() {
             }
 
             console.log(`[AUTH] ✅ User authenticated: ${currentUser.email} (${currentUser.uid})`)
-
-            // NEW: Migrate guest data to authenticated user if guest mode was active
-            if (guestUserId && guestUserId !== currentUser.uid) {
-              console.log(
-                `[Auth] 🔄 INICIANDO migración: invitado (${guestUserId}) → autenticado (${currentUser.uid})...`
-              )
-              setIsAuthenticating(true)
-
-              migrateGuestDataToAuthenticatedUser(guestUserId, currentUser.uid)
-                .then(async (result) => {
-                  if (result.success) {
-                    console.log(
-                      `[Auth] ✅ Migración Supabase completa: ${result.itemsMigrated} items migrados`
-                    )
-
-                    // CRITICAL: After Supabase migration, ensure ALL data is saved with the new authenticated userId
-                    // This includes pockets which may have been in guest localStorage
-                    console.log(
-                      `[Auth] 🔄 FASE 2: Guardando datos completos con nuevo userId autenticado...`
-                    )
-
-                    // Load current data to verify migration success
-                    try {
-                      const migratedData = await loadUserData(currentUser.uid)
-                      if (migratedData) {
-                        console.log(`[Auth] ✅ Datos verificados de Supabase post-migración:`, {
-                          monthsCount: migratedData.monthlyHistory
-                            ? Object.keys(migratedData.monthlyHistory).length
-                            : 0,
-                          hasProfile: !!migratedData.profile,
-                        })
-                      }
-                    } catch (verifyError) {
-                      console.warn(
-                        `[Auth] ⚠️ No se pudo verificar datos post-migración (no bloqueante):`,
-                        verifyError
-                      )
-                    }
-
-                    setGuestUserId(null)
-                  } else {
-                    console.warn(`[Auth] ⚠️ Migración falló: ${result.error}`)
-                  }
-                })
-                .catch((error) => {
-                  console.error('[Auth] ❌ Error inesperado en migración:', error)
-                })
-                .finally(() => {
-                  setIsAuthenticating(false)
-                })
-            }
 
             const hasOnboarded =
               localStorage.getItem(`${ONBOARDING_FLAG}_${currentUser.uid}`) === 'true'
@@ -2154,9 +2171,24 @@ export default function Home() {
       }
 
       // Save to Supabase and localStorage
-      saveUserData(currentUserId, initialData).catch((err) => {
-        console.error('[onboarding] Error saving to Supabase:', err)
-      })
+      // Guardado bajo el mismo mutex saveInProgressRef que usan AUTO-SAVE, AUTH-SAVE,
+      // VISIBILITY y SAVE-NOW: sin este guard, un doble-tap en "Confirmar y empezar"
+      // dispara dos llamadas casi simultáneas a saveUserData() para un usuario que
+      // todavía no tiene fila en "users", y ambas —más el efecto AUTH-SAVE, que se
+      // dispara en paralelo por el mismo cambio de estado— pueden chocar entre sí al
+      // intentar crear esa fila al mismo tiempo, violando el unique de email.
+      if (saveInProgressRef.current) {
+        console.log('[onboarding] Skipping Supabase save: another save already in progress')
+      } else {
+        saveInProgressRef.current = true
+        saveUserData(currentUserId, initialData)
+          .catch((err) => {
+            console.error('[onboarding] Error saving to Supabase:', err)
+          })
+          .finally(() => {
+            saveInProgressRef.current = false
+          })
+      }
 
       const storageKey = `${STORAGE_KEY}_${currentUserId}`
       localStorage.setItem(storageKey, JSON.stringify(initialData))
@@ -2489,6 +2521,7 @@ export default function Home() {
             expenses={expenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
+            monthlyHistory={monthlyHistory}
             config={config}
             activeMonth={activeMonth}
             realCurrentMonth={currentMonth}
@@ -2522,6 +2555,7 @@ export default function Home() {
         {activeTab === 'presupuesto' && (
           <BudgetScreen
             snapshot={snapshot}
+            expenses={expenses}
             pockets={pockets}
             spentByPocket={spentByPocket}
             expenseCountByPocket={expenseCountByPocket}
@@ -2544,17 +2578,6 @@ export default function Home() {
             plannedSavings={savings ?? 0}
           />
         )}
-        {activeTab === 'insights' && (
-          <InsightsScreen
-            snapshot={snapshot}
-            expenses={expenses}
-            pockets={pockets}
-            spentByPocket={spentByPocket}
-            monthlyHistory={monthlyHistory}
-            config={config}
-            isPrivacyMode={isPrivacyMode}
-          />
-        )}
         {activeTab === 'inversiones' && (
           <InvestmentsScreen
             investments={investments}
@@ -2573,7 +2596,7 @@ export default function Home() {
             onClearData={handleClearData}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={handleTogglePrivacy}
-            userEmail={userId ? 'User' : 'Guest'}
+            userEmail={userEmail ?? undefined}
             onLogOut={handleLogOut}
             profileData={profileData}
             onSaveProfile={handleSaveProfile}
@@ -2582,6 +2605,8 @@ export default function Home() {
             onRequestLogin={() => setScreen('login')}
             onDeleteAccount={handleDeleteAccount}
             onExportCSV={handleExportCSV}
+            monthlyHistory={monthlyHistory}
+            pockets={pockets}
           />
         )}
       </div>
