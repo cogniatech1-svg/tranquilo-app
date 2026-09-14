@@ -35,7 +35,7 @@ Tranquilo es una PWA (Progressive Web App) de finanzas personales diseñada para
 | Íconos               | Lucide React                      |
 | Almacenamiento local | localStorage (cache/fallback)     |
 | Backend              | Supabase (PostgreSQL + Auth)      |
-| Deploy               | Vercel                            |
+| Deploy               | Vercel + Cloudflare Pages         |
 | PWA                  | Service Worker + Web App Manifest |
 
 ---
@@ -80,9 +80,13 @@ tranquilo/
 │   ├── config.ts             # Design system, colores, configuración por país
 │   ├── constants.ts          # DEFAULT_POCKETS y constantes globales
 │   └── utils.ts              # Utilidades (formateo, parsing, fechas)
+├── functions/
+│   └── api/
+│       └── delete-account.ts # Cloudflare Pages Function — port 1:1 de app/api/delete-account
 └── public/
     ├── manifest.json         # Configuración PWA
     ├── sw.js                 # Service Worker
+    ├── _headers               # Headers/CSP para Cloudflare Pages (réplica de next.config.ts)
     └── icons/                # Íconos PWA
 ```
 
@@ -112,12 +116,25 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 ## Deploy
 
-El proyecto está conectado a Vercel. Cualquier push a `main` dispara un redeploy automático.
+El proyecto está conectado a **dos** plataformas, ambas desplegando automáticamente desde `main`:
 
 ```bash
 git add .
 git commit -m "descripción del cambio"
 git push
+```
+
+- **Vercel** — `https://tranquilo-app.vercel.app` — build híbrido normal de Next.js (`next build`). El endpoint `/api/delete-account` corre como Route Handler (`app/api/delete-account/route.ts`).
+- **Cloudflare Pages** (`tranquilo-cloudflare`) — `https://tranquilo-cloudflare.pages.dev` — export estático (`STATIC_EXPORT=1 npm run build` → `out/`). El mismo endpoint de borrado de cuenta corre como Pages Function (`functions/api/delete-account.ts`, port 1:1 del Route Handler) porque el export estático no admite rutas de servidor dentro de `app/`. Los headers/CSP de `next.config.ts` no aplican en export estático, por eso se replican en `public/_headers`.
+
+Un push a `main` actualiza **ambas** plataformas a la vez — no hay forma de desplegar solo una sin usar una rama distinta. Para probar cambios de Cloudflare sin tocar producción, trabajar en una rama y pushearla: tanto Vercel como Cloudflare Pages generan automáticamente una vista previa (`*.pages.dev` / preview de Vercel) para cualquier rama que no sea `main`.
+
+Validación local del lado de Cloudflare antes de un cambio sensible (ver `scripts/e2e/delete-account.mjs`):
+
+```bash
+STATIC_EXPORT=1 npm run build
+npx wrangler pages dev out --port 8788
+node scripts/e2e/delete-account.mjs   # usa una cuenta de prueba sintética, autolimpiable
 ```
 
 ---
