@@ -2576,6 +2576,8 @@ export default function Home() {
             investmentPaymentsThisMonth={investmentPaymentsThisMonth}
             grossIncome={income ?? 0}
             plannedSavings={savings ?? 0}
+            investments={investments}
+            investmentPayments={investmentPayments}
           />
         )}
         {activeTab === 'inversiones' && (

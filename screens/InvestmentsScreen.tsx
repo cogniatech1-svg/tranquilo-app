@@ -30,7 +30,7 @@ interface Props {
   isPrivacyMode?: boolean
 }
 
-const TYPE_OPTIONS: { value: InvestmentType; label: string; emoji: string }[] = [
+export const TYPE_OPTIONS: { value: InvestmentType; label: string; emoji: string }[] = [
   { value: 'real_estate', label: 'Inmueble', emoji: '🏠' },
   { value: 'financial', label: 'Financiero', emoji: '📈' },
   { value: 'vehicle', label: 'Vehículo', emoji: '🚗' },
