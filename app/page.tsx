@@ -1327,7 +1327,11 @@ export default function Home() {
         expenses,
         extraIncomes,
         pockets,
-        monthlyIncome: Math.max(0, (income ?? 0) - investmentPaymentsThisMonth),
+        // Nota: no se usa Math.max(0, ...) aquí — la tarjeta "Ingresos mensuales" en
+        // BudgetScreen suma investmentPaymentsThisMonth de vuelta a snapshot.totalIncome
+        // para mostrar el ingreso bruto. Si este valor se recorta a 0, esa suma ya no
+        // cancela la resta y el ingreso mostrado se infla exactamente por la diferencia.
+        monthlyIncome: (income ?? 0) - investmentPaymentsThisMonth,
         monthlySavings: savings,
         currentMonth: activeMonth,
         manualBudget,
