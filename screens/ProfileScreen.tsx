@@ -1,25 +1,13 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { AvatarEditor } from '../components/AvatarEditor'
-import { Card } from '../components/ui/Card'
-import { SectionHeader } from '../components/ui/SectionHeader'
-import { ProgressBar } from '../components/ui/ProgressBar'
-import { maskMoney } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
-import type {
-  Expense,
-  ExtraIncome,
-  MonthRecord,
-  Pocket,
-  StoredData,
-  UserProfile,
-} from '../lib/types'
+import type { Expense, ExtraIncome, StoredData, UserProfile } from '../lib/types'
 import { migrateToMonthlyHistory, capitalizeWords } from '../lib/migrations'
 import { saveUserData } from '../lib/supabase'
 import { getDefaultMonthRecord, normalizeMonthKey } from '../lib/utils'
 import { normalizePocketId } from '../lib/dataMigration'
-import { buildHistorial } from '../lib/insightsEngine'
 import { openPrivacyPolicy } from '../legal/PrivacyPolicy'
 import { openTermsAndConditions } from '../legal/TermsAndConditions'
 
@@ -44,8 +32,6 @@ interface Props {
   onDeleteAccount?: () => Promise<void>
   /** Exporta todos los datos como CSV desde el estado en memoria (no localStorage) */
   onExportCSV?: () => void
-  monthlyHistory: Record<string, MonthRecord>
-  pockets: Pocket[]
 }
 
 export function ProfileScreen({
@@ -62,15 +48,7 @@ export function ProfileScreen({
   onRequestLogin,
   onDeleteAccount,
   onExportCSV,
-  monthlyHistory,
-  pockets,
 }: Props) {
-  const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
-
-  const { months: historialMonths, trendMsg } = useMemo(
-    () => buildHistorial(monthlyHistory, pockets, config),
-    [monthlyHistory, pockets, config]
-  )
   // Expand/collapse sections
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
 
@@ -1521,95 +1499,6 @@ export function ProfileScreen({
             </div>
           ))}
         </div>
-
-        {/* HISTORIAL FINANCIERO */}
-        {historialMonths.length > 0 && (
-          <div style={{ padding: '0 20px 10px' }}>
-            <SectionHeader>Historial</SectionHeader>
-
-            {trendMsg && (
-              <div
-                className="mb-3 rounded-2xl px-4 py-3.5 flex items-start gap-2.5"
-                style={{
-                  background: 'linear-gradient(135deg, #F0FDFA, #EDE9FE)',
-                  border: '1px solid rgba(15,118,110,.12)',
-                }}
-              >
-                <span className="text-base leading-none mt-0.5 shrink-0">📊</span>
-                <p className="text-sm font-semibold text-slate-700 leading-snug">{trendMsg}</p>
-              </div>
-            )}
-
-            <Card className="divide-y divide-slate-50">
-              {historialMonths.map((m) => (
-                <div key={m.key} className="px-4 py-3.5">
-                  {/* Month header row */}
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-800">{m.name}</span>
-                      {m.isBest && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">
-                          Mejor mes
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm font-bold text-slate-900 tabular-nums">
-                      {mm(m.totalSpent)}
-                    </span>
-                  </div>
-
-                  {/* Sub-row: savings + vs last */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {m.income > 0 ? (
-                        <span
-                          className={`text-[10px] font-semibold tabular-nums ${
-                            m.savings >= 0 ? 'text-teal-600' : 'text-red-500'
-                          }`}
-                        >
-                          {m.savings >= 0
-                            ? `Ahorraste ${mm(m.savings)}`
-                            : `Superaste por ${mm(-m.savings)}`}
-                          {m.savingsRate !== null && m.savings > 0 && ` (${m.savingsRate}%)`}
-                        </span>
-                      ) : m.budget > 0 ? (
-                        <span className="text-[10px] text-slate-500 tabular-nums">
-                          de {mm(m.budget)} presupuesto
-                        </span>
-                      ) : null}
-                      {m.topCategory && <span className="text-[10px] text-slate-300">·</span>}
-                      {m.topCategory && (
-                        <span className="text-[10px] text-slate-500 capitalize">
-                          {m.topCategory}
-                        </span>
-                      )}
-                    </div>
-                    {m.vsLast !== null && (
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                          m.vsLast > 0
-                            ? 'bg-red-100 text-red-600'
-                            : m.vsLast < 0
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {m.vsLast > 0 ? `+${m.vsLast}%` : m.vsLast < 0 ? `${m.vsLast}%` : '='}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Budget progress bar (when no income context) */}
-                  {m.income === 0 && m.budget > 0 && (
-                    <div className="mt-2">
-                      <ProgressBar ratio={m.totalSpent / m.budget} thick />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </Card>
-          </div>
-        )}
 
         {/* FOOTER */}
         <div
