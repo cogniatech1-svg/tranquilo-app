@@ -175,6 +175,20 @@ export function useInvestments(userId: string | null) {
     [userId, investments, persist]
   )
 
+  const updatePayment = useCallback(
+    (
+      paymentId: string,
+      data: Partial<Omit<InvestmentPayment, 'id' | 'investmentId' | 'userId' | 'createdAt'>>
+    ) => {
+      setPayments((prev) => {
+        const updated = prev.map((p) => (p.id === paymentId ? { ...p, ...data } : p))
+        persist(investments, updated)
+        return updated
+      })
+    },
+    [investments, persist]
+  )
+
   const removePayment = useCallback(
     (paymentId: string) => {
       setPayments((prev) => {
@@ -193,6 +207,7 @@ export function useInvestments(userId: string | null) {
     updateInvestment,
     deleteInvestment,
     addPayment,
+    updatePayment,
     removePayment,
   }
 }
