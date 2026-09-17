@@ -170,6 +170,7 @@ export default function Home() {
     updateInvestment,
     deleteInvestment,
     addPayment,
+    updatePayment,
     removePayment,
   } = useInvestments(userId || guestUserId)
 
@@ -2593,6 +2594,7 @@ export default function Home() {
             updateInvestment={updateInvestment}
             deleteInvestment={deleteInvestment}
             addPayment={addPayment}
+            updatePayment={updatePayment}
             removePayment={removePayment}
             config={config}
             isPrivacyMode={isPrivacyMode}

@@ -29,6 +29,10 @@ interface Props {
     investmentId: string,
     data: Omit<InvestmentPayment, 'id' | 'investmentId' | 'userId' | 'createdAt'>
   ) => void
+  updatePayment: (
+    paymentId: string,
+    data: Partial<Omit<InvestmentPayment, 'id' | 'investmentId' | 'userId' | 'createdAt'>>
+  ) => void
   removePayment: (paymentId: string) => void
   config: CountryConfig
   isPrivacyMode?: boolean
@@ -52,6 +56,7 @@ export function InvestmentsScreen({
   updateInvestment,
   deleteInvestment,
   addPayment,
+  updatePayment,
   removePayment,
   config,
   isPrivacyMode = false,
@@ -74,6 +79,7 @@ export function InvestmentsScreen({
 
   // ── Estado formulario pago por inversión ─────────────────────────────────
   const [addingPaymentFor, setAddingPaymentFor] = useState<string | null>(null)
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10))
   const [paymentNotes, setPaymentNotes] = useState('')
@@ -131,15 +137,29 @@ export function InvestmentsScreen({
 
   const resetPaymentForm = () => {
     setAddingPaymentFor(null)
+    setEditingPaymentId(null)
     setPaymentAmount('')
     setPaymentDate(new Date().toISOString().slice(0, 10))
     setPaymentNotes('')
   }
 
-  const handleAddPayment = (investmentId: string) => {
+  const startEditPayment = (investmentId: string, p: InvestmentPayment) => {
+    setAddingPaymentFor(investmentId)
+    setEditingPaymentId(p.id)
+    setPaymentAmount(String(p.amount))
+    setPaymentDate(p.date.slice(0, 10))
+    setPaymentNotes(p.notes ?? '')
+  }
+
+  const handleSavePayment = (investmentId: string) => {
     const amount = parseFloat(paymentAmount.replace(/[^0-9.]/g, ''))
     if (!amount || amount <= 0) return
-    addPayment(investmentId, { date: paymentDate, amount, notes: paymentNotes.trim() || undefined })
+    const data = { date: paymentDate, amount, notes: paymentNotes.trim() || undefined }
+    if (editingPaymentId) {
+      updatePayment(editingPaymentId, data)
+    } else {
+      addPayment(investmentId, data)
+    }
     resetPaymentForm()
   }
 
@@ -524,6 +544,9 @@ export function InvestmentsScreen({
                     {/* Formulario pago */}
                     {isAddingPayment && (
                       <div className="space-y-2 mb-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">
+                          {editingPaymentId ? 'Editar pago' : 'Nuevo pago'}
+                        </p>
                         <div className="flex gap-2">
                           <input
                             autoFocus
@@ -548,7 +571,7 @@ export function InvestmentsScreen({
                         />
                         <div className="flex gap-2">
                           <PrimaryButton
-                            onClick={() => handleAddPayment(inv.id)}
+                            onClick={() => handleSavePayment(inv.id)}
                             className="flex-1 py-2.5 text-sm"
                           >
                             Guardar
@@ -585,6 +608,12 @@ export function InvestmentsScreen({
                                 <span className="text-sm font-bold tabular-nums text-slate-800">
                                   {fmt(p.amount)}
                                 </span>
+                                <button
+                                  onClick={() => startEditPayment(inv.id, p)}
+                                  className="p-1 text-slate-300 hover:text-teal-500 transition-colors"
+                                >
+                                  <Icon name="edit" size={12} />
+                                </button>
                                 <button
                                   onClick={() => removePayment(p.id)}
                                   className="p-1 text-slate-300 hover:text-red-400 transition-colors"
