@@ -137,6 +137,33 @@ npx wrangler pages dev out --port 8788
 node scripts/e2e/delete-account.mjs   # usa una cuenta de prueba sintética, autolimpiable
 ```
 
+### Cómo confirmar que un cambio llegó a producción (sin depender de ningún panel)
+
+Después de un push a `main`, para saber si el sitio ya sirve el commit nuevo — en Vercel o en Cloudflare Pages — sin esperar a que termine el build en el dashboard:
+
+```bash
+# 1. Sacar la lista de chunks JS que carga la página
+curl -s https://<dominio>/ | grep -oE '/_next/static/chunks/[a-zA-Z0-9_-]+\.js' | sort -u
+
+# 2. Buscar en esos chunks una cadena que solo exista en el código nuevo
+#    (un texto de UI agregado, el nombre de una variable/función nueva, etc.)
+for f in <lista-de-hashes>; do
+  curl -s "https://<dominio>/_next/static/chunks/$f.js" | grep -o "texto o función distintiva" && echo "$f: encontrado"
+done
+```
+
+Esto confirma el **servidor** — no confirma que un dispositivo específico esté viendo esa versión (ver siguiente sección).
+
+### El servidor está actualizado pero un celular/PWA sigue mostrando la versión vieja
+
+Tranquilo es una PWA con Service Worker (`public/sw.js`), que decide qué mostrar sin ir siempre a buscar la versión nueva. Si confirmaste con el método de arriba que el servidor tiene el cambio pero un dispositivo no lo refleja, probar en este orden:
+
+1. **Cerrar la app por completo** (quitarla de apps recientes, no solo salir) y reabrirla — fuerza una navegación fresca.
+2. **Borrar caché desde Chrome, no desde el sistema operativo.** El "Borrar caché" de Android (Ajustes → Apps → Info de la app) no siempre alcanza el Cache Storage del Service Worker. Hace falta: Chrome → barra de direcciones → ícono de candado/ⓘ → "Configuración del sitio" → "Borrar y restablecer". Esto sí borra el Service Worker y su caché para ese origen. Como los datos reales viven en Supabase (no solo en el dispositivo), esto no debería perder información de una cuenta autenticada.
+3. **Probar en una pestaña de incógnito.** Si el problema persiste incluso ahí (sin caché, sin cookies previas), el problema no es la caché del dispositivo — puede ser una capa de red intermedia.
+4. **Revisar "Ahorro de datos" / "Data Saver" / "Lite mode" en Chrome** (Ajustes → Ahorro de datos). Cuando está activo, Chrome enruta el tráfico por servidores de compresión de Google que tienen su propia caché, independiente del dispositivo — por eso puede sobrevivir incluso a incógnito y a borrar caché. Desactivarlo y volver a probar.
+5. Si nada de esto resuelve, pedir una captura de pantalla con la barra de direcciones visible junto al contenido — para descartar que se esté visitando una URL distinta (ej. una vista previa vieja) por autocompletado del navegador.
+
 ---
 
 ## Datos y privacidad
