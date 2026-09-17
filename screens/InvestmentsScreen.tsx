@@ -544,7 +544,7 @@ export function InvestmentsScreen({
                     {/* Formulario pago */}
                     {isAddingPayment && (
                       <div className="space-y-2 mb-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-400">
+                        <p className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-500">
                           {editingPaymentId ? 'Editar pago' : 'Nuevo pago'}
                         </p>
                         <div className="flex gap-2">
@@ -595,7 +595,7 @@ export function InvestmentsScreen({
                           .map((p) => (
                             <li key={p.id} className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                <span className="text-[10px] text-slate-500 font-mono shrink-0">
                                   {p.date.slice(0, 10)}
                                 </span>
                                 {p.notes && (
@@ -610,13 +610,13 @@ export function InvestmentsScreen({
                                 </span>
                                 <button
                                   onClick={() => startEditPayment(inv.id, p)}
-                                  className="p-1 text-slate-300 hover:text-teal-500 transition-colors"
+                                  className="p-1 text-slate-400 hover:text-teal-500 transition-colors"
                                 >
                                   <Icon name="edit" size={12} />
                                 </button>
                                 <button
                                   onClick={() => removePayment(p.id)}
-                                  className="p-1 text-slate-300 hover:text-red-400 transition-colors"
+                                  className="p-1 text-slate-400 hover:text-red-400 transition-colors"
                                 >
                                   <Icon name="x" size={12} />
                                 </button>
@@ -625,7 +625,7 @@ export function InvestmentsScreen({
                           ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-400 py-1">Sin pagos registrados aún.</p>
+                      <p className="text-xs text-slate-500 py-1">Sin pagos registrados aún.</p>
                     )}
                   </div>
                 </Card>
