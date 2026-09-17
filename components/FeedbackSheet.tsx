@@ -5,12 +5,12 @@ import { Icon } from './ui/Icon'
 import { DS } from '../lib/config'
 
 const TYPES = [
-  { id: 'problema',   label: 'Reportar problema',  emoji: '🐛' },
-  { id: 'sugerencia', label: 'Enviar sugerencia',   emoji: '💡' },
-  { id: 'duda',       label: 'No entendí algo',     emoji: '🤔' },
+  { id: 'problema', label: 'Reportar problema', emoji: '🐛' },
+  { id: 'sugerencia', label: 'Enviar sugerencia', emoji: '💡' },
+  { id: 'duda', label: 'No entendí algo', emoji: '🤔' },
 ] as const
 
-type FeedbackType = typeof TYPES[number]['id']
+type FeedbackType = (typeof TYPES)[number]['id']
 
 interface Props {
   isOpen: boolean
@@ -18,14 +18,15 @@ interface Props {
 }
 
 export function FeedbackSheet({ isOpen, onClose }: Props) {
-  const [type,      setType]      = useState<FeedbackType | null>(null)
-  const [message,   setMessage]   = useState('')
+  const [type, setType] = useState<FeedbackType | null>(null)
+  const [message, setMessage] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Reset on open
   useEffect(() => {
     if (!isOpen) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset del formulario al reabrir el sheet
     setType(null)
     setMessage('')
     setSubmitted(false)
@@ -40,12 +41,10 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
 
   const handleSubmit = () => {
     if (!canSubmit) return
-    const label    = TYPES.find(t => t.id === type)?.label ?? type
-    const ts       = new Date().toISOString()
-    const subject  = encodeURIComponent(`[Tranquilo Feedback] ${label}`)
-    const body     = encodeURIComponent(
-      `Tipo: ${label}\nFecha: ${ts}\n\n${message.trim()}`
-    )
+    const label = TYPES.find((t) => t.id === type)?.label ?? type
+    const ts = new Date().toISOString()
+    const subject = encodeURIComponent(`[Tranquilo Feedback] ${label}`)
+    const body = encodeURIComponent(`Tipo: ${label}\nFecha: ${ts}\n\n${message.trim()}`)
     window.location.href = `mailto:feedback@tranquilo.app?subject=${subject}&body=${body}`
     setSubmitted(true)
   }
@@ -64,10 +63,12 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ boxShadow: '0 -8px 40px rgba(15,23,42,.12)' }}
+        className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out"
+        style={{
+          boxShadow: '0 -8px 40px rgba(15,23,42,.12)',
+          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
       >
         {/* Handle */}
         <div
@@ -107,7 +108,7 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
           <div className="space-y-4">
             {/* ── Type selector ───────────────────────────────────────────── */}
             <div className="space-y-2">
-              {TYPES.map(t => (
+              {TYPES.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -132,7 +133,7 @@ export function FeedbackSheet({ isOpen, onClose }: Props) {
                   rows={4}
                   placeholder="Cuéntanos con detalle…"
                   value={message}
-                  onChange={e => setMessage(e.target.value)}
+                  onChange={(e) => setMessage(e.target.value)}
                   className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white"
                 />
 
