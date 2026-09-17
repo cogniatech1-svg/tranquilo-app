@@ -171,8 +171,15 @@ export function DashboardScreen({
               </p>
             </div>
 
-            {/* ☰ Menu button */}
+            {/* + Nuevo gasto / ☰ Menu button */}
             <div className="relative flex items-center gap-2">
+              <button
+                onClick={onAdd}
+                className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"
+                style={{ backdropFilter: 'blur(4px)' }}
+              >
+                <Icon name="plus" size={20} />
+              </button>
               <button
                 onClick={() => setMenuOpen((o) => !o)}
                 className="w-11 h-11 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl flex items-center justify-center text-white transition-all border border-white/20"

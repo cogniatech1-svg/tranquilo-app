@@ -25,9 +25,7 @@ export function VoiceConfirmationSheet({
   onEdit,
   onClose,
 }: Props) {
-  const pocket = parsed.category
-    ? pockets.find(p => p.id === parsed.category)
-    : null
+  const pocket = parsed.category ? pockets.find((p) => p.id === parsed.category) : null
 
   const typeLabel = parsed.type === 'income' ? 'Ingreso' : 'Gasto'
   const categoryLabel = pocket?.name || 'Sin categoría'
@@ -46,10 +44,12 @@ export function VoiceConfirmationSheet({
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ boxShadow: '0 -8px 40px rgba(15,23,42,.12)' }}
+        className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out"
+        style={{
+          boxShadow: '0 -8px 40px rgba(15,23,42,.12)',
+          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
       >
         {/* Handle */}
         <div
@@ -59,12 +59,8 @@ export function VoiceConfirmationSheet({
 
         {/* Escuchaste */}
         <div className="mb-6">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-            Escuché:
-          </p>
-          <p className="text-lg font-bold text-slate-900">
-            {voiceText}
-          </p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Escuché:</p>
+          <p className="text-lg font-bold text-slate-900">{voiceText}</p>
         </div>
 
         {/* Main summary line */}
@@ -78,9 +74,7 @@ export function VoiceConfirmationSheet({
             {/* Separadores */}
             <div className="flex items-center gap-2 px-3">
               <div className="w-1 h-1 rounded-full bg-slate-300" />
-              <span className="text-sm font-semibold text-slate-600">
-                {typeLabel}
-              </span>
+              <span className="text-sm font-semibold text-slate-600">{typeLabel}</span>
               <div className="w-1 h-1 rounded-full bg-slate-300" />
             </div>
 
@@ -94,12 +88,8 @@ export function VoiceConfirmationSheet({
 
         {/* Concepto */}
         <div className="mb-8">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-            Concepto:
-          </p>
-          <p className="text-base font-semibold text-slate-700">
-            {parsed.description}
-          </p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Concepto:</p>
+          <p className="text-base font-semibold text-slate-700">{parsed.description}</p>
         </div>
 
         {/* Buttons */}

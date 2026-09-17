@@ -49,18 +49,27 @@ export function AddExpenseSheet({
   learnedCategoryMap,
   setLearnedCategoryMap,
 }: Props) {
-  const [text,         setText]         = useState('')
-  const [pocketId,     setPocketId]     = useState('')
+  const [text, setText] = useState('')
+  const [pocketId, setPocketId] = useState('')
   const [typeOverride, setTypeOverride] = useState<'income' | 'expense' | null>(null)
-  const [error,        setError]        = useState('')
-  const [toast,        setToast]        = useState('')
-  const [date,         setDate]         = useState(() => localToday())
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const [date, setDate] = useState(() => localToday())
   const [voiceConfirmationOpen, setVoiceConfirmationOpen] = useState(false)
-  const [pendingVoiceData, setPendingVoiceData] = useState<{ text: string; parsed: any } | null>(null)
+  const [pendingVoiceData, setPendingVoiceData] = useState<{
+    text: string
+    parsed: ReturnType<typeof parseTransaction>
+  } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Voice recognition ────────────────────────────────────────────────────
-  const { isListening, transcript, startListening, stopListening, error: voiceError } = useSpeechRecognition({
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    error: voiceError,
+  } = useSpeechRecognition({
     language: 'es-CO',
     onResult: (voiceText) => {
       // Parse the voice text
@@ -77,6 +86,7 @@ export function AddExpenseSheet({
   })
 
   // ── Reset on open ────────────────────────────────────────────────────────
+  /* eslint-disable react-hooks/set-state-in-effect -- inicializa el formulario al abrir el sheet */
   useEffect(() => {
     if (!isOpen) return
     if (editingExpense) {
@@ -100,30 +110,30 @@ export function AddExpenseSheet({
     }
     setError('')
   }, [isOpen, editingExpense, editingIncome])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Parse current text ───────────────────────────────────────────────────
   const parsed = useMemo(
     () => parseTransaction(text, conceptMap, pockets, learnedCategoryMap),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [text, learnedCategoryMap],
+    [text, learnedCategoryMap]
   )
 
   // Auto-fill pocket from parsed category — only when creating (not editing)
   useEffect(() => {
     if (editingExpense) return
-    if (parsed.category) setPocketId(prev => prev || parsed.category!)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el bolsillo sugerido con el texto parseado
+    if (parsed.category) setPocketId((prev) => prev || parsed.category!)
     else if (!pocketId) setPocketId('')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed.category, editingExpense])
 
   const txType = typeOverride ?? parsed.type
-  const suggestedPocket = parsed.category
-    ? pockets.find(p => p.id === parsed.category)
-    : null
+  const suggestedPocket = parsed.category ? pockets.find((p) => p.id === parsed.category) : null
 
   // ── Helper: Extract keyword from text ──────────────────────────────────
   const extractKeyword = (text: string): string | null => {
-    const words = text.split(/\s+/).filter(w => w.length > 0)
+    const words = text.split(/\s+/).filter((w) => w.length > 0)
     if (words.length === 0) return null
     const keyword = words[0].toLowerCase()
     // Only use meaningful words (not pure numbers)
@@ -243,7 +253,7 @@ export function AddExpenseSheet({
 
     // Expense path
     const resolvedPocketId = pocketId || parsed.category || (pockets[0]?.id ?? '')
-    const pocketName = pockets.find(p => p.id === resolvedPocketId)?.name ?? ''
+    const pocketName = pockets.find((p) => p.id === resolvedPocketId)?.name ?? ''
 
     // ── Learning: user selected or edited category ──
     if (pocketId) {
@@ -261,7 +271,7 @@ export function AddExpenseSheet({
 
     onSave({
       concept: parsed.description,
-      amount:  parsed.amount,
+      amount: parsed.amount,
       pocketId: resolvedPocketId,
       date: new Date(date + 'T12:00:00').toISOString(),
       id: editingExpense?.id,
@@ -271,9 +281,8 @@ export function AddExpenseSheet({
   }
 
   // ── Accent color based on type ───────────────────────────────────────────
-  const accentGrad  = txType === 'income'
-    ? 'linear-gradient(90deg, #16A34A, #22C55E)'
-    : DS.primaryGrad
+  const accentGrad =
+    txType === 'income' ? 'linear-gradient(90deg, #16A34A, #22C55E)' : DS.primaryGrad
   const borderFocus = txType === 'income' ? 'focus:border-green-400' : 'focus:border-teal-400'
 
   return (
@@ -290,10 +299,12 @@ export function AddExpenseSheet({
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ boxShadow: '0 -8px 40px rgba(15,23,42,.12)' }}
+        className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out"
+        style={{
+          boxShadow: '0 -8px 40px rgba(15,23,42,.12)',
+          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
       >
         {/* Handle */}
         <div
@@ -306,8 +317,12 @@ export function AddExpenseSheet({
             {editingIncome
               ? 'Editar ingreso'
               : editingExpense
-                ? txType === 'income' ? 'Editar ingreso' : 'Editar gasto'
-                : txType === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto'}
+                ? txType === 'income'
+                  ? 'Editar ingreso'
+                  : 'Editar gasto'
+                : txType === 'income'
+                  ? 'Nuevo ingreso'
+                  : 'Nuevo gasto'}
           </h2>
           <button
             onClick={onClose}
@@ -325,13 +340,19 @@ export function AddExpenseSheet({
               rows={2}
               autoFocus={isOpen && !editingExpense}
               placeholder={
-                txType === 'income'
-                  ? `ej. Salario 3000000`
-                  : `ej. ${config.exampleExpense}`
+                txType === 'income' ? `ej. Salario 3000000` : `ej. ${config.exampleExpense}`
               }
               value={text}
-              onChange={e => { setText(e.target.value); setError('') }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
+              onChange={(e) => {
+                setText(e.target.value)
+                setError('')
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSave()
+                }
+              }}
               className={`w-full border-2 border-slate-100 ${borderFocus} rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white`}
             />
             {/* Voice button */}
@@ -356,7 +377,7 @@ export function AddExpenseSheet({
               type="date"
               value={date}
               max={localToday()}
-              onChange={e => setDate(e.target.value)}
+              onChange={(e) => setDate(e.target.value)}
               className="flex-1 border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-2.5 text-sm outline-none bg-slate-50 focus:bg-white transition-colors text-slate-700"
             />
             {date !== localToday() && (
@@ -384,8 +405,12 @@ export function AddExpenseSheet({
                   onClick={() => setPocketId('')}
                   className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-100 transition-colors hover:bg-teal-100"
                 >
-                  {(() => { const p = pockets.find(q => q.id === (pocketId || parsed.category)); return getPocketIcon(p?.id ?? '', p?.name ?? '', p?.icon) })()} {' '}
-                  {pockets.find(p => p.id === (pocketId || parsed.category))?.name ?? 'Sin categoría'}
+                  {(() => {
+                    const p = pockets.find((q) => q.id === (pocketId || parsed.category))
+                    return getPocketIcon(p?.id ?? '', p?.name ?? '', p?.icon)
+                  })()}{' '}
+                  {pockets.find((p) => p.id === (pocketId || parsed.category))?.name ??
+                    'Sin categoría'}
                 </button>
               )}
               {/* Type chip */}
@@ -452,11 +477,11 @@ export function AddExpenseSheet({
             <div className="relative">
               <select
                 value={pocketId}
-                onChange={e => setPocketId(e.target.value)}
+                onChange={(e) => setPocketId(e.target.value)}
                 className="w-full border-2 border-slate-100 focus:border-teal-400 rounded-2xl px-4 py-3.5 text-sm outline-none bg-slate-50 focus:bg-white appearance-none transition-colors"
               >
                 <option value="">Categoría (opcional)</option>
-                {pockets.map(p => (
+                {pockets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {getPocketIcon(p.id, p.name, p.icon)} {p.name}
                   </option>
@@ -472,9 +497,7 @@ export function AddExpenseSheet({
           )}
 
           {/* Error */}
-          {error && (
-            <p className="text-xs text-red-500 px-1 font-medium">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500 px-1 font-medium">{error}</p>}
 
           {/* Save button */}
           <button
@@ -482,9 +505,10 @@ export function AddExpenseSheet({
             className="w-full py-4 text-sm font-semibold text-white rounded-2xl transition-all active:scale-[0.97]"
             style={{
               background: accentGrad,
-              boxShadow: txType === 'income'
-                ? '0 4px 16px rgba(21,128,61,.30)'
-                : '0 4px 16px rgba(15,118,110,.25)',
+              boxShadow:
+                txType === 'income'
+                  ? '0 4px 16px rgba(21,128,61,.30)'
+                  : '0 4px 16px rgba(15,118,110,.25)',
             }}
           >
             {editingExpense

@@ -19,6 +19,7 @@ export function AddExtraIncomeSheet({ isOpen, config, onSave, onClose }: Props) 
 
   useEffect(() => {
     if (!isOpen) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset del formulario al reabrir el sheet
     setText('')
     setError('')
   }, [isOpen])
@@ -50,10 +51,12 @@ export function AddExtraIncomeSheet({ isOpen, config, onSave, onClose }: Props) 
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ boxShadow: '0 -8px 40px rgba(15,23,42,.12)' }}
+        className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2rem] z-50 px-6 pt-5 pb-10 transition-transform duration-300 ease-out"
+        style={{
+          boxShadow: '0 -8px 40px rgba(15,23,42,.12)',
+          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
       >
         {/* Handle */}
         <div
@@ -81,14 +84,20 @@ export function AddExtraIncomeSheet({ isOpen, config, onSave, onClose }: Props) 
             autoFocus={isOpen}
             placeholder={`ej. Freelance ${config.exampleExpense.split(' ')[1] ?? '200000'}  ·  Bono 500000`}
             value={text}
-            onChange={e => { setText(e.target.value); setError('') }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } }}
+            onChange={(e) => {
+              setText(e.target.value)
+              setError('')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSave()
+              }
+            }}
             className="w-full border-2 border-slate-100 focus:border-green-400 rounded-2xl px-4 py-3.5 text-sm outline-none resize-none transition-colors placeholder:text-slate-300 bg-slate-50 focus:bg-white"
           />
 
-          {error && (
-            <p className="text-xs text-red-500 px-1 font-medium">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500 px-1 font-medium">{error}</p>}
 
           <button
             onClick={handleSave}
