@@ -1,14 +1,14 @@
 import { useMemo, useState, useEffect } from 'react'
-import { PocketCard } from '../components/PocketCard'
 import { TransactionItem } from '../components/TransactionItem'
 import { SectionHeader } from '../components/ui/SectionHeader'
 import { Icon } from '../components/ui/Icon'
 import { Card } from '../components/ui/Card'
-import { maskMoney } from '../lib/config'
+import { ProgressBar } from '../components/ui/ProgressBar'
+import { maskMoney, getPocketIcon, getPocketPalette } from '../lib/config'
 import type { CountryConfig } from '../lib/config'
 import type { CalmState, Expense, MonthRecord, Pocket } from '../lib/types'
 import type { FinancialSnapshot } from '../lib/financialEngine'
-import { generateInsights, type InsightKind } from '../lib/insightsEngine'
+import { generateInsights, parseDateString, type InsightKind } from '../lib/insightsEngine'
 
 const STATUS_CONFIG: Record<CalmState, { dot: string; label: string }> = {
   tranquilo: { dot: '#4ADE80', label: 'Vas bien' },
@@ -64,6 +64,7 @@ export function DashboardScreen({
   const [menuOpen, setMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [syncMenuOpen, setSyncMenuOpen] = useState(false)
+  const [expandedPocket, setExpandedPocket] = useState<string | null>(null)
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
 
   // USAR snapshot en lugar de cálculos locales
@@ -318,18 +319,111 @@ export function DashboardScreen({
       {activePockets.length > 0 && (
         <div className="px-4 mt-6">
           <SectionHeader>Bolsillos</SectionHeader>
-          <Card className="divide-y divide-slate-50">
-            {activePockets.map((p, i) => (
-              <div key={p.id} className="p-4">
-                <PocketCard
-                  pocket={p}
-                  spent={spentByPocket[p.id] ?? 0}
-                  pocketIndex={i}
-                  config={config}
-                  isPrivacyMode={isPrivacyMode}
-                />
-              </div>
-            ))}
+          <Card className="overflow-hidden">
+            {activePockets.map((p, i) => {
+              const spent = spentByPocket[p.id] ?? 0
+              const budget = p.budget
+              const shareRatio = spent / (totalSpent || 1)
+              const budgetRatio = budget > 0 ? spent / budget : 0
+              const pct = budget > 0 ? Math.round(budgetRatio * 100) : Math.round(shareRatio * 100)
+              const pctLabel = budget > 0 ? 'del presupuesto' : 'del total'
+              const icon = getPocketIcon(p.id, p.name, p.icon)
+              const pal = getPocketPalette(p.id, i)
+              const isExpanded = expandedPocket === p.id
+              const pocketExpenses = expenses
+                .filter((e) => e.pocketId === p.id)
+                .sort((a, b) => b.date.localeCompare(a.date))
+              const isLast = i === activePockets.length - 1
+
+              return (
+                <div key={p.id} className={!isLast ? 'border-b border-slate-100' : ''}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedPocket(isExpanded ? null : p.id)}
+                    className="w-full flex items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-base leading-none shrink-0 select-none"
+                      style={{ backgroundColor: pal.bg }}
+                    >
+                      {icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2 mb-2">
+                        <span className="text-sm font-bold text-slate-800 truncate">{p.name}</span>
+                        <div className="flex items-baseline gap-2 shrink-0">
+                          <span className="text-sm font-bold text-slate-900 tabular-nums">
+                            {mm(spent)}
+                          </span>
+                          <span className="text-[10px] font-bold" style={{ color: pal.text }}>
+                            {pct}% {pctLabel}
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar
+                        ratio={budget > 0 ? budgetRatio : shareRatio}
+                        thick
+                        color={budget > 0 ? undefined : pal.bar}
+                      />
+                    </div>
+                    <span
+                      className="text-slate-300 shrink-0 text-lg transition-transform duration-200"
+                      style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    >
+                      ›
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 bg-slate-50/70">
+                      {pocketExpenses.length === 0 ? (
+                        <p className="text-xs text-slate-500 text-center py-4">
+                          Sin movimientos en esta categoría
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {pocketExpenses.map((e) => {
+                            const d = parseDateString(e.date) || new Date()
+                            const dateStr = d.toLocaleDateString(config.locale, {
+                              day: 'numeric',
+                              month: 'short',
+                            })
+                            return (
+                              <div
+                                key={e.id}
+                                className="flex items-center justify-between px-4 py-3 gap-3"
+                              >
+                                <span className="text-[10px] text-slate-500 font-medium shrink-0 w-12">
+                                  {dateStr}
+                                </span>
+                                <span className="text-xs text-slate-700 flex-1 truncate capitalize">
+                                  {e.concept}
+                                </span>
+                                <span className="text-xs font-bold text-slate-900 tabular-nums shrink-0">
+                                  {mm(e.amount)}
+                                </span>
+                              </div>
+                            )
+                          })}
+                          <div className="flex justify-between items-center px-4 py-2.5 bg-slate-100/80">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              {pocketExpenses.length} movimiento
+                              {pocketExpenses.length !== 1 ? 's' : ''}
+                            </span>
+                            <span
+                              className="text-xs font-bold tabular-nums"
+                              style={{ color: pal.text }}
+                            >
+                              {mm(spent)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </Card>
         </div>
       )}
