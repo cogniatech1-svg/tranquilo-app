@@ -167,6 +167,7 @@ export default function Home() {
     investments,
     payments: investmentPayments,
     addInvestment,
+    updateInvestment,
     deleteInvestment,
     addPayment,
     removePayment,
@@ -2589,6 +2590,7 @@ export default function Home() {
             investments={investments}
             payments={investmentPayments}
             addInvestment={addInvestment}
+            updateInvestment={updateInvestment}
             deleteInvestment={deleteInvestment}
             addPayment={addPayment}
             removePayment={removePayment}

@@ -20,6 +20,10 @@ interface Props {
   investments: Investment[]
   payments: InvestmentPayment[]
   addInvestment: (data: Omit<Investment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void
+  updateInvestment: (
+    id: string,
+    data: Partial<Omit<Investment, 'id' | 'userId' | 'createdAt'>>
+  ) => void
   deleteInvestment: (id: string) => void
   addPayment: (
     investmentId: string,
@@ -45,6 +49,7 @@ export function InvestmentsScreen({
   investments,
   payments,
   addInvestment,
+  updateInvestment,
   deleteInvestment,
   addPayment,
   removePayment,
@@ -54,8 +59,9 @@ export function InvestmentsScreen({
   const mm = (n: number) => maskMoney(n, config, isPrivacyMode)
   const fmt = (n: number) => formatMoney(n, config)
 
-  // ── Estado formulario nueva inversión ────────────────────────────────────
+  // ── Estado formulario nueva inversión / edición ──────────────────────────
   const [addingInvestment, setAddingInvestment] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [formName, setFormName] = useState('')
   const [formType, setFormType] = useState<InvestmentType>('real_estate')
   const [formTotal, setFormTotal] = useState('')
@@ -83,11 +89,26 @@ export function InvestmentsScreen({
     setFormFrequency('monthly')
     setFormNotes('')
     setAddingInvestment(false)
+    setEditingId(null)
   }
 
-  const handleAddInvestment = () => {
+  const startEditInvestment = (inv: Investment) => {
+    setEditingId(inv.id)
+    setFormName(inv.name)
+    setFormType(inv.type)
+    setFormTotal(inv.totalAmount != null ? String(inv.totalAmount) : '')
+    setFormStart(inv.startDate)
+    setFormHasInterest(inv.hasInterest)
+    setFormRate(inv.interestRate != null ? String(inv.interestRate) : '')
+    setFormInterestType(inv.interestType ?? 'simple')
+    setFormFrequency(inv.interestFrequency ?? 'monthly')
+    setFormNotes(inv.notes ?? '')
+    setAddingInvestment(true)
+  }
+
+  const handleSaveInvestment = () => {
     if (!formName.trim()) return
-    addInvestment({
+    const data = {
       name: formName.trim(),
       type: formType,
       totalAmount: formTotal
@@ -99,7 +120,12 @@ export function InvestmentsScreen({
       interestType: formHasInterest ? formInterestType : undefined,
       interestFrequency: formHasInterest ? formFrequency : undefined,
       notes: formNotes.trim() || undefined,
-    })
+    }
+    if (editingId) {
+      updateInvestment(editingId, data)
+    } else {
+      addInvestment(data)
+    }
     resetForm()
   }
 
@@ -197,7 +223,7 @@ export function InvestmentsScreen({
           {addingInvestment && (
             <Card className="p-5 space-y-4 mb-4">
               <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">
-                Nueva inversión
+                {editingId ? 'Editar inversión' : 'Nueva inversión'}
               </p>
 
               <div>
@@ -331,7 +357,7 @@ export function InvestmentsScreen({
               </div>
 
               <div className="flex gap-2.5">
-                <PrimaryButton onClick={handleAddInvestment} className="flex-1 py-3 text-sm">
+                <PrimaryButton onClick={handleSaveInvestment} className="flex-1 py-3 text-sm">
                   Guardar
                 </PrimaryButton>
                 <button
@@ -384,12 +410,20 @@ export function InvestmentsScreen({
                           <p className="text-[10px] text-slate-500 mt-0.5">{label}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => deleteInvestment(inv.id)}
-                        className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                      >
-                        <Icon name="trash" size={15} />
-                      </button>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <button
+                          onClick={() => startEditInvestment(inv)}
+                          className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors"
+                        >
+                          <Icon name="edit" size={15} />
+                        </button>
+                        <button
+                          onClick={() => deleteInvestment(inv.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Montos */}
