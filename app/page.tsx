@@ -2563,6 +2563,7 @@ export default function Home() {
             snapshot={snapshot}
             expenses={expenses}
             pockets={pockets}
+            monthlyHistory={monthlyHistory}
             spentByPocket={spentByPocket}
             expenseCountByPocket={expenseCountByPocket}
             config={config}
@@ -2615,8 +2616,6 @@ export default function Home() {
             onRequestLogin={() => setScreen('login')}
             onDeleteAccount={handleDeleteAccount}
             onExportCSV={handleExportCSV}
-            monthlyHistory={monthlyHistory}
-            pockets={pockets}
           />
         )}
       </div>
