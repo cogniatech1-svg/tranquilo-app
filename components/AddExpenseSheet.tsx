@@ -25,7 +25,7 @@ interface Props {
   config: CountryConfig
   defaultType?: 'income' | 'expense'
   onSave: (p: ExpensePayload) => void
-  onSaveIncome?: (amount: number, note: string) => void
+  onSaveIncome?: (amount: number, note: string, date?: string) => void
   onUpdateIncome?: (id: string, amount: number, note: string, date: string) => void
   onSwitchToIncome?: (expenseId: string, amount: number, note: string, date: string) => void
   onClose: () => void
@@ -183,7 +183,7 @@ export function AddExpenseSheet({
     if (voiceType === 'income') {
       const note = voiceParsed.description === 'Gasto' ? '' : voiceParsed.description
       const isoDate = new Date(date + 'T12:00:00').toISOString()
-      onSaveIncome?.(voiceParsed.amount, note)
+      onSaveIncome?.(voiceParsed.amount, note, isoDate)
     } else {
       const isoDate = new Date(date + 'T12:00:00').toISOString()
       onSave({
@@ -246,7 +246,7 @@ export function AddExpenseSheet({
         return
       }
 
-      onSaveIncome?.(parsed.amount, note)
+      onSaveIncome?.(parsed.amount, note, isoDate)
       onClose()
       return
     }
