@@ -1623,12 +1623,19 @@ export default function Home() {
   )
 
   const handleAddExtraIncome = useCallback(
-    (amount: number, note: string) => {
-      const monthData = getActiveMonthData()
+    (amount: number, note: string, date?: string) => {
+      // Derivar el mes destino desde la fecha elegida (igual que los gastos), no desde
+      // activeMonth: un ingreso con fecha en abril debe guardarse en abril aunque el
+      // usuario esté viendo otro mes.
+      const incomeDate = date ?? new Date().toISOString()
+      const d = new Date(incomeDate)
+      const targetMonth = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+
       setMonthlyHistory((prev) => {
+        const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
         const updated = {
           ...prev,
-          [activeMonth]: {
+          [targetMonth]: {
             ...monthData,
             extraIncomes: [
               ...monthData.extraIncomes,
@@ -1636,7 +1643,7 @@ export default function Home() {
                 id: createEntityId(),
                 amount,
                 concept: note,
-                date: new Date().toISOString(),
+                date: incomeDate,
                 category: 'extra' as const,
               },
             ],
@@ -1646,7 +1653,7 @@ export default function Home() {
         return updated
       })
     },
-    [activeMonth, getActiveMonthData, saveNow]
+    [saveNow]
   )
 
   const handleDeleteExtraIncome = useCallback(
