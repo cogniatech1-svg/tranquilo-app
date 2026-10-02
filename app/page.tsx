@@ -1315,9 +1315,20 @@ export default function Home() {
 
   // ── Carry-over: balance acumulado de meses anteriores (Phase 1) ───────────
   // Calculated, never stored. Pure function of monthlyHistory + activeMonth.
+  // Los pagos de inversión se guardan aparte de monthlyHistory: se agrupan por mes
+  // para que el acumulado también los descuente en meses anteriores.
+  const investmentPaymentsByMonth = useMemo(() => {
+    const acc: Record<string, number> = {}
+    for (const p of investmentPayments) {
+      const key = p.date.slice(0, 7)
+      acc[key] = (acc[key] ?? 0) + p.amount
+    }
+    return acc
+  }, [investmentPayments])
+
   const carryOver = useMemo(
-    () => calculateCarryOver(activeMonth, monthlyHistory),
-    [activeMonth, monthlyHistory]
+    () => calculateCarryOver(activeMonth, monthlyHistory, investmentPaymentsByMonth),
+    [activeMonth, monthlyHistory, investmentPaymentsByMonth]
   )
 
   // ════════════════════════════════════════════════════════════════════════════

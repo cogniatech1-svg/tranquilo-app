@@ -166,3 +166,39 @@ describe('calculateCarryOver — ordering and edge cases', () => {
     expect(calculateCarryOver('2026-05', history)).toBe(20_000)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('calculateCarryOver — investment payments', () => {
+  it('subtracts investment payments of prior months', () => {
+    const history = { '2026-09': month(5_000_000, [1_000_000]) }
+    expect(calculateCarryOver('2026-10', history, { '2026-09': 1_500_000 })).toBe(2_500_000)
+  })
+
+  it('is unchanged when no payments are provided', () => {
+    const history = { '2026-09': month(5_000_000, [1_000_000]) }
+    expect(calculateCarryOver('2026-10', history)).toBe(4_000_000)
+    expect(calculateCarryOver('2026-10', history, {})).toBe(4_000_000)
+  })
+
+  it('ignores payments of the target month and later months', () => {
+    const history = { '2026-09': month(1_000_000, []) }
+    const paid = { '2026-10': 400_000, '2026-11': 400_000 }
+    expect(calculateCarryOver('2026-10', history, paid)).toBe(1_000_000)
+  })
+
+  it('deducts payments in a month that has no record', () => {
+    const history = { '2026-08': month(1_000_000, [200_000]) }
+    expect(calculateCarryOver('2026-10', history, { '2026-09': 300_000 })).toBe(500_000)
+  })
+
+  it('carries the deduction month after month', () => {
+    const history = {
+      '2026-08': month(1_000_000, []),
+      '2026-09': month(1_000_000, []),
+    }
+    const paid = { '2026-08': 100_000, '2026-09': 250_000 }
+    expect(calculateCarryOver('2026-09', history, paid)).toBe(900_000)
+    expect(calculateCarryOver('2026-10', history, paid)).toBe(1_650_000)
+    expect(calculateCarryOver('2026-11', history, paid)).toBe(1_650_000)
+  })
+})
