@@ -16,16 +16,24 @@ import type { MonthRecord } from './types'
  * - Explicit sort(a, b => a.localeCompare(b)) guarantees chronological
  *   order regardless of Object.keys insertion order
  *
+ * Investment payments (stored apart from month records) are real cash out, so
+ * they are subtracted from the month they were paid. A month that only has
+ * investment payments (no record) still counts, as a deduction.
+ *
  * @param targetMonth  YYYY-MM string for the month being entered
  * @param monthlyHistory  all available month records
+ * @param investmentPaymentsByMonth  total invested per YYYY-MM (optional)
  * @returns carry-over amount (positive = surplus, negative = deficit)
  */
 export function calculateCarryOver(
   targetMonth: string,
-  monthlyHistory: Record<string, MonthRecord>
+  monthlyHistory: Record<string, MonthRecord>,
+  investmentPaymentsByMonth: Record<string, number> = {}
 ): number {
   // Explicit chronological sort — never rely on Object.keys insertion order
-  const priorMonths = Object.keys(monthlyHistory)
+  const priorMonths = Array.from(
+    new Set([...Object.keys(monthlyHistory), ...Object.keys(investmentPaymentsByMonth)])
+  )
     .filter((m) => m < targetMonth)
     .sort((a, b) => a.localeCompare(b)) // YYYY-MM: lexicographic = chronological
 
@@ -33,13 +41,18 @@ export function calculateCarryOver(
 
   for (const month of priorMonths) {
     const record = monthlyHistory[month]
-    if (!record) continue
+    const invested = investmentPaymentsByMonth[month] ?? 0
+
+    if (!record) {
+      carryOver -= invested
+      continue
+    }
 
     const income = record.income ?? 0
     const extraIncome = (record.extraIncomes ?? []).reduce((sum, e) => sum + e.amount, 0)
     const expenses = (record.expenses ?? []).reduce((sum, e) => sum + e.amount, 0)
 
-    carryOver += income + extraIncome - expenses
+    carryOver += income + extraIncome - expenses - invested
   }
 
   return carryOver
