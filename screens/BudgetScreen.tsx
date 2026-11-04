@@ -19,6 +19,7 @@ import { MonthNavigator } from '../components/MonthNavigator'
 import { EmojiPicker } from '../components/EmojiPicker'
 import { guessIconFromName } from '../lib/config'
 import { buildHistorial, parseDateString } from '../lib/insightsEngine'
+import { buildYearlyBalance, listYearsWithData, sumPaymentsByMonth } from '../lib/yearlyBalance'
 import { TYPE_OPTIONS } from './InvestmentsScreen'
 
 // Color fijo para la sección "Inversiones del mes" — deliberadamente distinto
@@ -108,6 +109,7 @@ export function BudgetScreen({
   const [newIcon, setNewIcon] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [expandedInvestment, setExpandedInvestment] = useState<string | null>(null)
+  const [expandedYear, setExpandedYear] = useState<number | null>(null)
 
   const autoIcon = guessIconFromName(newName)
   const selectedIcon = newIcon || autoIcon
@@ -225,6 +227,21 @@ export function BudgetScreen({
       })
       .sort((a, b) => b.spent - a.spent)
   }, [investmentPayments, investments, activeMonth])
+
+  // ── Balance anual: un resumen por cada año con datos ─────────────────────
+  const yearlyBalances = useMemo(() => {
+    const paid = sumPaymentsByMonth(investmentPayments)
+    return listYearsWithData(monthlyHistory, paid)
+      .map((y) => buildYearlyBalance(y, monthlyHistory, paid))
+      .filter((b): b is NonNullable<typeof b> => b !== null)
+  }, [monthlyHistory, investmentPayments])
+  const currentYear = parseInt(realCurrentMonth.slice(0, 4), 10)
+  // En enero se abre por defecto el año que acaba de cerrar; el resto del año, el año en curso.
+  const defaultYear =
+    realCurrentMonth.endsWith('-01') && yearlyBalances.some((b) => b.year === currentYear - 1)
+      ? currentYear - 1
+      : currentYear
+  const openYear = expandedYear ?? defaultYear
 
   // ── Historial (movido desde Perfil) ──────────────────────────────────────
   const { months: historialMonths, trendMsg } = useMemo(
@@ -834,6 +851,129 @@ export function BudgetScreen({
                   )}
                 </div>
               ))}
+            </Card>
+          </div>
+        )}
+
+        {/* ── Balance anual ─────────────────────────────────────────────────── */}
+        {yearlyBalances.length > 0 && (
+          <div>
+            <SectionHeader>Balance anual</SectionHeader>
+            <Card className="overflow-hidden">
+              {yearlyBalances.map((b, idx) => {
+                const isOpen = openYear === b.year
+                const isClosed = b.year < currentYear
+                const monthName = (key: string) => {
+                  const d = new Date(`${key}-01T12:00:00`)
+                  const label = d.toLocaleDateString(config.locale, { month: 'long' })
+                  return label.charAt(0).toUpperCase() + label.slice(1)
+                }
+                return (
+                  <div
+                    key={b.year}
+                    className={idx < yearlyBalances.length - 1 ? 'border-b border-slate-100' : ''}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedYear(isOpen ? -1 : b.year)}
+                      className="w-full flex items-center gap-3 p-5 text-left transition-colors hover:bg-slate-50 active:bg-slate-100"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-800">{b.year}</span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                              isClosed ? 'bg-slate-100 text-slate-600' : 'bg-teal-100 text-teal-700'
+                            }`}
+                          >
+                            {isClosed ? 'Año cerrado' : 'En curso'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1 tabular-nums">
+                          Gastaste {mm(b.expenses)} en {b.monthsWithData}{' '}
+                          {b.monthsWithData === 1 ? 'mes' : 'meses'}
+                        </p>
+                      </div>
+                      <span
+                        className="text-slate-400 shrink-0 text-lg transition-transform duration-200"
+                        style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                      >
+                        ›
+                      </span>
+                    </button>
+
+                    {isOpen && (
+                      <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-4 space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Ingresos</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">
+                              {mm(b.income)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Gastos</span>
+                            <span className="font-semibold text-slate-800 tabular-nums">
+                              −{mm(b.expenses)}
+                            </span>
+                          </div>
+                          {b.invested > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Inversiones</span>
+                              <span className="font-semibold text-slate-800 tabular-nums">
+                                −{mm(b.invested)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="h-px bg-slate-200" />
+                          <div className="flex justify-between text-sm">
+                            <span className="font-bold text-slate-800">Balance del año</span>
+                            <span
+                              className="font-bold tabular-nums"
+                              style={{ color: b.net >= 0 ? '#0d9488' : '#EF4444' }}
+                            >
+                              {b.net >= 0 ? mm(b.net) : `−${mm(-b.net)}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-slate-600 space-y-0.5">
+                          <p className="tabular-nums">
+                            Gasto promedio por mes: {mm(b.averageMonthlyExpenses)}
+                          </p>
+                          {b.topExpenseMonth && (
+                            <p className="tabular-nums">
+                              Mes de mayor gasto: {monthName(b.topExpenseMonth.month)} (
+                              {mm(b.topExpenseMonth.expenses)})
+                            </p>
+                          )}
+                        </div>
+
+                        {b.byPocket.length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500 mb-2">
+                              Gasto por bolsillo
+                            </p>
+                            <div className="space-y-2">
+                              {b.byPocket.map((p) => (
+                                <div key={p.name}>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-slate-700 truncate">{p.name}</span>
+                                    <span className="font-semibold text-slate-800 tabular-nums shrink-0 ml-2">
+                                      {mm(p.total)} · {p.share}%
+                                    </span>
+                                  </div>
+                                  <ProgressBar ratio={p.share / 100} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </Card>
           </div>
         )}
