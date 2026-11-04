@@ -11,6 +11,7 @@ import { TransactionsScreen } from '../screens/TransactionsScreen'
 import { BudgetScreen } from '../screens/BudgetScreen'
 import { calculateFinancialSnapshot } from '../lib/financialEngine'
 import { calculateCarryOver } from '../lib/carryOver'
+import { getOrCreateMonth, inheritPockets } from '../lib/monthRecord'
 import { InvestmentsScreen } from '../screens/InvestmentsScreen'
 import { useInvestments } from '../lib/hooks/useInvestments'
 import { ProfileScreen } from '../screens/ProfileScreen'
@@ -500,24 +501,9 @@ export default function Home() {
       return monthlyHistory[activeMonth]
     }
 
-    // Si el mes no existe, heredar estructura de pockets del mes anterior
-    // incluyendo presupuestos (budget) — el usuario puede ajustarlos si cambian
-    const availableMonths = Object.keys(monthlyHistory).sort()
-    const previousMonth = availableMonths.reverse().find((m) => m < activeMonth)
-
-    const previousData = previousMonth ? monthlyHistory[previousMonth] : null
-    const defaultRecord = getDefaultMonthRecord()
-
-    // Si hay mes anterior, heredar pockets completos (nombres, íconos y presupuestos)
-    // tal cual — incluso vacíos: un array vacío es decisión del usuario (regla 5).
-    // Si no hay mes anterior, array vacío (nunca sembrar defaults).
-    const prevPockets = previousData?.pockets
-    const pocketsToUse = prevPockets ?? []
-
-    return {
-      ...defaultRecord,
-      pockets: pocketsToUse,
-    }
+    // Si el mes no existe, heredar los bolsillos (con presupuestos) del mes anterior
+    // que los tenga. Ver lib/monthRecord.ts.
+    return getOrCreateMonth(monthlyHistory, activeMonth)
   }, [monthlyHistory, activeMonth])
 
   // ── RESET: Limpiar datos corruptos y forzar onboarding ────────────────────
@@ -1434,8 +1420,8 @@ export default function Home() {
         if (id) {
           // EDICIÓN: si la fecha cambió de mes, mover el gasto al mes correcto
           if (targetMonth !== activeMonth) {
-            const sourceData = prev[activeMonth] ?? getDefaultMonthRecord()
-            const targetData = prev[targetMonth] ?? getDefaultMonthRecord()
+            const sourceData = getOrCreateMonth(prev, activeMonth)
+            const targetData = getOrCreateMonth(prev, targetMonth)
             updated = {
               ...prev,
               [activeMonth]: {
@@ -1449,7 +1435,7 @@ export default function Home() {
             }
           } else {
             // Mismo mes: actualizar en el lugar
-            const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
+            const monthData = getOrCreateMonth(prev, targetMonth)
             updated = {
               ...prev,
               [targetMonth]: {
@@ -1460,7 +1446,7 @@ export default function Home() {
           }
         } else {
           // NUEVO gasto: guardar en el mes que corresponde a la fecha del gasto
-          const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
+          const monthData = getOrCreateMonth(prev, targetMonth)
           updated = {
             ...prev,
             [targetMonth]: {
@@ -1493,7 +1479,7 @@ export default function Home() {
   const handleDeleteExpense = useCallback(
     (id: string) => {
       setMonthlyHistory((prev) => {
-        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+        const monthData = getOrCreateMonth(prev, activeMonth)
         const updated = {
           ...prev,
           [activeMonth]: {
@@ -1511,7 +1497,7 @@ export default function Home() {
   const handleSwitchExpenseToIncome = useCallback(
     (expenseId: string, amount: number, note: string, date: string) => {
       setMonthlyHistory((prev) => {
-        const monthData = prev[activeMonth] ?? getDefaultMonthRecord()
+        const monthData = getOrCreateMonth(prev, activeMonth)
         const updated = {
           ...prev,
           [activeMonth]: {
@@ -1583,25 +1569,31 @@ export default function Home() {
     [activeMonth, getActiveMonthData, saveNow]
   )
 
+  // Trae los bolsillos del mes anterior a un mes que quedó sin bolsillos. Solo actúa si el
+  // mes activo no tiene ninguno: nunca pisa bolsillos existentes.
+  const inheritablePockets = useMemo(
+    () => (pockets.length === 0 ? inheritPockets(activeMonth, monthlyHistory) : []),
+    [pockets, activeMonth, monthlyHistory]
+  )
+
+  const handleRestorePockets = useCallback(() => {
+    setMonthlyHistory((prev) => {
+      const monthData = getOrCreateMonth(prev, activeMonth)
+      if (monthData.pockets.length > 0) return prev
+      const restored = inheritPockets(activeMonth, prev)
+      if (restored.length === 0) return prev
+      const updated = { ...prev, [activeMonth]: { ...monthData, pockets: restored } }
+      saveNow(updated)
+      return updated
+    })
+  }, [activeMonth, saveNow])
+
   const handleAddPocket = useCallback(
     (name: string, budget: number, icon?: string) => {
       setMonthlyHistory((prev) => {
-        // 1. Asegurar que el mes actual existe en monthlyHistory
-        if (!prev[activeMonth]) {
-          prev = {
-            ...prev,
-            [activeMonth]: {
-              income: 0,
-              savings: 0,
-              expenses: [],
-              extraIncomes: [],
-              pockets: [],
-              manualBudget: undefined,
-            },
-          }
-        }
-
-        const monthData = prev[activeMonth]
+        // Un mes que aún no existe hereda los bolsillos del anterior (lib/monthRecord.ts);
+        // antes nacía vacío y el bolsillo nuevo borraba visualmente a los demás.
+        const monthData = getOrCreateMonth(prev, activeMonth)
 
         // Sin validación: el usuario decide cómo asignar su presupuesto
         // El financial engine mostrará visualmente si es sostenible
@@ -1632,7 +1624,7 @@ export default function Home() {
       const targetMonth = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 
       setMonthlyHistory((prev) => {
-        const monthData = prev[targetMonth] ?? getDefaultMonthRecord()
+        const monthData = getOrCreateMonth(prev, targetMonth)
         const updated = {
           ...prev,
           [targetMonth]: {
@@ -1871,12 +1863,7 @@ export default function Home() {
 
       // Helper: crear mes vacío heredando bolsillos del mes anterior
       const createEmptyMonth = () => {
-        const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
-        const previousMonth = sortedMonths.find((m) => m < newMonth)
-        const previousPockets =
-          previousMonth && monthlyHistory[previousMonth]
-            ? (monthlyHistory[previousMonth].pockets ?? [])
-            : []
+        const previousPockets = inheritPockets(newMonth, monthlyHistory)
 
         setMonthlyHistory((prev) => ({
           ...prev,
@@ -1917,11 +1904,7 @@ export default function Home() {
         }
 
         // Previous-month inheritance fallback (same logic as createEmptyMonth)
-        const inheritedPockets: Pocket[] = (() => {
-          const sortedMonths = Object.keys(monthlyHistory).sort().reverse()
-          const prevMonth = sortedMonths.find((m) => m < newMonth)
-          return prevMonth ? (monthlyHistory[prevMonth]?.pockets ?? []) : []
-        })()
+        const inheritedPockets: Pocket[] = inheritPockets(newMonth, monthlyHistory)
 
         // Intentar cargar el mes desde Supabase ANTES de crear uno vacío.
         // Mientras se carga, el mes NO está en monthlyHistory → el auto-save no lo toca.
@@ -1946,7 +1929,9 @@ export default function Home() {
                   // fall through
                 }
               }
-              const resolvedPockets: Pocket[] = dbPockets ?? lsMonthPockets ?? inheritedPockets
+              // Un mes guardado sin bolsillos ('[]') nació roto: se completa con los heredados.
+              const resolvedPockets: Pocket[] =
+                dbPockets && dbPockets.length > 0 ? dbPockets : (lsMonthPockets ?? inheritedPockets)
 
               const monthRecord: MonthRecord = {
                 income: mr.income,
@@ -2595,6 +2580,8 @@ export default function Home() {
             onEditPocket={handleEditPocket}
             onDeletePocket={handleDeletePocket}
             onAddPocket={handleAddPocket}
+            inheritablePocketCount={inheritablePockets.length}
+            onRestorePockets={handleRestorePockets}
             isViewingPast={isViewingPast}
             isPrivacyMode={isPrivacyMode}
             cumulativeSavings={cumulativeSavings}

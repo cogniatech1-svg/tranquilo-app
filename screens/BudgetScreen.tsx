@@ -43,6 +43,8 @@ interface Props {
   onEditPocket: (id: string, name: string, budget: number) => void
   onDeletePocket: (id: string) => void
   onAddPocket: (name: string, budget: number, icon?: string) => void
+  inheritablePocketCount?: number
+  onRestorePockets?: () => void
   isPrivacyMode?: boolean
   manualBudget?: number // Para saber si hay presupuesto manual activo
   cumulativeSavings?: { totalByYear: Record<number, number>; total: number }
@@ -72,6 +74,8 @@ export function BudgetScreen({
   onEditPocket,
   onDeletePocket,
   onAddPocket,
+  inheritablePocketCount = 0,
+  onRestorePockets,
   isPrivacyMode = false,
   cumulativeSavings,
   investmentPaymentsThisMonth = 0,
@@ -717,6 +721,20 @@ export function BudgetScreen({
               onSelect={setNewIcon}
               onClose={() => setShowEmojiPicker(false)}
             />
+          )}
+
+          {pockets.length === 0 && inheritablePocketCount > 0 && onRestorePockets && (
+            <Card className="p-5 mb-4">
+              <p className="text-sm font-bold text-slate-800 mb-1">Este mes no tiene bolsillos</p>
+              <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                Puedes traer los {inheritablePocketCount} bolsillos del mes anterior, con sus
+                presupuestos. Los gastos que seguían ligados a esos bolsillos se reconectan; los que
+                quedaron &quot;sin categoría&quot; los asignas desde Movimientos.
+              </p>
+              <PrimaryButton onClick={onRestorePockets} className="w-full py-3 text-sm">
+                Traer bolsillos del mes anterior
+              </PrimaryButton>
+            </Card>
           )}
 
           <div className="grid grid-cols-2 gap-3">

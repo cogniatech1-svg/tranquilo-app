@@ -195,6 +195,12 @@ function repairExpenses(expenses: any[]): any[] {
  * El gasto sigue contando en totalExpenses — solo pierde su categoría.
  */
 export function sanitizeOrphanExpenses(expenses: Expense[], pockets: Pocket[]): Expense[] {
+  // Un mes sin ningún bolsillo es un mes que nació roto (los bolsillos no se heredaron), no
+  // una decisión del usuario: borrar todos los bolsillos ya reasigna sus gastos en
+  // handleDeletePocket. Desligar aquí los gastos es irreversible: aunque luego se traigan
+  // los bolsillos, cada gasto ya habría perdido su categoría. Se conservan los pocketId.
+  if (pockets.length === 0) return expenses
+
   const validIds = new Set(pockets.map((p) => p.id))
   validIds.add(UNASSIGNED_POCKET_ID) // 'unassigned' siempre es un destino válido
 
